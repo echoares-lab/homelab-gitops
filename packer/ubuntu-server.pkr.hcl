@@ -7,45 +7,23 @@ packer {
   }
 }
 
-variable "vcenter_server" {
-  type    = string
-  default = "vcenter.example.com"
-}
-
-variable "vcenter_user" {
-  type      = string
-  sensitive = true
-}
-
-variable "vcenter_password" {
-  type      = string
-  sensitive = true
-}
-
-variable "datacenter" {
-  type    = string
-  default = "Datacenter"
-}
-
-variable "datastore" {
-  type    = string
-  default = "datastore1"
-}
-
-variable "cluster" {
-  type    = string
-  default = "Cluster"
-}
-
-variable "network" {
-  type    = string
-  default = "VM Network"
-}
-
-variable "ssh_public_key" {
-  type    = string
-  default = "ssh-rsa AAAA..."
-}
+# Variable declarations mapping to ENV vars
+variable "vcenter_server"           { type = string; default = env("VCENTER_SERVER") }
+variable "vcenter_user"             { type = string; default = env("VCENTER_USERNAME") }
+variable "vcenter_password"         { type = string; default = env("VCENTER_PASSWORD"); sensitive = true }
+variable "datacenter"               { type = string; default = env("VCENTER_DATACENTER") }
+variable "datastore"                { type = string; default = env("VCENTER_DATASTORE") }
+variable "cluster"                  { type = string; default = env("VCENTER_CLUSTER") }
+variable "network"                  { type = string; default = env("VCENTER_NETWORK") }
+variable "vm_name"                  { type = string; default = env("PACKER_VM_NAME") }
+variable "cpu_count"                { type = number; default = env("TEMPLATE_CPU_COUNT") }
+variable "memory_mb"                { type = number; default = env("TEMPLATE_MEMORY_MB") }
+variable "disk_size_mb"             { type = number; default = env("TEMPLATE_DISK_SIZE_MB") }
+variable "ssh_username"             { type = string; default = env("PACKER_SSH_USERNAME") }
+variable "ssh_public_key"           { type = string; default = env("SSH_ADMIN_SSH_PUBKEY") }
+variable "iso_url"                  { type = string; default = env("UBUNTU_ISO_URL") }
+variable "iso_checksum"             { type = string; default = env("UBUNTU_ISO_CHECKSUM") }
+variable "folder"                   { type = string; default = env("VCENTER_BUILD_FOLDER") }
 
 source "vsphere-iso" "ubuntu" {
   vcenter_server      = var.vcenter_server
@@ -53,21 +31,21 @@ source "vsphere-iso" "ubuntu" {
   password            = var.vcenter_password
   insecure_connection = true
 
-  vm_name              = "ubuntu-golden-{{timestamp}}"
+  vm_name              = var.vm_name
   guest_os_type        = "ubuntu64Guest"
-  notes                = "Golden image for Ubuntu 24.04/26.04 LTS (Minimal)"
+  folder               = var.folder
   
   cluster              = var.cluster
   datacenter           = var.datacenter
   datastore            = var.datastore
   
-  CPUs                 = 2
-  RAM                  = 2048
+  CPUs                 = var.cpu_count
+  RAM                  = var.memory_mb
   RAM_reserve_all      = true
   
   disk_controller_type = ["pvscsi"]
   storage {
-    disk_size             = 20480
+    disk_size             = var.disk_size_mb
     disk_thin_provisioned = true
   }
   
@@ -76,9 +54,8 @@ source "vsphere-iso" "ubuntu" {
     network_card = "vmxnet3"
   }
   
-  iso_paths = [
-    "[datastore1] iso/ubuntu-24.04-live-server-amd64.iso"
-  ]
+  iso_url      = var.iso_url
+  iso_checksum = var.iso_checksum
 
   boot_command = [
     "<wait>e<wait>",
@@ -90,11 +67,12 @@ source "vsphere-iso" "ubuntu" {
   http_content = {
     "/user-data" = templatefile("user-data.pkrtpl.hcl", {
       ssh_public_key = var.ssh_public_key
+      ssh_username   = var.ssh_username
     })
     "/meta-data" = ""
   }
 
-  ssh_username = "ansible"
+  ssh_username = var.ssh_username
   ssh_timeout  = "30m"
 
   convert_to_template = true
@@ -105,7 +83,10 @@ build {
 
   provisioner "ansible" {
     playbook_file = "../ansible/packer_provision.yml"
-    user          = "ansible"
+    user          = var.ssh_username
     use_proxy     = false
+    extra_arguments = [
+      "--extra-vars", "ansible_user=${var.ssh_username}"
+    ]
   }
 }

@@ -4,7 +4,6 @@ autoinstall:
   locale: en_US.UTF-8
   keyboard:
     layout: us
-  # Selecting the minimal installation profile
   source:
     id: ubuntu-server-minimal
   storage:
@@ -22,9 +21,10 @@ autoinstall:
       - openssh-server
       - python3
       - sudo
+      - open-vm-tools
     users:
-      - name: ansible
-        gecos: Ansible Management User
+      - name: ${ssh_username}
+        gecos: Management User
         groups: [sudo]
         lock_passwd: true
         shell: /bin/bash

@@ -4,18 +4,20 @@
   connection: local
   gather_facts: false
   vars:
-    vcenter_server: "vcenter.example.com"
-    vcenter_user: "administrator@vsphere.local"
-    vcenter_password: "password"
-    datacenter: "Datacenter"
-    cluster: "Cluster"
-    datastore: "datastore1"
-    template_name: "ubuntu-golden-latest"
-    vm_name: "new-server-01"
-    vm_network: "VM Network"
-    vm_ip: "192.168.1.50"
-    vm_netmask: "255.255.255.0"
-    vm_gateway: "192.168.1.1"
+    # Map to ENV vars, defaults to empty or specific values
+    vcenter_server: "{{ lookup('env', 'VCENTER_SERVER') }}"
+    vcenter_user: "{{ lookup('env', 'VCENTER_USERNAME') }}"
+    vcenter_password: "{{ lookup('env', 'VCENTER_PASSWORD') }}"
+    datacenter: "{{ lookup('env', 'VCENTER_DATACENTER') }}"
+    cluster: "{{ lookup('env', 'VCENTER_CLUSTER') }}"
+    datastore: "{{ lookup('env', 'VCENTER_DATASTORE') }}"
+    template_name: "{{ lookup('env', 'CONTENT_LIBRARY_ITEM_NAME') }}"
+    vm_name: "{{ lookup('env', 'DEPLOY_VM_NAME') }}"
+    vm_network: "{{ lookup('env', 'VCENTER_NETWORK') }}"
+    folder: "{{ lookup('env', 'VCENTER_DEPLOY_FOLDER') }}"
+    # Use defaults if not provided
+    cpus: "{{ lookup('env', 'DEPLOY_CPU_COUNT') | default(2, true) }}"
+    memory_mb: "{{ lookup('env', 'DEPLOY_MEMORY_MB') | default(4096, true) }}"
 
   tasks:
     - name: Clone VM from Template
@@ -27,23 +29,27 @@
         datacenter: "{{ datacenter }}"
         cluster: "{{ cluster }}"
         datastore: "{{ datastore }}"
+        folder: "{{ folder }}"
         name: "{{ vm_name }}"
         template: "{{ template_name }}"
         state: poweredon
+        hardware:
+          memory_mb: "{{ memory_mb }}"
+          num_cpus: "{{ cpus }}"
         networks:
           - name: "{{ vm_network }}"
-            ip: "{{ vm_ip }}"
-            netmask: "{{ vm_netmask }}"
-            gateway: "{{ vm_gateway }}"
-        customization:
-          hostname: "{{ vm_name }}"
+            # Add IP config logic if needed, currently assumes DHCP/Cloud-init
+            start_connected: true
       register: deploy_status
 
-    - name: Wait for SSH to become available
-      ansible.builtin.wait_for:
-        host: "{{ vm_ip }}"
-        port: 22
-        timeout: 300
+    - name: Wait for VM to get IP
+      community.vmware.vmware_guest_tools_wait:
+        hostname: "{{ vcenter_server }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        name: "{{ vm_name }}"
+      register: vm_facts
 
 - name: Configure the New VM
   hosts: all
