@@ -8,12 +8,13 @@ load_env() {
     local env_file=$1
     if [ -f "$env_file" ]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
+            # Skip comments and empty lines
             [[ "$line" =~ ^#.*$ ]] && continue
             [[ -z "$line" ]] && continue
             
-            # Extract key and value
+            # Extract key and value, then strip trailing comments from value
             key=$(echo "$line" | cut -d '=' -f 1)
-            value=$(echo "$line" | cut -d '=' -f 2- | sed 's/^"//;s/"$//') # Remove quotes
+            value=$(echo "$line" | cut -d '=' -f 2- | sed 's/ #.*$//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")
             
             export "$key=$value"
         done < "$env_file"
@@ -78,8 +79,18 @@ echo "$NODE_HOSTNAME ansible_host=$DEPLOY_VM_IP ansible_user=$SSH_ADMIN_USERNAME
 # Run the configuration roles with host key checking disabled
 export ANSIBLE_HOST_KEY_CHECKING=False
 ansible-playbook -i ansible/inventory.ini ansible/configure.yml \
-    --extra-vars "ansible_ssh_pass=$PACKER_SSH_PASSWORD" \
+    --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" \
     --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+# Cleanup the ISO from the datastore if deployment was successful
+if [ $? -eq 0 ]; then
+    echo "Cleaning up temporary cloud-init ISO..."
+    export GOVC_URL="$VCENTER_SERVER"
+    export GOVC_USERNAME="$VCENTER_USERNAME"
+    export GOVC_PASSWORD="$VCENTER_PASSWORD"
+    export GOVC_INSECURE=true
+    ./build/govc datastore.rm -ds "$VCENTER_DATASTORE" "ISO/cloud-init/${RUNTIME_VM_NAME:-$DEPLOY_VM_NAME}-cidata.iso"
+fi
 
 # End timing
 DEPLOY_END_TIME=$(date +%s)

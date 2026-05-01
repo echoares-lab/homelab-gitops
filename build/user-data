@@ -9,6 +9,7 @@ users:
     shell: /bin/bash
 
 ssh_pwauth: true
+chpasswd: { expire: False }
 package_update: true
 package_upgrade: false
 packages:

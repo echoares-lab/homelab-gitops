@@ -34,21 +34,62 @@
           - "Targeting Host: {{ esxi_host | default('Dynamic (Cluster Managed)', true) }}"
           - "VM Name: {{ vm_name }}"
 
+    - name: Create local temporary directory for cloud-init
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: cloudinit
+      register: local_temp_dir
+
+    - name: Generate cloud-init config files
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ local_temp_dir.path }}/{{ item.name }}"
+        mode: '0644'
+      loop:
+        - { name: 'user-data', content: "{{ lookup('file', '../build/user-data') | replace('shell: /bin/bash', 'shell: /bin/bash\n    ssh_authorized_keys:\n      - ' ~ lookup('env', 'SSH_ADMIN_SSH_PUBKEY')) | replace('passwd: \"$6$gE2rmgSkNP4ffN15$ltAwlmgjgFNuR9Xb8RXGVv4YIelD3vBQDT5wh2ttv3L0/o8eH/KTAxYwT.6OKnsrYAYtOXCeOsB0Rm3MkVBp9.\"', 'password: ' ~ lookup('env', 'SSH_ADMIN_PASSWORD')) }}" }
+        - { name: 'meta-data', content: "instance-id: {{ vm_name }}\nlocal-hostname: {{ vm_name }}" }
+
+    - name: Build cidata ISO
+      ansible.builtin.command:
+        cmd: "genisoimage -output {{ local_temp_dir.path }}/cidata.iso -volid cidata -joliet -rock user-data meta-data"
+        chdir: "{{ local_temp_dir.path }}"
+      delegate_to: localhost
+
+    - name: Upload cidata ISO to Datastore
+      community.vmware.vsphere_copy:
+        hostname: "{{ vcenter_server }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter }}"
+        datastore: "{{ datastore }}"
+        src: "{{ local_temp_dir.path }}/cidata.iso"
+        dest: "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+      delegate_to: localhost
+
     - name: Deploy OVF from Content Library
-      community.vmware.vmware_content_deploy_ovf_template:
+      vmware.vmware.deploy_content_library_ovf:
         hostname: "{{ vcenter_server }}"
         username: "{{ vcenter_user }}"
         password: "{{ vcenter_password }}"
         validate_certs: false
         datacenter: "{{ datacenter }}"
         cluster: "{{ cluster }}"
-        host: "{{ esxi_host }}"
+        host: "{{ esxi_host | default(omit, true) }}"
         datastore: "{{ datastore }}"
         folder: "{{ folder }}"
-        name: "{{ vm_name }}"
-        template: "{{ template_name }}"
-        library: "{{ library_name }}"
+        vm_name: "{{ vm_name }}"
+        library_item_name: "{{ template_name }}"
+        library_name: "{{ library_name }}"
       register: deploy_status
+
+    - name: Add CD-ROM and Mount ISO via govc
+      ansible.builtin.shell:
+        cmd: |
+          ../build/govc device.cdrom.add -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}"
+          ../build/govc device.cdrom.insert -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}" -ds="{{ datastore }}" "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+      environment:
+        GOVC_INSECURE: "true"
 
     - name: Ensure VM settings and Power On
       community.vmware.vmware_guest:
@@ -66,8 +107,6 @@
           - name: "{{ vm_network }}"
             type: dhcp
             start_connected: true
-        customization:
-          hostname: "{{ vm_name }}"
 
     - name: Pause for GOSC initialization
       ansible.builtin.pause:
@@ -96,4 +135,10 @@
 
     - name: Save IP to file
       ansible.builtin.shell: echo "{{ vm_ip_addr }}" > /tmp/last_vm_ip
+      delegate_to: localhost
+
+    - name: Cleanup local temporary directory
+      ansible.builtin.file:
+        path: "{{ local_temp_dir.path }}"
+        state: absent
       delegate_to: localhost

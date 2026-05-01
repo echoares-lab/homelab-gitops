@@ -12,7 +12,7 @@
   changed_when: false
 
 - name: Set DNS via resolvectl
-  ansible.builtin.shell: resolvectl dns ens192 8.8.8.8
+  ansible.builtin.shell: "resolvectl dns {{ ansible_default_ipv4.interface }} 8.8.8.8"
 
 - name: Update all packages
   ansible.builtin.apt:
