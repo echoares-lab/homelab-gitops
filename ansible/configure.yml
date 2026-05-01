@@ -1,0 +1,7 @@
+---
+- name: Configure the New VM
+  hosts: all
+  become: true
+  roles:
+    - base
+    - security

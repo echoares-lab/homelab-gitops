@@ -1,0 +1,46 @@
+---
+- name: Create vCenter Folder Hierarchy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    vcenter_server: "{{ lookup('env', 'VCENTER_SERVER') }}"
+    vcenter_user: "{{ lookup('env', 'VCENTER_USERNAME') }}"
+    vcenter_password: "{{ lookup('env', 'VCENTER_PASSWORD') }}"
+    datacenter: "{{ lookup('env', 'VCENTER_DATACENTER') }}"
+    
+    leaf_folders:
+      - Builds/Linux/Ubuntu/Templates
+      - Builds/Linux/Ubuntu/Test
+      - Deploy/Linux/Ubuntu/Prod
+      - Deploy/Linux/Ubuntu/Test
+
+  tasks:
+    - name: Create VM folders recursively
+      vmware.vmware.folder:
+        hostname: "{{ vcenter_server }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter }}"
+        relative_path: "{{ item }}"
+        folder_type: vm
+        state: present
+      loop: "{{ leaf_folders }}"
+
+    - name: Verify folders exist
+      community.vmware.vmware_folder_info:
+        hostname: "{{ vcenter_server }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter_name: "{{ datacenter }}"
+      register: all_folders
+
+    - name: Assert folders are in the list
+      ansible.builtin.assert:
+        that:
+          - "('/' ~ datacenter ~ '/vm/' ~ item) in all_folders.flat_folder_info | map(attribute='path') | list"
+        fail_msg: "Folder {{ item }} was not found after creation."
+      loop: "{{ leaf_folders }}"
+

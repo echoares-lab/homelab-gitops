@@ -1,10 +1,14 @@
-*.log
-*.pkr.hcl.out
-*.pkr.hcl.vars
-venv/
-.pytest_cache/
-__pycache__/
-.ansible-lint
-.yamllint
-secrets.yml
-*.iso
+# Build artifacts
+build/*.img
+build/*.qcow2
+build/*.vmdk
+build/*.ova
+build/*.ovf
+!build/template.ovf
+build/*.mf
+build/cidata.iso
+build/govc
+
+# Local config
+config/inputs.env
+ansible/inventory.ini

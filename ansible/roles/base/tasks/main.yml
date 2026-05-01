@@ -3,6 +3,17 @@
   ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
+- name: Wait for apt locks
+  ansible.builtin.shell: |
+    while fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      echo "Waiting for apt locks..."
+      sleep 5
+    done
+  changed_when: false
+
+- name: Set DNS via resolvectl
+  ansible.builtin.shell: resolvectl dns ens192 8.8.8.8
+
 - name: Update all packages
   ansible.builtin.apt:
     upgrade: dist
@@ -14,4 +25,5 @@
       - htop
       - rsync
       - unzip
+      - ufw
     state: present
