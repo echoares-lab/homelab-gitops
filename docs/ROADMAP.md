@@ -7,8 +7,8 @@ This roadmap outlines high-impact improvements to make the deployment process mo
 *   **Idempotency and State Checks:** [DONE] Added pre-flight checks in `deploy.yml` to verify if a VM already exists before attempting deployment, allowing the playbook to skip deployment and proceed to configuration.
 
 ## Phase 2: Configuration & Secret Management
-*   **Secret Management:** Integrate Ansible Vault or a CI/CD secret manager to encrypt sensitive data (e.g., `VCENTER_PASSWORD`, `SSH_ADMIN_PASSWORD`) rather than storing them in plain text `.env` files.
-*   **Static IP Support:** Extend cloud-init configuration to support static IPs via `network-config` (v2), allowing variables like `DEPLOY_IP`, `DEPLOY_NETMASK`, and `DEPLOY_GATEWAY` to dictate networking.
+*   **Secret Management:** [DEFERRED] Integrate Ansible Vault or a CI/CD secret manager to encrypt sensitive data (e.g., `VCENTER_PASSWORD`, `SSH_ADMIN_PASSWORD`) rather than storing them in plain text `.env` files.
+*   **Static IP Support:** [DEFERRED] Extend cloud-init configuration to support static IPs via `network-config` (v2), allowing variables like `DEPLOY_IP`, `DEPLOY_NETMASK`, and `DEPLOY_GATEWAY` to dictate networking.
 
 ## Phase 3: Initialization Refinement
 *   **`guestinfo` Cloud-Init Injection:** [INVESTIGATED] Attempted native and `govc` injection; found to be incompatible with the standard Ubuntu cloud image without template modification. Reverted to reliable ISO method.
