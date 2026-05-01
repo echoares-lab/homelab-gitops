@@ -82,16 +82,6 @@ ansible-playbook -i ansible/inventory.ini ansible/configure.yml \
     --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" \
     --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-# Cleanup the ISO from the datastore if deployment was successful
-if [ $? -eq 0 ]; then
-    echo "Cleaning up temporary cloud-init ISO..."
-    export GOVC_URL="$VCENTER_SERVER"
-    export GOVC_USERNAME="$VCENTER_USERNAME"
-    export GOVC_PASSWORD="$VCENTER_PASSWORD"
-    export GOVC_INSECURE=true
-    ./build/govc datastore.rm -ds "$VCENTER_DATASTORE" "ISO/cloud-init/${RUNTIME_VM_NAME:-$DEPLOY_VM_NAME}-cidata.iso"
-fi
-
 # End timing
 DEPLOY_END_TIME=$(date +%s)
 DEPLOY_DURATION=$((DEPLOY_END_TIME - DEPLOY_START_TIME))
