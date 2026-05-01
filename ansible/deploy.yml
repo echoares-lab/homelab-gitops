@@ -14,7 +14,7 @@
     cluster: "{{ lookup('env', 'VCENTER_CLUSTER') }}"
     datastore: "{{ lookup('env', 'VCENTER_DATASTORE') }}"
     library_name: "{{ lookup('env', 'CONTENT_LIBRARY_NAME') | default('UBUNTU', true) }}"
-    template_name: "{{ lookup('env', 'CONTENT_LIBRARY_ITEM_NAME') | default('ubuntu-26.04-official', true) }}"
+    template_name: "{{ lookup('env', 'CONTENT_LIBRARY_ITEM_NAME') | default('ubuntu-26.04-official-v1', true) }}"
     vm_network: "{{ lookup('env', 'VCENTER_NETWORK') }}"
     esxi_host: "{{ lookup('env', 'DEPLOY_ESXI_HOST') | default(omit, true) }}"
     
@@ -169,10 +169,20 @@
             - local_temp_dir.path is defined
           delegate_to: localhost
 
+        - name: Eject CD-ROM via govc
+          ansible.builtin.shell:
+            cmd: |
+              ../build/govc device.cdrom.eject -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}"
+          environment:
+            GOVC_INSECURE: "true"
+          when: not vm_exists
+          ignore_errors: true
+          delegate_to: localhost
+
         - name: Cleanup datastore ISO via govc
           ansible.builtin.shell:
             cmd: |
-              ../build/govc datastore.rm -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -ds="{{ datastore }}" "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+              ../build/govc datastore.rm -f -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -ds="{{ datastore }}" "ISO/cloud-init/{{ vm_name }}-cidata.iso"
           environment:
             GOVC_INSECURE: "true"
           when: not vm_exists

@@ -11,5 +11,5 @@ This roadmap outlines high-impact improvements to make the deployment process mo
 *   **Static IP Support:** Extend cloud-init configuration to support static IPs via `network-config` (v2), allowing variables like `DEPLOY_IP`, `DEPLOY_NETMASK`, and `DEPLOY_GATEWAY` to dictate networking.
 
 ## Phase 3: Initialization Refinement
-*   **`guestinfo` Cloud-Init Injection:** Revisit injecting cloud-init via `guestinfo.userdata` advanced properties. This eliminates the need to build, upload, attach, and clean up temporary ISO files on the datastore.
-*   **Robust Cleanup and Error Handling:** [DONE] Implemented `block/always` in Ansible to guarantee the cleanup of temporary artifacts (local files and datastore ISOs) even in the event of deployment failures.
+*   **`guestinfo` Cloud-Init Injection:** [INVESTIGATED] Attempted native and `govc` injection; found to be incompatible with the standard Ubuntu cloud image without template modification. Reverted to reliable ISO method.
+*   **Robust Cleanup and Error Handling:** [DONE] Implemented `block/always` in Ansible to guarantee the cleanup of temporary artifacts. Note: Datastore ISO removal may require manual unmounting if file locks persist.
