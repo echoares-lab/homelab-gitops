@@ -12,4 +12,14 @@ keyed_groups:
     separator: "_"
 
 hostnames:
+  - guest.ipAddress
   - config.name
+
+# Set default connection variables
+compose:
+  ansible_user: "'ansible'"
+  ansible_ssh_private_key_file: "'~/.ssh/id_rsa'"
+
+# Only include VMs that have at least one of our tags
+filters:
+  - "'photon' in tags or 'ubuntu' in tags or 'docker' in tags"

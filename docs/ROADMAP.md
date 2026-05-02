@@ -7,6 +7,8 @@ This roadmap outlines high-impact improvements to make the deployment process mo
 *   **Idempotency and State Checks:** [DONE] Added pre-flight checks in `deploy.yml` and utilized OpenTofu for state-driven infrastructure management.
 *   **Photon OS Golden Image (vmx-21):** [DONE] Upgraded to Hardware Version 21 and captured the stabilized system as the final `photon-5.0-golden` template.
 *   **Custom MAC Addressing:** [DONE] Added support for specifying network MAC addresses during the OpenTofu deployment phase.
+*   **Pipeline Synthesis:** [DONE] Merged Ubuntu and Photon OS into a unified GitOps workflow driven by YAML profiles and OpenTofu.
+*   **End-to-End Testing:** [DONE] Implemented intermediate validation (Schema linting, SSH reachability) and final OS validation using Pytest-Testinfra.
 
 ## Phase 2: Configuration & Secret Management
 *   **Secret Management:** [DEFERRED] Integrate Ansible Vault or a CI/CD secret manager to encrypt sensitive data (e.g., `VCENTER_PASSWORD`, `SSH_ADMIN_PASSWORD`) rather than storing them in plain text `.env` files.
