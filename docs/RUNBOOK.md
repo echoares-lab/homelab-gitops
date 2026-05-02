@@ -65,9 +65,9 @@ The deployment phase translates the YAML profile into virtual hardware in vCente
 
 **Command:**
 ```bash
-./manage.sh deploy <profile_name> <instance_id>
+./manage.sh deploy <profile_name> <instance_id> [target_host]
 ```
-*Example: `./manage.sh deploy photon-docker 02`*
+*Example: `./manage.sh deploy photon-docker 02 esxi-02.mgmt.plexplease.com`*
 
 **Workflow:**
 1.  **Linting:** The pipeline verifies that the Datacenter, Cluster, Datastore, and Network specified in the YAML actually exist in vCenter.
