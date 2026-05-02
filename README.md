@@ -1,47 +1,56 @@
-# Template Pipeline
+# Unified GitOps Template Pipeline
 
-Automated pipeline for creating Ubuntu golden images and deploying them to ESXi/vCenter with host-specific configuration.
+A professional-grade automation framework for building, provisioning, and configuring a diverse inventory of Ubuntu and VMware Photon OS nodes on vSphere.
 
-## Features
-- **Golden Image Creation:** Local QEMU/virt-install with cloud-init (autoinstall) for minimal Ubuntu 26.04 LTS images.
-- **vCenter Integration:** Automated upload to vCenter Content Library as OVF templates.
-- **Automated Deployment:** Ansible playbook to deploy VMs directly from the Content Library.
-- **Dynamic Configuration:** Ansible roles for base OS setup and security hardening.
-- **Verification:** Integrated testing with `pytest-testinfra`.
-- **Policies:** Codified standards in `GEMINI.md` for AI-driven enforcement.
+## 🚀 Key Features
+*   **Unified Orchestration:** A single script (`manage.sh`) manages the entire lifecycle across different OS distributions.
+*   **Golden Image Strategy:** Automated builds via **Packer** ensure every node starts from a secure, high-performance baseline in the vCenter Content Library.
+*   **Declarative Infrastructure:** Uses **OpenTofu** (Terraform) with **Workspace isolation** to manage virtual hardware state idempotently.
+*   **Tag-Based Configuration:** Utilizes **Ansible Dynamic Inventory** to automatically discover and configure nodes based on vSphere tags (e.g., `tag_docker`, `tag_ubuntu`).
+*   **Profile-Driven:** Deployment settings are centralized in readable YAML profiles (e.g., `config/profiles/photon-docker.yml`).
 
-## Prerequisites
-- QEMU / KVM / virt-install
-- genisoimage
-- govc
-- Ansible
-- Python 3 with `pytest-testinfra`
+---
 
-## Quick Start
+## 📖 Documentation
+For detailed guides, please refer to the following documents:
 
-### 1. Build the Golden Image
+*   **[Operations Runbook](./docs/RUNBOOK.md)**: Detailed step-by-step instructions for installation, building, deploying, and troubleshooting.
+*   **[Architecture Design](./docs/DESIGN.md)**: High-level design diagrams and technical principles.
+*   **[Development Roadmap](./docs/ROADMAP.md)**: Tracking of completed and future improvements.
+
+---
+
+## 🛠️ Quick Start
+
+### 1. Configure Credentials
+Copy the example secrets file and populate it with your vCenter details:
 ```bash
-./build.sh
-```
-This script downloads the Ubuntu 26.04 ISO, builds a minimal image locally using QEMU, packages it as an OVA, and uploads it to your vCenter Content Library.
-
-### 2. Deploy a New VM
-```bash
-cd ansible
-# Update variables in deploy.yml or use environment variables
-ansible-playbook deploy.yml
+cp config/secrets.env.example config/secrets.env
+# Edit config/secrets.env
 ```
 
-### 3. Run Verification Tests
+### 2. Deploy a New Node
+Deploy a Photon OS Docker node (Instance 01) using the pre-defined profile:
 ```bash
-pytest --hosts='ansible@<vm-ip>' tests/test_golden_image.py
+./manage.sh all photon-docker 01
 ```
+This single command will:
+1.  **Lint** the infrastructure availability.
+2.  **Deploy** the virtual hardware from the Content Library.
+3.  **Tag** the VM with `photon` and `docker`.
+4.  **Configure** the node with Docker CE and security hardening.
 
-## Project Structure
-- `build/`: Local build orchestration scripts and Subiquity configs.
-- `ansible/`: Playbooks and roles for deployment and post-install configuration.
-- `tests/`: Pytest-testinfra verification scripts.
-- `docs/`: Documentation for versioning and updates.
+---
 
-## Policies & Standards
-See [GEMINI.md](./GEMINI.md) for detailed coding standards, linting requirements, and architectural rules.
+## 📂 Project Structure
+*   `ansible/`: Dynamic inventory configuration and roles (`base`, `security`, `docker`).
+*   `config/`: YAML deployment profiles and global secrets.
+*   `docs/`: Detailed runbooks, design docs, and roadmaps.
+*   `packer/`: Automated golden image build definitions.
+*   `tofu/`: Declarative infrastructure-as-code (vSphere provider).
+*   `scripts/`: Python-based pre-flight linting and initialization tools.
+
+---
+
+## ⚖️ Policies & Standards
+See [GEMINI.md](./GEMINI.md) for detailed coding standards, linting requirements, and architectural rules governing this repository.
