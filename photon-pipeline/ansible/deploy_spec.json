@@ -1,0 +1,17 @@
+{
+  "DiskProvisioning": "flat",
+  "IPAllocationPolicy": "dhcpPolicy",
+  "IPProtocol": "IPv4",
+  "NetworkMapping": [
+    {
+      "Name": "None",
+      "Network": ""
+    }
+  ],
+  "Annotation": "This OVA provides a minimal installed profile of PhotonOS.\n\n   Default password for root user is changeme. However user will be prompted to change the password during first login.\n\n        ",
+  "MarkAsTemplate": false,
+  "PowerOn": false,
+  "InjectOvfEnv": false,
+  "WaitForIP": false,
+  "Name": null
+}
