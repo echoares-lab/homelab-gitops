@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Fix VM Network
+      community.vmware.vmware_guest:
+        hostname: "10.10.10.9"
+        username: "administrator@vsphere.local"
+        password: "Singer4life!@"
+        validate_certs: false
+        datacenter: "HOMELAB"
+        name: "photon-test-base"
+        networks:
+          - name: "VM Network"
+            start_connected: true

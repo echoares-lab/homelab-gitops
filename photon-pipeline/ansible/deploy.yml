@@ -1,0 +1,198 @@
+---
+- name: Deploy Photon OS VM from Official OVF (Static IP)
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    # Connection
+    vcenter_server: "{{ lookup('env', 'VCENTER_SERVER') }}"
+    vcenter_user: "{{ lookup('env', 'VCENTER_USERNAME') }}"
+    vcenter_password: "{{ lookup('env', 'VCENTER_PASSWORD') }}"
+    
+    # Infrastructure
+    datacenter: "{{ lookup('env', 'VCENTER_DATACENTER') }}"
+    cluster: "{{ lookup('env', 'VCENTER_CLUSTER') }}"
+    datastore: "{{ lookup('env', 'VCENTER_DATASTORE') }}"
+    library_name: "PHOTON"
+    template_name: "photon-5.0-base-ovf"
+    vm_network: "{{ lookup('env', 'VCENTER_NETWORK') }}"
+    
+    # Networking
+    static_ip: "10.10.10.157"
+    gateway: "10.10.10.1"
+    nameservers: ["8.8.8.8", "1.1.1.1"]
+
+    # Targeting
+    vm_name: "{{ lookup('env', 'RUNTIME_VM_NAME') | default('photon-test-base', true) }}"
+    folder: "Deploy/Linux/Photon/Test"
+    
+    # Customization
+    cpus: 2
+    memory_mb: 2048
+
+  tasks:
+    - name: Check if VM already exists
+      community.vmware.vmware_guest_info:
+        hostname: "{{ vcenter_server }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        datacenter: "{{ datacenter }}"
+        name: "{{ vm_name }}"
+      register: vm_info_check
+      failed_when: false
+
+    - name: Set VM existence fact
+      set_fact:
+        vm_exists: "{{ vm_info_check.instance is defined }}"
+
+    - block:
+        - block:
+            - name: Create local temporary directory for cloud-init
+              ansible.builtin.tempfile:
+                state: directory
+                suffix: cloudinit
+              register: local_temp_dir
+
+            - name: Generate cloud-init user-data
+              ansible.builtin.copy:
+                content: |
+                  #cloud-config
+                  users:
+                    - name: ansible
+                      sudo: ALL=(ALL) NOPASSWD:ALL
+                      lock_passwd: false
+                      password: "{{ lookup('env', 'SSH_ADMIN_PASSWORD') }}"
+                      shell: /bin/bash
+                      ssh_authorized_keys:
+                        - "{{ lookup('env', 'SSH_ADMIN_PUBKEY') }}"
+                  ssh_pwauth: true
+                  chpasswd: { expire: False }
+                  runcmd:
+                    - sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+                    - systemctl restart sshd
+                dest: "{{ local_temp_dir.path }}/user-data"
+
+            - name: Generate cloud-init network-config
+              ansible.builtin.copy:
+                content: |
+                  version: 2
+                  ethernets:
+                    eth0:
+                      dhcp4: no
+                      addresses: [{{ static_ip }}/24]
+                      gateway4: {{ gateway }}
+                      nameservers:
+                        addresses: {{ nameservers }}
+                dest: "{{ local_temp_dir.path }}/network-config"
+
+            - name: Generate cloud-init meta-data
+              ansible.builtin.copy:
+                content: |
+                  instance-id: {{ vm_name }}
+                  local-hostname: {{ vm_name }}
+                dest: "{{ local_temp_dir.path }}/meta-data"
+
+            - name: Build cidata ISO
+              ansible.builtin.command:
+                cmd: "genisoimage -output {{ local_temp_dir.path }}/cidata.iso -volid cidata -joliet -rock user-data meta-data network-config"
+                chdir: "{{ local_temp_dir.path }}"
+              delegate_to: localhost
+
+            - name: Upload cidata ISO to Datastore
+              community.vmware.vsphere_copy:
+                hostname: "{{ vcenter_server }}"
+                username: "{{ vcenter_user }}"
+                password: "{{ vcenter_password }}"
+                validate_certs: false
+                datacenter: "{{ datacenter }}"
+                datastore: "{{ datastore }}"
+                src: "{{ local_temp_dir.path }}/cidata.iso"
+                dest: "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+              delegate_to: localhost
+
+            - name: Deploy OVF from Content Library
+              vmware.vmware.deploy_content_library_ovf:
+                hostname: "{{ vcenter_server }}"
+                username: "{{ vcenter_user }}"
+                password: "{{ vcenter_password }}"
+                validate_certs: false
+                datacenter: "{{ datacenter }}"
+                cluster: "{{ cluster }}"
+                datastore: "{{ datastore }}"
+                vm_folder: "{{ folder }}"
+                vm_name: "{{ vm_name }}"
+                library_item_name: "{{ template_name }}"
+                library_name: "{{ library_name }}"
+              register: deploy_status
+
+            - name: Add CD-ROM and Mount ISO via govc
+              ansible.builtin.shell:
+                cmd: |
+                  ../../build/govc device.cdrom.add -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}"
+                  ../../build/govc device.cdrom.insert -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}" -ds="{{ datastore }}" "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+              environment:
+                GOVC_INSECURE: "true"
+
+            - name: Ensure VM settings and Power On
+              community.vmware.vmware_guest:
+                hostname: "{{ vcenter_server }}"
+                username: "{{ vcenter_user }}"
+                password: "{{ vcenter_password }}"
+                validate_certs: false
+                datacenter: "{{ datacenter }}"
+                name: "{{ vm_name }}"
+                state: poweredon
+                hardware:
+                  memory_mb: "{{ memory_mb }}"
+                  num_cpus: "{{ cpus }}"
+                networks:
+                  - name: "{{ vm_network }}"
+                    start_connected: true
+                    connected: true
+
+            - name: Pause for initialization
+              ansible.builtin.pause:
+                seconds: 30
+
+            - name: Wait for connectivity (ping)
+              ansible.builtin.wait_for:
+                host: "{{ static_ip }}"
+                port: 22
+                timeout: 300
+
+            - name: Set IP fact
+              set_fact:
+                vm_ip_addr: "{{ static_ip }}"
+
+          always:
+            - name: Cleanup local temporary directory
+              ansible.builtin.file:
+                path: "{{ local_temp_dir.path }}"
+                state: absent
+              when: local_temp_dir.path is defined
+              delegate_to: localhost
+
+            - name: Eject CD-ROM and Cleanup datastore ISO via govc
+              ansible.builtin.shell:
+                cmd: |
+                  ../../build/govc device.cdrom.eject -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -vm="{{ vm_name }}"
+                  ../../build/govc datastore.rm -f -u="{{ vcenter_user }}:{{ vcenter_password }}@{{ vcenter_server }}" -k=true -ds="{{ datastore }}" "ISO/cloud-init/{{ vm_name }}-cidata.iso"
+              environment:
+                GOVC_INSECURE: "true"
+              when: not vm_exists
+              ignore_errors: true
+              delegate_to: localhost
+
+      when: not vm_exists
+
+    - name: Use static IP if VM already exists
+      set_fact:
+        vm_ip_addr: "{{ static_ip }}"
+      when: vm_exists
+
+    - name: Create inventory for configuration
+      ansible.builtin.copy:
+        content: "photon-node ansible_host={{ vm_ip_addr }} ansible_user=ansible"
+        dest: "../ansible/inventory.ini"
+      delegate_to: localhost
