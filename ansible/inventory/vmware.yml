@@ -1,0 +1,15 @@
+# Ansible Dynamic Inventory for vSphere
+plugin: community.vmware.vmware_vm_inventory
+strict: false
+validate_certs: false
+with_tags: true
+
+# Group hosts by tags found in vCenter
+# In this environment, tags are returned as a simple list of strings
+keyed_groups:
+  - key: tags
+    prefix: tag
+    separator: "_"
+
+hostnames:
+  - config.name

@@ -15,7 +15,8 @@ def run_govc(args):
     return result
 
 def lint():
-    config_path = "config/deploy.yml"
+    profile = os.environ.get('RUNTIME_PROFILE', 'photon-docker')
+    config_path = f"config/profiles/{profile}.yml"
     if not os.path.exists(config_path):
         print(f"Error: {config_path} not found")
         sys.exit(1)
