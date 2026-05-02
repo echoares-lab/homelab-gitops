@@ -85,6 +85,12 @@ case $COMMAND in
         
         VM_IP=$(tofu output -raw vm_ip)
         echo "VM Deployed at $VM_IP"
+        
+        # Intermediate Test: Connectivity
+        python3 ../scripts/test_connectivity.py "$VM_IP"
+        
+        # Update static inventory for quick configuration if needed
+        echo "photon-node ansible_host=$VM_IP ansible_user=$SSH_ADMIN_USERNAME" > ../ansible/inventory.ini
         cd ..
         track_time $START $(date +%s) "Deployment"
         ;;
@@ -99,11 +105,30 @@ case $COMMAND in
         track_time $START $(date +%s) "Ansible Configuration"
         ;;
 
+    test)
+        START=$(date +%s)
+        echo "Starting End-to-End Testing for $PROFILE..."
+        # 1. Find IP from inventory/vcenter
+        VM_IP=$(python3 -c "import yaml; c=yaml.safe_load(open('ansible/inventory.ini')); print(c.split('ansible_host=')[1].split(' ')[0])")
+        
+        # 2. Determine which test file to run
+        if [[ "$PROFILE" == *"ubuntu"* ]]; then
+            TEST_FILE="tests/test_ubuntu.py"
+        else
+            TEST_FILE="tests/test_photon.py"
+        fi
+        
+        echo "Running pytest against $VM_IP using $TEST_FILE..."
+        pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py "$TEST_FILE"
+        track_time $START $(date +%s) "E2E Testing"
+        ;;
+
     all)
         TOTAL_START=$(date +%s)
         $0 lint $PROFILE
         $0 deploy $PROFILE $INSTANCE_ID
         $0 config $PROFILE
+        $0 test $PROFILE $INSTANCE_ID
         track_time $TOTAL_START $(date +%s) "TOTAL SYNTHESIS PIPELINE"
         ;;
 

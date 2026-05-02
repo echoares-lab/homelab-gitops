@@ -48,18 +48,14 @@ data "vsphere_content_library_item" "template" {
   type       = "ovf"
 }
 
-resource "vsphere_tag_category" "category" {
-  name        = "Provisioning"
-  cardinality = "MULTIPLE"
-  associable_types = [
-    "VirtualMachine",
-  ]
+data "vsphere_tag_category" "category" {
+  name = "Provisioning"
 }
 
-resource "vsphere_tag" "tags" {
+data "vsphere_tag" "tags" {
   for_each    = toset(var.vm_tags)
   name        = each.value
-  category_id = vsphere_tag_category.category.id
+  category_id = data.vsphere_tag_category.category.id
 }
 
 resource "vsphere_virtual_machine" "vm" {
@@ -88,7 +84,7 @@ resource "vsphere_virtual_machine" "vm" {
     template_uuid = data.vsphere_content_library_item.template.id
   }
 
-  tags = [for t in vsphere_tag.tags : t.id]
+  tags = [for t in data.vsphere_tag.tags : t.id]
 
   lifecycle {
     ignore_changes = [

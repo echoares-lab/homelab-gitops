@@ -24,13 +24,32 @@ def lint():
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
         
+    # --- Schema Validation ---
+    print(f"--- Validating YAML Schema for {profile} ---")
+    required_structure = {
+        "vcenter": ["datacenter", "cluster", "datastore", "network"],
+        "content_library": ["name", "template"],
+        "vm_specs": ["cpu", "ram_gb"],
+        "deployment": ["tags", "vm_name_prefix"]
+    }
+    
+    for section, keys in required_structure.items():
+        if section not in config:
+            print(f"[FAIL] Missing required section: '{section}'")
+            sys.exit(1)
+        for key in keys:
+            if key not in config[section]:
+                print(f"[FAIL] Missing required key: '{section}.{key}'")
+                sys.exit(1)
+    print(f"[OK] Configuration schema is valid")
+
     vcenter = config.get('vcenter', {})
     dc = vcenter.get('datacenter')
     cluster = vcenter.get('cluster')
     ds = vcenter.get('datastore')
     network = vcenter.get('network')
     # Prioritize runtime host override
-    host = os.environ.get('VCENTER_HOST_OVERRIDE', vcenter.get('host'))
+    host = os.environ.get('VCENTER_HOST_OVERRIDE', vcenter.get('host', 'esxi-01.mgmt.plexplease.com'))
     
     print(f"--- Linting vCenter Infrastructure ---")
     
