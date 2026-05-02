@@ -1,0 +1,48 @@
+---
+# 1. Global Setup (Gathering facts for all discovered nodes)
+- name: Discover and Group Hosts
+  hosts: all
+  gather_facts: true
+  serial: 0
+
+# 2. Ubuntu Specific Configuration
+- name: Configure Ubuntu Hosts
+  hosts: tag_ubuntu
+  become: true
+  roles:
+    - base
+    - security
+
+# 3. Photon Specific Configuration
+- name: Configure Photon OS Hosts
+  hosts: tag_photon
+  become: true
+  tasks:
+    - name: Ensure all packages are up to date (Photon)
+      ansible.builtin.command: tdnf update -y
+      register: tdnf_update
+      changed_when: "'Nothing to do' not in tdnf_update.stdout"
+
+    - name: Ensure SSH hardening (Photon)
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+      notify: Restart sshd (Photon)
+
+  handlers:
+    - name: Restart sshd (Photon)
+      ansible.builtin.systemd:
+        name: sshd
+        state: restarted
+
+# 4. Docker Application Role (Cross-OS or Tag specific)
+- name: Configure Docker nodes
+  hosts: tag_docker
+  become: true
+  roles:
+    - docker
