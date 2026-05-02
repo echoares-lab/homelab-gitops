@@ -30,9 +30,9 @@ cp config/secrets.env.example config/secrets.env
 ```
 
 ### 2. Deploy a New Node
-Deploy a Photon OS Docker node (Instance 01) using the pre-defined profile:
+Deploy a Photon OS Docker node using the pre-defined profile. You can optionally specify the target ESXi host (defaults to `esxi-01...`):
 ```bash
-./manage.sh all photon-docker 01
+./manage.sh all photon-docker 02 esxi-02.mgmt.plexplease.com
 ```
 This single command will:
 1.  **Lint** the infrastructure availability.
