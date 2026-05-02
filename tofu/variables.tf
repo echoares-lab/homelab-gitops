@@ -19,6 +19,10 @@ variable "cluster" {
   type = string
 }
 
+variable "host" {
+  type = string
+}
+
 variable "datastore" {
   type = string
 }

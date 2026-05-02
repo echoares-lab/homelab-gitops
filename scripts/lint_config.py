@@ -29,7 +29,8 @@ def lint():
     cluster = vcenter.get('cluster')
     ds = vcenter.get('datastore')
     network = vcenter.get('network')
-    host = vcenter.get('host')
+    # Prioritize runtime host override
+    host = os.environ.get('VCENTER_HOST_OVERRIDE', vcenter.get('host'))
     
     print(f"--- Linting vCenter Infrastructure ---")
     
@@ -44,7 +45,7 @@ def lint():
     
     for check in checks:
         res = run_govc(["ls", check["path"]])
-        if res.returncode != 0:
+        if res.returncode != 0 or not res.stdout.strip():
             print(f"[FAIL] {check['name']} '{check['path']}' not found")
             sys.exit(1)
         print(f"[OK] {check['name']}: {check['path']}")

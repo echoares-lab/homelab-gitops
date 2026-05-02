@@ -36,12 +36,14 @@ export VMWARE_VALIDATE_CERTS="no"
 COMMAND=$1
 PROFILE=${2:-"photon-docker"}
 INSTANCE_ID=${3:-"01"}
+TARGET_HOST=${4:-"esxi-01.mgmt.plexplease.com"}
 
 case $COMMAND in
     lint)
         START=$(date +%s)
-        echo "Starting Configuration Linting for $PROFILE..."
+        echo "Starting Configuration Linting for $PROFILE targeting $TARGET_HOST..."
         export RUNTIME_PROFILE="$PROFILE"
+        export VCENTER_HOST_OVERRIDE="$TARGET_HOST"
         python3 scripts/lint_config.py
         track_time $START $(date +%s) "Linting"
         ;;
@@ -61,7 +63,7 @@ case $COMMAND in
             print(f'export TF_VAR_disk_size_gb=\"{c[\"vm_specs\"][\"disk_size_gb\"]}\"'); \
             print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
             print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
-            print(f'export TF_VAR_vm_tags=\"{json.dumps(c[\"deployment\"][\"tags\"])}\"'); \
+            print(f'export TF_VAR_mac_address=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
             print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
             print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
             print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
@@ -69,6 +71,7 @@ case $COMMAND in
         export TF_VAR_vcenter_server="$VCENTER_SERVER"
         export TF_VAR_vcenter_user="$VCENTER_USERNAME"
         export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
+        export TF_VAR_host="$TARGET_HOST"
 
         VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
         export TF_VAR_vm_name="$VM_NAME"
