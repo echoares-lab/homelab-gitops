@@ -1,68 +1,53 @@
 # Pipeline Architecture & Design
 
-This document describes the high-level design of the synthesized GitOps pipeline for Ubuntu and Photon OS environments.
+High-level design and technical principles for the synthesized GitOps pipeline.
 
 ## 1. High-Level Workflow
 
-The pipeline is divided into three distinct functional layers: **Build**, **Provision**, and **Configure**.
+The pipeline utilizes a tiered "Build-Provision-Configure" model to ensure consistent, secure deployments across diverse OS distributions.
 
 ```mermaid
 graph TD
-    A[User / YAML Profile] -->|manage.sh| B(Orchestrator)
-    B -->|Phase 1: Packer| C[Golden OVF Template]
+    A[Node Profile YAML] -->|manage.sh| B(Orchestrator)
+    B -->|Phase 1: Packer/Capture| C[Remediated Golden OVF]
     C -->|Content Library| D[vCenter]
     B -->|Phase 2: OpenTofu| E[Virtual Machine]
-    D -->|Clones| E
-    E -->|vSphere Tagging| D
+    D -->|Clones with Overrides| E
+    E -->|Isolated State| Workspace[Tofu Workspace]
     B -->|Phase 3: Ansible| F[Final OS State]
-    D -->|Dynamic Inventory| F
-    E -->|SSH| F
+    E -->|SSH/Python3| F
+    B -->|Phase 4: Testinfra| G[Verified Compliance]
+    F -->|Validation| G
 ```
 
 ---
 
-## 2. Component Design
+## 2. Infrastructure Standards
 
-### A. Golden Image Creation (Packer)
-We utilize a **Golden Image** strategy to ensure that all virtual machines start from a pre-hardened and pre-configured baseline.
-*   **Source:** Official ISOs or OVAs.
-*   **Customization:** Shell scripts install mandatory packages (Python 3, Open-VM-Tools, Sudo) and apply SSH hardening.
-*   **Output:** The final image is exported to the vCenter Content Library. This drastically reduces deployment times by avoiding the OS installation phase for each new VM.
+### Golden Image Remediation
+To prevent deployment conflicts and ensure maximum performance, all images in the `GOLDEN` content library are standardized with:
+*   **SCSI Controller:** VMware Paravirtual (**PVSCSI**).
+*   **Network Adapter:** **VMXNET3**.
+*   **Compatibility:** Hardware Version **21** (vmx-21).
+*   **OS Hardening:** Root login disabled, password authentication disabled, SSH keys pre-injected.
 
-### B. Declarative Provisioning (OpenTofu)
-Infrastructure is managed as code using OpenTofu. 
-*   **Workspaces:** We use **Tofu Workspaces** to achieve state isolation. Each virtual machine has its own `.tfstate` file, allowing us to update or destroy a single node without affecting the rest of the fleet.
-*   **vSphere Tags:** Tofu is responsible for attaching metadata (tags) to the virtual machines. These tags (e.g., `photon`, `ubuntu`, `docker`) serve as the primary routing mechanism for Ansible.
-
-### C. Configuration & State Enforcement (Ansible)
-Ansible handles the "last-mile" configuration and ongoing maintenance.
-*   **Dynamic Inventory:** Instead of a static `inventory.ini`, Ansible queries the vCenter API in real-time. It groups hosts into `tag_<tagname>` categories.
-*   **OS Awareness:** The master playbook (`site.yml`) uses these groups to apply OS-specific logic (e.g., `tdnf` for Photon nodes, `apt` for Ubuntu nodes).
+### State Isolation (OpenTofu)
+We use **Tofu Workspaces** to achieve granular state management. Each virtual machine has its own state file, allowing for:
+*   **Independent Lifecycle:** Destroy or update one VM without impacting the rest of the fleet.
+*   **Drift Detection:** Tofu compares the real VM hardware against the profile YAML during every run.
 
 ---
 
-## 3. Configuration Hierarchy
+## 3. Dynamic Configuration (Ansible)
 
-All settings are centralized in the `config/` directory:
-
-1.  **`config/secrets.env`**: Stores sensitive global connection details (vCenter URL, Credentials).
-2.  **`config/profiles/*.yml`**: Defines the "personality" of a node.
-    ```yaml
-    vcenter:
-      network: "VM Network"
-    content_library:
-      template: "photon-5.0-golden"
-    vm_specs:
-      cpu: 4
-      ram_gb: 8
-    deployment:
-      tags: ["photon", "docker"]
-    ```
+Instead of maintaining static hostnames in an inventory file, Ansible queries vCenter in real-time.
+*   **Tag-Based Routing:** Ansible groups VMs based on vSphere Tags (e.g., `tag_photon`, `tag_docker`).
+*   **Automated Role Mapping:** The master playbook (`site.yml`) automatically applies relevant roles based on these discovered tags.
 
 ---
 
-## 4. Design Principles
+## 4. Operational Excellence
 
-*   **Idempotency:** Every script and playbook is designed to be run multiple times. If the desired state is already reached, no changes are made.
-*   **Speed:** By leveraging Content Library templates and pre-flight linting, the time from "zero to shell" is minimized.
-*   **Consistency:** Standardized YAML profiles ensure that every node in a group is identical to its peers.
+*   **Idempotency:** Every layer (Tofu, Ansible) is designed to be re-run safely. If the desired state is already reached, no changes are made.
+*   **Fail-Fast Validation:** Pre-deployment linting and post-deployment connectivity tests prevent wasting time on malformed configs or network issues.
+*   **Comprehensive Testing:** Final verification is performed by **Pytest-Testinfra**, ensuring the node is truly "Ready for Production" before the pipeline finishes.
