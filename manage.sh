@@ -37,8 +37,30 @@ COMMAND=$1
 PROFILE=${2:-"photon-docker"}
 INSTANCE_ID=${3:-"01"}
 TARGET_HOST=${4:-"esxi-01.mgmt.plexplease.com"}
+MAC_OVERRIDE=${5:-""}
 
 case $COMMAND in
+    build)
+        START=$(date +%s)
+        echo "Building Golden OVF Template via Packer ($PROFILE)..."
+        # Determine which packer file to use
+        if [[ "$PROFILE" == *"ubuntu"* ]]; then
+            # Future: add ubuntu.pkr.hcl
+            echo "Error: Ubuntu packer build not yet integrated. Use govc capture method."
+            exit 1
+        else
+            PACKER_FILE="packer/photon.pkr.hcl"
+        fi
+        
+        export PKR_VAR_vcenter_server="$VCENTER_SERVER"
+        export PKR_VAR_vcenter_username="$VCENTER_USERNAME"
+        export PKR_VAR_vcenter_password="$VCENTER_PASSWORD"
+        
+        packer init "$PACKER_FILE"
+        packer build -var-file="config/secrets.env" "$PACKER_FILE"
+        track_time $START $(date +%s) "Packer Build"
+        ;;
+
     lint)
         START=$(date +%s)
         echo "Starting Configuration Linting for $PROFILE targeting $TARGET_HOST..."
@@ -64,7 +86,7 @@ case $COMMAND in
             print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
             print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
             print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
-            print(f'export TF_VAR_mac_address=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
+            print(f'export YAML_MAC=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
             print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
             print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
             print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
@@ -73,6 +95,14 @@ case $COMMAND in
         export TF_VAR_vcenter_user="$VCENTER_USERNAME"
         export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
         export TF_VAR_host="$TARGET_HOST"
+
+        # Determine MAC address: CLI override > YAML profile
+        if [[ -n "$MAC_OVERRIDE" ]]; then
+            export TF_VAR_mac_address="$MAC_OVERRIDE"
+            echo "Using Runtime MAC Address: $MAC_OVERRIDE"
+        else
+            export TF_VAR_mac_address="$YAML_MAC"
+        fi
 
         VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
         export TF_VAR_vm_name="$VM_NAME"
@@ -165,15 +195,15 @@ case $COMMAND in
 
     all)
         TOTAL_START=$(date +%s)
-        $0 lint $PROFILE
-        $0 deploy $PROFILE $INSTANCE_ID
+        $0 lint $PROFILE $INSTANCE_ID $TARGET_HOST
+        $0 deploy $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
         $0 config $PROFILE
         $0 test $PROFILE $INSTANCE_ID
         track_time $TOTAL_START $(date +%s) "TOTAL SYNTHESIS PIPELINE"
         ;;
 
     *)
-        echo "Usage: $0 {lint|deploy|config|all} [profile_name] [instance_id]"
+        echo "Usage: $0 {build|lint|deploy|config|test|destroy|all} [profile_name] [instance_id] [target_host] [mac_address]"
         exit 1
         ;;
 esac
