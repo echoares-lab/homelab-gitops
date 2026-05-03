@@ -140,7 +140,7 @@ case $COMMAND in
         START=$(date +%s)
         echo "Starting End-to-End Testing for $PROFILE..."
         # 1. Find IP from inventory/vcenter
-        VM_IP=$(python3 -c "import re; content=open('ansible/inventory.ini').read(); m=re.search(r'ansible_host=([0-9.]+)', content); print(m.group(1)) if m else exit(1)")
+        VM_IP=$(python3 -c "import re; content=open('ansible/inventory.ini').read(); m=re.search(r'([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', content); print(m.group(1)) if m else exit(1)")
         
         # 2. Determine which test file to run
         if [[ "$PROFILE" == *"ubuntu"* ]]; then
@@ -150,6 +150,8 @@ case $COMMAND in
         fi
         
         echo "Running pytest against $VM_IP using $TEST_FILE..."
+        # Pass MAC to pytest if provided
+        export EXPECTED_MAC="$MAC_OVERRIDE"
         pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py "$TEST_FILE"
         track_time $START $(date +%s) "E2E Testing"
         ;;
@@ -198,7 +200,7 @@ case $COMMAND in
         $0 lint $PROFILE $INSTANCE_ID $TARGET_HOST
         $0 deploy $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
         $0 config $PROFILE
-        $0 test $PROFILE $INSTANCE_ID
+        $0 test $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
         track_time $TOTAL_START $(date +%s) "TOTAL SYNTHESIS PIPELINE"
         ;;
 
