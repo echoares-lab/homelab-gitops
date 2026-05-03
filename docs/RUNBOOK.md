@@ -1,111 +1,95 @@
 # Pipeline Operations Runbook
 
-This runbook provides detailed operational procedures for the unified GitOps pipeline managing Ubuntu and Photon OS environments via OpenTofu, Packer, and Ansible.
+Detailed operational procedures for the unified GitOps pipeline managing high-performance Ubuntu and Photon OS environments.
 
 ## Table of Contents
-1. [Prerequisites & Setup](#1-prerequisites--setup)
-2. [Configuration Management](#2-configuration-management)
-3. [Building Golden Images (Packer)](#3-building-golden-images-packer)
-4. [Deploying Infrastructure (OpenTofu)](#4-deploying-infrastructure-opentofu)
-5. [Configuring Nodes (Ansible)](#5-configuring-nodes-ansible)
-6. [Troubleshooting & Common Issues](#6-troubleshooting--common-issues)
+1. [Prerequisites](#1-prerequisites)
+2. [Command Reference (`manage.sh`)](#2-command-reference-managesh)
+3. [Configuration System](#3-configuration-system)
+4. [Deployment Workflow](#4-deployment-workflow)
+5. [Automated Testing](#5-automated-testing)
+6. [Troubleshooting](#6-troubleshooting)
 
 ---
 
-## 1. Prerequisites & Setup
-
-Ensure the following tools are installed on your orchestration machine:
-*   **OpenTofu** (`>= 1.6.0`)
-*   **Packer** (`>= 1.9.0`)
-*   **Ansible** (`>= 2.14`)
-*   **govc** (vSphere CLI)
-*   **Python 3** with `pyyaml`
-*   **vSphere Automation SDK** (`vmware-vcenter`, `vmware-vapi-runtime`, `vmware-vapi-common-client`)
-
-### Initializing the Environment
-1.  Copy `config/secrets.env.example` to `config/secrets.env` (if applicable) or ensure `config/secrets.env` exists.
-2.  Populate `VCENTER_SERVER`, `VCENTER_USERNAME`, `VCENTER_PASSWORD`, and `SSH_ADMIN_PASSWORD`.
+## 1. Prerequisites
+Ensure the orchestration host has the following:
+*   **OpenTofu** (`>= 1.6`)
+*   **Packer** (`>= 1.9`)
+*   **Ansible** (`>= 2.14`) with `vSphere Automation SDK`
+*   **Pytest & Testinfra**
+*   **govc** (installed in `build/`)
 
 ---
 
-## 2. Configuration Management
+## 2. Command Reference (`manage.sh`)
 
-All deployments are driven by YAML profiles located in `config/profiles/`. 
+| Command | Arguments | Description |
+| :--- | :--- | :--- |
+| `lint` | `<profile>` | Validates YAML schema and vCenter object existence. |
+| `deploy` | `<profile> <id> [host]` | Provisions virtual hardware and waits for SSH. |
+| `config` | `<profile>` | Applies Ansible roles via dynamic inventory. |
+| `test` | `<profile> <id>` | Executes Pytest-Testinfra OS validation. |
+| `destroy` | `<profile> <id>` | Deletes the VM and its isolated Tofu workspace. |
+| `all` | `<profile> <id> [host]` | Runs Lint -> Deploy -> Config -> Test. |
 
-### Creating a New Node Profile
-To create a new type of node (e.g., a Photon OS database node):
-1.  Duplicate an existing profile: `cp config/profiles/photon-docker.yml config/profiles/photon-db.yml`
-2.  Edit the profile to match your requirements:
-    *   **`content_library.template`**: Ensure it points to the correct golden image.
-    *   **`vm_specs`**: Adjust CPU and RAM (`ram_gb`).
-    *   **`deployment.tags`**: Add relevant tags (e.g., `photon`, `db`, `postgres`). *These tags dictate which Ansible roles are applied.*
-
----
-
-## 3. Building Golden Images (Packer)
-
-Golden images are pre-hardened OS templates stored in the vCenter Content Library.
-
-**Command:**
+**Example:**
 ```bash
-./manage.sh build <profile_name>
-```
-*(Note: Currently, the build script defaults to the Photon configuration in `packer/photon.pkr.hcl`.)*
-
-**Workflow:**
-1.  Packer imports the base OVA.
-2.  Applies initial OS updates and hardening.
-3.  Exports the result as a new golden OVF (e.g., `photon-5.0-golden`).
-
----
-
-## 4. Deploying Infrastructure (OpenTofu)
-
-The deployment phase translates the YAML profile into virtual hardware in vCenter.
-
-**Command:**
-```bash
-./manage.sh deploy <profile_name> <instance_id> [target_host]
-```
-*Example: `./manage.sh deploy photon-docker 02 esxi-02.mgmt.plexplease.com`*
-
-**Workflow:**
-1.  **Linting:** The pipeline verifies that the Datacenter, Cluster, Datastore, and Network specified in the YAML actually exist in vCenter.
-2.  **Workspace Isolation:** OpenTofu selects (or creates) a dedicated workspace named after the VM (e.g., `docker-02.infa.plexplease.com`).
-3.  **Provisioning:** Tofu clones the golden template, assigns the specified RAM, CPU, and custom MAC address (if defined), and attaches the designated vSphere tags.
-
----
-
-## 5. Configuring Nodes (Ansible)
-
-Configuration is applied automatically based on the vSphere tags attached to the VM during deployment.
-
-**Command:**
-```bash
-./manage.sh config
+./manage.sh all ubuntu-base 01 esxi-01.mgmt.plexplease.com
 ```
 
-**Workflow:**
-1.  Ansible uses the `community.vmware.vmware_vm_inventory` plugin to query vCenter.
-2.  VMs are grouped dynamically (e.g., `tag_photon`, `tag_docker`, `tag_ubuntu`).
-3.  The `ansible/site.yml` playbook maps these tags to specific roles. For example, any VM with the `tag_docker` receives the Docker CE installation.
+---
+
+## 3. Configuration System
+
+### Global Secrets
+Populate `config/secrets.env` with vCenter credentials and standard admin passwords. This file is ignored by Git.
+
+### Node Profiles (`config/profiles/`)
+Each profile dictates the hardware and personality of the node:
+```yaml
+vcenter:
+  host: "esxi-01.mgmt.plexplease.com" # Default target host
+  network: "VM Network"
+content_library:
+  template: "ubuntu-26.04-golden" # Remediated vmx-21 template
+vm_specs:
+  cpu: 4
+  ram_gb: 8
+deployment:
+  tags: ["ubuntu"] # Dictates Ansible roles
+```
 
 ---
 
-## 6. Troubleshooting & Common Issues
+## 4. Deployment Workflow
 
-### Issue: OpenTofu fails with "Network not found"
-*   **Cause:** The network name in the YAML profile does not match exactly with what is in vCenter.
-*   **Resolution:** Check vCenter for the exact name. Note that nested folders in vCenter networks must be respected in some cases.
+1.  **State Isolation:** Every node gets a dedicated **OpenTofu Workspace** named after its FQDN.
+2.  **Hardware Alignment:** The pipeline enforces **PVSCSI** and **VMXNET3** for performance.
+3.  **Connectivity:** After provisioning, the pipeline waits for port 22 to become reachable before handing off to Ansible.
 
-### Issue: Ansible cannot connect via SSH ("Permission denied" or "No route to host")
-*   **Cause:** 
-    1.  The VM has not finished acquiring an IP address from DHCP.
-    2.  The SSH keys inside the Golden Image do not match your local `~/.ssh/id_rsa` or `~/.ssh/id_ed25519`.
-*   **Resolution:** 
-    *   Verify the IP in vCenter. 
-    *   Ensure your public key is accurately reflected in `config/secrets.env` during the Packer build phase.
+---
 
-### Issue: Ansible dynamic inventory returns empty
-*   **Cause:** The `VMWARE_` environment variables are not correctly exported, or the inventory plugin is misconfigured.
-*   **Resolution:** Ensure you are running Ansible through `./manage.sh config` which automatically exports the required authentication variables from `secrets.env`. Check tag assignments in vCenter.
+## 5. Automated Testing
+
+The pipeline uses `pytest-testinfra` to verify the "Final State":
+*   **Common:** SSH hardening (root/password disabled), user presence.
+*   **Ubuntu:** UFW status, package integrity.
+*   **Photon:** Docker service status, locally running stacks.
+
+To run tests manually:
+```bash
+./manage.sh test photon-docker 03
+```
+
+---
+
+## 6. Troubleshooting
+
+### vCenter REST API 500 Error
+*   **Cause:** Mismatch between the OVF template's hardware (e.g., `lsilogic`) and the Tofu config (`pvscsi`).
+*   **Fix:** Ensure the template in the `GOLDEN` library was remediated using `scripts/remediate_ubuntu.py` or equivalent hardware version 21 standards.
+
+### Ansible "Unreachable"
+*   **Cause:** Incorrect SSH password or VM not fully booted.
+*   **Fix:** Verify `SSH_ADMIN_PASSWORD` in `config/secrets.env` matches the password in the golden image. The pipeline includes an intermediate connectivity test to wait for boot.
