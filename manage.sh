@@ -160,7 +160,7 @@ case $COMMAND in
         echo "Starting Tag-Based Ansible Configuration..."
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
-        ansible-playbook -i inventory/vmware.yml site.yml --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        ansible-playbook -i inventory/vmware.yml site.yml --private-key "$SSH_PRIVATE_KEY_PATH" --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         cd ..
         track_time $START $(date +%s) "Ansible Configuration"
         ;;
@@ -172,7 +172,7 @@ case $COMMAND in
         
         echo "Running pytest against $VM_IP using unified test suite..."
         export EXPECTED_MAC="$MAC_OVERRIDE"
-        pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py tests/test_os.py
+        pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no -o IdentityFile=$SSH_PRIVATE_KEY_PATH" --sudo tests/test_common.py tests/test_os.py
         track_time $START $(date +%s) "E2E Testing"
         ;;
 
