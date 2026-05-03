@@ -63,6 +63,7 @@ case $COMMAND in
             print(f'export TF_VAR_disk_size_gb=\"{c[\"vm_specs\"][\"disk_size_gb\"]}\"'); \
             print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
             print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
+            print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
             print(f'export TF_VAR_mac_address=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
             print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
             print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
@@ -109,7 +110,7 @@ case $COMMAND in
         START=$(date +%s)
         echo "Starting End-to-End Testing for $PROFILE..."
         # 1. Find IP from inventory/vcenter
-        VM_IP=$(python3 -c "import yaml; c=yaml.safe_load(open('ansible/inventory.ini')); print(c.split('ansible_host=')[1].split(' ')[0])")
+        VM_IP=$(python3 -c "import re; content=open('ansible/inventory.ini').read(); m=re.search(r'ansible_host=([0-9.]+)', content); print(m.group(1)) if m else exit(1)")
         
         # 2. Determine which test file to run
         if [[ "$PROFILE" == *"ubuntu"* ]]; then
@@ -121,6 +122,45 @@ case $COMMAND in
         echo "Running pytest against $VM_IP using $TEST_FILE..."
         pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py "$TEST_FILE"
         track_time $START $(date +%s) "E2E Testing"
+        ;;
+
+    destroy)
+        START=$(date +%s)
+        echo "Destroying Deployment ($PROFILE - $INSTANCE_ID)..."
+        
+        eval $(python3 -c "import yaml, json; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); \
+            print(f'export TF_VAR_datacenter=\"{c[\"vcenter\"][\"datacenter\"]}\"'); \
+            print(f'export TF_VAR_cluster=\"{c[\"vcenter\"][\"cluster\"]}\"'); \
+            print(f'export TF_VAR_host=\"{c[\"vcenter\"][\"host\"]}\"'); \
+            print(f'export TF_VAR_datastore=\"{c[\"vcenter\"][\"datastore\"]}\"'); \
+            print(f'export TF_VAR_network=\"{c[\"vcenter\"][\"network\"]}\"'); \
+            print(f'export TF_VAR_vm_cpu=\"{c[\"vm_specs\"][\"cpu\"]}\"'); \
+            print(f'export TF_VAR_vm_ram_gb=\"{c[\"vm_specs\"][\"ram_gb\"]}\"'); \
+            print(f'export TF_VAR_guest_id=\"{c[\"vm_specs\"][\"guest_id\"]}\"'); \
+            print(f'export TF_VAR_disk_size_gb=\"{c[\"vm_specs\"][\"disk_size_gb\"]}\"'); \
+            print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
+            print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
+            print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
+            print(f'export TF_VAR_mac_address=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
+            print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
+            print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
+            print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
+
+        export TF_VAR_vcenter_server="$VCENTER_SERVER"
+        export TF_VAR_vcenter_user="$VCENTER_USERNAME"
+        export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
+        export TF_VAR_host="$TARGET_HOST"
+
+        VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+        export TF_VAR_vm_name="$VM_NAME"
+        
+        cd tofu
+        tofu workspace select "$VM_NAME" || exit 1
+        tofu destroy -auto-approve
+        tofu workspace select default
+        tofu workspace delete "$VM_NAME"
+        cd ..
+        track_time $START $(date +%s) "Destruction"
         ;;
 
     all)

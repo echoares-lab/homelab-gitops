@@ -3,7 +3,10 @@ import pytest
 def test_ansible_user_exists(host):
     user = host.user("ansible")
     assert user.exists
-    assert "sudo" in user.groups or "wheel" in user.groups
+
+def test_ansible_sudo_privileges(host):
+    # Verify the ansible user can execute sudo without a password
+    assert host.run("sudo -n true").rc == 0
 
 def test_ssh_hardened(host):
     sshd_config = host.file("/etc/ssh/sshd_config").content_string

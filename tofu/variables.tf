@@ -45,6 +45,11 @@ variable "vm_ram_gb" {
   default = 8
 }
 
+variable "guest_id" {
+  type    = string
+  default = "vmwarePhoton64Guest"
+}
+
 variable "library_name" {
   type    = string
   default = "PHOTON"
@@ -56,8 +61,8 @@ variable "template_name" {
 }
 
 variable "vm_tags" {
-  type    = list(string)
-  default = ["photon"]
+  type    = string
+  default = "photon"
 }
 
 variable "disk_size_gb" {

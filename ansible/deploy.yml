@@ -23,8 +23,8 @@
     folder: "{{ lookup('env', 'RUNTIME_DEPLOY_FOLDER') | default(lookup('env', 'VCENTER_DEPLOY_TEST_FOLDER'), true) }}"
     
     # Customization
-    cpus: "{{ lookup('env', 'DEPLOY_CPU_COUNT') | default(2, true) }}"
-    memory_mb: "{{ lookup('env', 'DEPLOY_MEMORY_MB') | default(4096, true) }}"
+    cpus: "{{ lookup('env', 'DEPLOY_CPU_COUNT') | default(4, true) }}"
+    memory_mb: "{{ lookup('env', 'DEPLOY_MEMORY_MB') | default(8192, true) }}"
 
   tasks:
     - name: Debug Deployment Details
