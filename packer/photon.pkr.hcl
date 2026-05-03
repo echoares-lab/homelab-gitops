@@ -8,13 +8,11 @@ packer {
 }
 
 variable "vcenter_server" {
-  type    = string
-  default = "10.10.10.9"
+  type = string
 }
 
 variable "vcenter_username" {
-  type    = string
-  default = "administrator@vsphere.local"
+  type = string
 }
 
 variable "vcenter_password" {
@@ -23,44 +21,36 @@ variable "vcenter_password" {
 }
 
 variable "datacenter" {
-  type    = string
-  default = "HOMELAB"
+  type = string
 }
 
 variable "cluster" {
-  type    = string
-  default = "Primary"
+  type = string
 }
 
 variable "datastore" {
-  type    = string
-  default = "NVME_2TB_970_SAMSUNG_EVO_M.2"
+  type = string
 }
 
 variable "network" {
-  type    = string
-  default = "VM Network"
+  type = string
 }
 
 variable "photon_iso_url" {
-  type    = string
-  default = "https://packages.broadcom.com/photon/5.0/GA/iso/photon-minimal-5.0-dde71ec57.x86_64.iso"
+  type = string
 }
 
 variable "photon_iso_checksum" {
-  type    = string
-  default = "sha512:85cddaa8da26c095cf55d3f22f0838ad5d9ae73aa476d0c5c8e54bfbfcb432deaf940733c2cb5af14d1e5b133da65c17f3f4e215bf381d5b8b411d548b66a463"
+  type = string
 }
 
 variable "ssh_username" {
-  type    = string
-  default = "ansible"
+  type = string
 }
 
 variable "ssh_password" {
   type      = string
   sensitive = true
-  default   = "REPLACE_ME"
 }
 
 source "vsphere-iso" "photon" {

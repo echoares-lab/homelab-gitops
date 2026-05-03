@@ -9,14 +9,14 @@ build/*.mf
 build/cidata.iso
 build/govc
 
-# Local config
-config/inputs.env
+# Local config and Secrets
+config/*.env
+!config/secrets.env.example
 ansible/inventory.ini
 
-# Photon Pipeline
-photon-pipeline/ovf-download/
-photon-pipeline/tofu/.terraform/
-photon-pipeline/tofu/terraform.tfstate*
-photon-pipeline/ansible/inventory.ini
-photon-pipeline/build.log
-photon-pipeline/build.pid
+# Terraform/OpenTofu
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+tofu/terraform.tfstate.d/
