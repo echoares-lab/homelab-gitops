@@ -1,19 +1,42 @@
-# Deployment Process Roadmap
+# Project Roadmap: HomeLab GitOps
 
-This roadmap outlines high-impact improvements to make the deployment process more robust, secure, and production-ready.
+This document outlines the strategic vision for the unified GitOps pipeline, detailing upcoming features, deferred items, and a history of completed milestones.
 
-## Phase 1: Native Tooling & Idempotency
-*   **Native Ansible vCenter Modules:** [DONE] Installed the `vSphere Automation SDK` and transitioned to native `vmware.vmware` modules.
-*   **Idempotency and State Checks:** [DONE] Added pre-flight checks in `deploy.yml` and utilized OpenTofu for state-driven infrastructure management.
-*   **Photon OS Golden Image (vmx-21):** [DONE] Fixed the library item corruption and verified full E2E deployment logic (Tofu + Ansible).
-*   **Custom MAC Addressing:** [DONE] Added support for specifying network MAC addresses and runtime host assignment.
-*   **Pipeline Synthesis:** [DONE] Unified Ubuntu and Photon OS profiles and orchestrator.
-*   **End-to-End Testing:** [DONE] Implemented Pytest-Testinfra validation for both OS distributions.
+---
 
-## Phase 2: Configuration & Secret Management
-*   **Secret Management:** [DEFERRED] Integrate Ansible Vault or a CI/CD secret manager to encrypt sensitive data (e.g., `VCENTER_PASSWORD`, `SSH_ADMIN_PASSWORD`) rather than storing them in plain text `.env` files.
-*   **Static IP Support:** [DEFERRED] Extend cloud-init configuration to support static IPs via `network-config` (v2), allowing variables like `DEPLOY_IP`, `DEPLOY_NETMASK`, and `DEPLOY_GATEWAY` to dictate networking.
+## 🎯 Pending Features (Next Up)
 
-## Phase 3: Initialization Refinement
-*   **`guestinfo` Cloud-Init Injection:** [INVESTIGATED] Attempted native and `govc` injection; found to be incompatible with the standard Ubuntu cloud image without template modification. Reverted to reliable ISO method.
-*   **Robust Cleanup and Error Handling:** [DONE] Implemented `block/always` in Ansible to guarantee the cleanup of temporary artifacts. Note: Datastore ISO removal may require manual unmounting if file locks persist.
+These high-impact features are prioritized for near-term development to further mature the pipeline's operational capabilities.
+
+*   **Profile & Role Generator Helpers:** Implement interactive CLI subcommands (`./manage.sh create-profile`, `./manage.sh create-role`) to scaffold perfectly formatted YAML configurations and Ansible folder structures, reducing boilerplate overhead.
+*   **Ansible Vault Integration:** Transition from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files, allowing application-level secrets (DB passwords, API keys) to be securely committed to the Git repository.
+*   **Fleet Status Dashboard:** Add a read-only orchestrator command (`./manage.sh status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
+*   **Automated Golden Image Refresh:** Develop a scheduled automation script that deploys a temporary VM from the existing golden image, runs OS-level package updates (`apt-get upgrade` / `tdnf update`), and automatically captures and versions a new, patched golden image.
+
+---
+
+## ⏸️ Deferred Features (Backlog)
+
+These items are recognized as valuable but are currently pending further architectural review or are superseded by existing robust solutions.
+
+*   **Static IP Injection via `guestinfo`:** Pass IP configuration directly through vApp properties to cloud-init, bypassing DHCP entirely. *Currently deferred as the existing MAC-reservation + DHCP architecture provides sufficient stability.*
+*   **Native `guestinfo` Metadata Injection:** Removing the reliance on ISO attachments for cloud-init. *Previously investigated; found incompatible with standard Ubuntu cloud images without significant template modification. The ISO method remains the active standard.*
+
+---
+
+## ✅ Completed Milestones
+
+A record of significant architectural achievements and technical debt remediation.
+
+### Phase 2: Pipeline Synthesis & Security
+*   **Security Remediation:** Scrubbed leaked credentials from Git history and transitioned to a private repository structure.
+*   **Unified Orchestrator:** Implemented `manage.sh` to handle the full lifecycle (Build, Lint, Deploy, Config, Test, Destroy).
+*   **Tofu Workspaces:** Adopted OpenTofu workspaces for granular, per-VM state isolation and idempotency.
+*   **End-to-End Testing:** Integrated `pytest-testinfra` for automated post-deployment validation of OS hardening and services.
+*   **Runtime Flexibility:** Added CLI support for specifying target ESXi hosts and network MAC addresses during deployment.
+*   **Hardware Remediation:** Fixed OVF metadata corruption; all templates now actively utilize **PVSCSI**, **VMXNET3**, and **Hardware Version 21**.
+
+### Phase 1: Foundation
+*   **Native Ansible Integration:** Transitioned to native `vmware.vmware` modules using the vSphere Automation SDK.
+*   **Tag-Based Routing:** Ansible configuration targets VMs dynamically via vCenter tags instead of static inventories.
+*   **Robust Cleanup:** Implemented `block/always` logic in Ansible to guarantee the cleanup of temporary build artifacts.
