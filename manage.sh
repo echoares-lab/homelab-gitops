@@ -24,7 +24,16 @@ track_time() {
     echo "Task [$task_name] completed in $((duration / 60))m $((duration % 60))s"
 }
 
-# Load Secrets
+# Function to validate MAC address
+validate_mac() {
+    local mac=$1
+    if [[ -n "$mac" ]] && ! [[ "$mac" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]; then
+        echo "Error: Invalid MAC address format ($mac). Expected xx:xx:xx:xx:xx:xx"
+        exit 1
+    fi
+}
+
+# Load Consolidated Secrets
 load_env "config/secrets.env"
 
 # Export standard Ansible VMware vars
@@ -33,19 +42,34 @@ export VMWARE_USER="$VCENTER_USERNAME"
 export VMWARE_PASSWORD="$VCENTER_PASSWORD"
 export VMWARE_VALIDATE_CERTS="no"
 
-COMMAND=$1
-PROFILE=${2:-"photon-docker"}
-INSTANCE_ID=${3:-"01"}
-TARGET_HOST=${4:-"esxi-01.mgmt.plexplease.com"}
-MAC_OVERRIDE=${5:-""}
+# Parse Flags
+KEEP=false
+ARGS=()
+for arg in "$@"; do
+    case $arg in
+        -k|--keep)
+            KEEP=true
+            shift
+            ;;
+        *)
+            ARGS+=("$arg")
+            ;;
+    esac
+done
+
+COMMAND=${ARGS[0]}
+PROFILE=${ARGS[1]:-"photon-docker"}
+INSTANCE_ID=${ARGS[2]:-"01"}
+TARGET_HOST=${ARGS[3]:-"esxi-01.mgmt.plexplease.com"}
+MAC_OVERRIDE=${ARGS[4]:-""}
+
+validate_mac "$MAC_OVERRIDE"
 
 case $COMMAND in
     build)
         START=$(date +%s)
         echo "Building Golden OVF Template via Packer ($PROFILE)..."
-        # Determine which packer file to use
         if [[ "$PROFILE" == *"ubuntu"* ]]; then
-            # Future: add ubuntu.pkr.hcl
             echo "Error: Ubuntu packer build not yet integrated. Use govc capture method."
             exit 1
         else
@@ -55,6 +79,15 @@ case $COMMAND in
         export PKR_VAR_vcenter_server="$VCENTER_SERVER"
         export PKR_VAR_vcenter_username="$VCENTER_USERNAME"
         export PKR_VAR_vcenter_password="$VCENTER_PASSWORD"
+        # Map remaining consolidated vars to Packer
+        export PKR_VAR_datacenter="$VCENTER_DATACENTER"
+        export PKR_VAR_cluster="$VCENTER_CLUSTER"
+        export PKR_VAR_datastore="$VCENTER_DATASTORE"
+        export PKR_VAR_network="$VCENTER_NETWORK"
+        export PKR_VAR_photon_iso_url="$PHOTON_ISO_URL"
+        export PKR_VAR_photon_iso_checksum="$PHOTON_ISO_CHECKSUM"
+        export PKR_VAR_ssh_username="$SSH_ADMIN_USERNAME"
+        export PKR_VAR_ssh_password="$SSH_ADMIN_PASSWORD"
         
         packer init "$PACKER_FILE"
         packer build -var-file="config/secrets.env" "$PACKER_FILE"
@@ -96,7 +129,6 @@ case $COMMAND in
         export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
         export TF_VAR_host="$TARGET_HOST"
 
-        # Determine MAC address: CLI override > YAML profile
         if [[ -n "$MAC_OVERRIDE" ]]; then
             export TF_VAR_mac_address="$MAC_OVERRIDE"
             echo "Using Runtime MAC Address: $MAC_OVERRIDE"
@@ -117,10 +149,7 @@ case $COMMAND in
         VM_IP=$(tofu output -raw vm_ip)
         echo "VM Deployed at $VM_IP"
         
-        # Intermediate Test: Connectivity
         python3 ../scripts/test_connectivity.py "$VM_IP"
-        
-        # Update static inventory for quick configuration if needed
         echo "photon-node ansible_host=$VM_IP ansible_user=$SSH_ADMIN_USERNAME" > ../ansible/inventory.ini
         cd ..
         track_time $START $(date +%s) "Deployment"
@@ -139,24 +168,19 @@ case $COMMAND in
     test)
         START=$(date +%s)
         echo "Starting End-to-End Testing for $PROFILE..."
-        # 1. Find IP from inventory/vcenter
         VM_IP=$(python3 -c "import re; content=open('ansible/inventory.ini').read(); m=re.search(r'([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', content); print(m.group(1)) if m else exit(1)")
         
-        # 2. Determine which test file to run
-        if [[ "$PROFILE" == *"ubuntu"* ]]; then
-            TEST_FILE="tests/test_ubuntu.py"
-        else
-            TEST_FILE="tests/test_photon.py"
-        fi
-        
-        echo "Running pytest against $VM_IP using $TEST_FILE..."
-        # Pass MAC to pytest if provided
+        echo "Running pytest against $VM_IP using unified test suite..."
         export EXPECTED_MAC="$MAC_OVERRIDE"
-        pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py "$TEST_FILE"
+        pytest --hosts="ansible@$VM_IP" --ssh-config="/dev/null" --ssh-extra-args="-o StrictHostKeyChecking=no" --sudo tests/test_common.py tests/test_os.py
         track_time $START $(date +%s) "E2E Testing"
         ;;
 
     destroy)
+        if [ "$KEEP" = true ]; then
+            echo "Keep flag set. Skipping destruction phase."
+            exit 0
+        fi
         START=$(date +%s)
         echo "Destroying Deployment ($PROFILE - $INSTANCE_ID)..."
         
@@ -201,11 +225,16 @@ case $COMMAND in
         $0 deploy $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
         $0 config $PROFILE
         $0 test $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
+        if [ "$KEEP" = false ]; then
+            $0 destroy $PROFILE $INSTANCE_ID $TARGET_HOST
+        fi
         track_time $TOTAL_START $(date +%s) "TOTAL SYNTHESIS PIPELINE"
         ;;
 
     *)
-        echo "Usage: $0 {build|lint|deploy|config|test|destroy|all} [profile_name] [instance_id] [target_host] [mac_address]"
+        echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile_name] [instance_id] [target_host] [mac_address]"
+        echo "Options:"
+        echo "  -k, --keep    Skip the destruction phase at the end of 'all' or explicit 'destroy'."
         exit 1
         ;;
 esac

@@ -36,33 +36,27 @@ variable "vm_name" {
 }
 
 variable "vm_cpu" {
-  type    = number
-  default = 2
+  type = number
 }
 
 variable "vm_ram_gb" {
-  type    = number
-  default = 8
+  type = number
 }
 
 variable "guest_id" {
-  type    = string
-  default = "vmwarePhoton64Guest"
+  type = string
 }
 
 variable "library_name" {
-  type    = string
-  default = "PHOTON"
+  type = string
 }
 
 variable "template_name" {
-  type    = string
-  default = "photon-5.0-minimal"
+  type = string
 }
 
 variable "vm_tags" {
-  type    = string
-  default = "photon"
+  type = string
 }
 
 variable "disk_size_gb" {
