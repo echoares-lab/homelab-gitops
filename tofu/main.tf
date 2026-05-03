@@ -53,7 +53,7 @@ data "vsphere_tag_category" "category" {
 }
 
 data "vsphere_tag" "tags" {
-  for_each    = toset(var.vm_tags)
+  for_each    = toset(split(",", var.vm_tags))
   name        = each.value
   category_id = data.vsphere_tag_category.category.id
 }
@@ -66,7 +66,7 @@ resource "vsphere_virtual_machine" "vm" {
 
   num_cpus = var.vm_cpu
   memory   = var.vm_ram_gb * 1024
-  guest_id = "vmwarePhoton64Guest"
+  guest_id = var.guest_id
 
   network_interface {
     network_id   = data.vsphere_network.network.id

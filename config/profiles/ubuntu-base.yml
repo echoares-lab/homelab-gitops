@@ -6,8 +6,8 @@ vcenter:
   network: "VM Network"
 
 content_library:
-  name: "UBUNTU"
-  template: "ubuntu-26.04-official-v1"
+  name: "GOLDEN"
+  template: "ubuntu-26.04-golden"
 
 vm_specs:
   cpu: 4

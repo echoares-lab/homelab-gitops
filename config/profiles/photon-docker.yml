@@ -6,7 +6,7 @@ vcenter:
   network: "VM Network"
 
 content_library:
-  name: "PHOTON"
+  name: "GOLDEN"
   template: "photon-5.0-golden"
 
 vm_specs:
