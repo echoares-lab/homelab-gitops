@@ -13,6 +13,14 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.0.0 - Pipeline Synthesis & Remediation
+- **MAJOR CHANGE:** Implemented `manage.sh` unified lifecycle orchestrator (Lint, Deploy, Config, Test, Destroy).
+- **Architecture:** Switched to **OpenTofu Workspaces** for granular, per-VM state isolation.
+- **Hardware Standardization:** Upgraded all templates to **Hardware Version 21**, **PVSCSI**, and **VMXNET3**.
+- **Security:** Verified and remediated Ubuntu 26.04 golden image to resolve vCenter OVF deployment conflicts.
+- **Testing:** Integrated `pytest-testinfra` for automated end-to-end OS validation.
+- **Flexibility:** Added runtime CLI overrides for target ESXi hosts and network MAC addresses.
+
 ### v2.0.0 - Ubuntu 26.04 LTS (Resolute Raccoon) Update
 - **MAJOR CHANGE:** Updated base OS from Ubuntu 24.04 LTS to Ubuntu 26.04 LTS.
 - Updated all build scripts, cloud-init configurations, and OVF templates to support 26.04.

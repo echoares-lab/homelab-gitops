@@ -1,11 +1,11 @@
 # Template Pipeline Project Instructions
 
 ## Engineering Standards
-- **Golden Image:** Always use Ubuntu LTS (26.04+) with the `minimal` installation profile.
-- **Build Stack:** Use local QEMU/virt-install for building images to ensure speed and robustness. Defer complex configuration to post-deployment Ansible.
-- **Templates:** All golden images must be uploaded to the vCenter Content Library as OVF templates.
-- **Ansible:** Follow official best practices. Use roles for reusable logic and keep playbooks focused on orchestration.
-- **Testing:** Every major component (Build disk, Ansible roles) must have corresponding `pytest-testinfra` tests.
+- **Golden Image:** Always use Ubuntu LTS (26.04+) or Photon OS 5.0 with the `minimal` installation profile.
+- **Build Stack:** Utilize vCenter-native capture workflows. Provision a source VM via ISO/Cloud-Init, standardize hardware to **PVSCSI** and **VMXNET3**, and capture as an OVF template in the `GOLDEN` Content Library.
+- **Hardware Version:** Standardize on **Hardware Version 21** (vmx-21) for all templates to leverage modern vSphere 8.x features.
+- **Provisioning:** Use declarative OpenTofu with Workspace-based state isolation (one workspace per VM).
+- **Testing:** Every major component must pass `pytest-testinfra` validation for SSH hardening, service state, and OS integrity.
 - **Version Control:** Follow semantic versioning. All changes must be made via feature branches and validated through linting.
 
 ## Linting & Formatting

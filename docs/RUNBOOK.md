@@ -24,19 +24,38 @@ Ensure the orchestration host has the following:
 
 ## 2. Command Reference (`manage.sh`)
 
-| Command | Arguments | Description |
-| :--- | :--- | :--- |
-| `lint` | `<profile>` | Validates YAML schema and vCenter object existence. |
-| `deploy` | `<profile> <id> [host]` | Provisions virtual hardware and waits for SSH. |
-| `config` | `<profile>` | Applies Ansible roles via dynamic inventory. |
-| `test` | `<profile> <id>` | Executes Pytest-Testinfra OS validation. |
-| `destroy` | `<profile> <id>` | Deletes the VM and its isolated Tofu workspace. |
-| `all` | `<profile> <id> [host]` | Runs Lint -> Deploy -> Config -> Test. |
+The `./manage.sh` orchestrator provides a unified interface for the entire lifecycle.
 
-**Example:**
-```bash
-./manage.sh all ubuntu-base 01 esxi-01.mgmt.plexplease.com
-```
+### `lint`
+Validates the YAML profile schema and checks if all vCenter objects (Datacenter, Cluster, Host, Network) actually exist.
+*   **Usage:** `./manage.sh lint <profile> [id] [host]`
+*   **Example:** `./manage.sh lint photon-docker 02 esxi-01.mgmt.plexplease.com`
+
+### `deploy`
+Provisions the virtual hardware using OpenTofu. It creates a dedicated workspace for the VM state and performs an intermediate SSH connectivity test.
+*   **Usage:** `./manage.sh deploy <profile> <id> [host] [mac_address]`
+*   **Example:** `./manage.sh deploy ubuntu-base 01 esxi-02.mgmt.plexplease.com 00:50:56:af:00:01`
+*   *Note: Providing a MAC address at runtime overrides any MAC defined in the YAML profile.*
+
+### `config`
+Applies the post-deployment OS configuration using Ansible. It uses dynamic discovery to target the VM by its vCenter tags.
+*   **Usage:** `./manage.sh config <profile>`
+*   **Example:** `./manage.sh config photon-docker`
+
+### `test`
+Executes the `pytest-testinfra` suite to verify that the node complies with security hardening and service standards.
+*   **Usage:** `./manage.sh test <profile> <id>`
+*   **Example:** `./manage.sh test ubuntu-base 01`
+
+### `destroy`
+Safely removes the virtual machine from vCenter and deletes its isolated OpenTofu workspace.
+*   **Usage:** `./manage.sh destroy <profile> <id>`
+*   **Example:** `./manage.sh destroy photon-docker 02`
+
+### `all`
+The recommended command for end-to-end deployments. It sequentially executes `lint` -> `deploy` -> `config` -> `test`.
+*   **Usage:** `./manage.sh all <profile> <id> [host] [mac_address]`
+*   **Example:** `./manage.sh all photon-docker 05 esxi-01.mgmt.plexplease.com 00:50:56:af:00:05`
 
 ---
 
