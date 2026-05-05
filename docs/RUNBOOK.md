@@ -33,9 +33,15 @@ Validates the YAML profile schema and checks if all vCenter objects (Datacenter,
 
 ### `deploy`
 Provisions the virtual hardware using OpenTofu. It creates a dedicated workspace for the VM state and performs an intermediate SSH connectivity test.
-*   **Usage:** `./manage.sh deploy <profile> <id> [host] [mac_address]`
-*   **Example:** `./manage.sh deploy ubuntu-base 01 esxi-02.mgmt.plexplease.com 00:50:56:af:00:01`
-*   *Note: Providing a MAC address at runtime overrides any MAC defined in the YAML profile.*
+*   **Usage:** `./manage.sh deploy <profile> <id> [flags]`
+*   **Flags:**
+    *   `--host <name>`: Override target ESXi host.
+    *   `--mac <addr>`: Override network MAC address.
+    *   `--ip <addr>`: Set static IPv4 address (enables guest customization).
+    *   `--hostname <name>`: Override VM hostname.
+    *   `--gateway <addr>`: Set IPv4 gateway (required if `--ip` is used).
+    *   `--dns <addr>`: Set DNS server (default: 8.8.8.8).
+*   **Example:** `./manage.sh deploy ubuntu-base 01 --ip 10.10.10.50 --gateway 10.10.10.1 --hostname static-node`
 
 ### `config`
 Applies the post-deployment OS configuration using Ansible. It uses dynamic discovery to target the VM by its vCenter tags.
