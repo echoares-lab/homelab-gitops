@@ -1,0 +1,36 @@
+# Ansible Dynamic Inventory for vSphere (Modern Certified Plugin)
+plugin: vmware.vmware.vms
+strict: false
+validate_certs: false
+
+# Enable modern tag gathering (replaces with_tags)
+# Requires vSphere Automation SDK
+gather_tags: true
+
+# Clean up warnings
+rename_reserved_variables: true
+flatten_nested_properties: false
+
+# Only fetch necessary properties to minimize variable noise
+properties:
+  - config.name
+  - guest.ipAddress
+
+# Group hosts by tag names found in vCenter
+keyed_groups:
+  - key: tags.values()
+    prefix: tag
+    separator: "_"
+
+hostnames:
+  - guest.ipAddress
+  - config.name
+
+# Set default connection variables
+compose:
+  ansible_user: "'ansible'"
+
+# Only include VMs that have at least one of our core tags
+# Note: Use vmware_inventory_tags (renamed via rename_reserved_variables)
+filters:
+  - "'photon' in vmware_inventory_tags.values() or 'ubuntu' in vmware_inventory_tags.values() or 'docker' in vmware_inventory_tags.values()"

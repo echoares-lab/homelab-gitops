@@ -202,7 +202,8 @@ case $COMMAND in
         echo "Starting Tag-Based Ansible Configuration..."
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
-        ansible-playbook -i inventory/vmware.yml site.yml --private-key "$SSH_PRIVATE_KEY_PATH" --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        ansible-playbook -i inventory/vmware_vms.yml site.yml
+ --private-key "$SSH_PRIVATE_KEY_PATH" --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         cd ..
         track_time $START $(date +%s) "Ansible Configuration"
         ;;
