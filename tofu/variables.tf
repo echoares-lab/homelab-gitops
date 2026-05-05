@@ -68,3 +68,23 @@ variable "mac_address" {
   type    = string
   default = ""
 }
+
+variable "ipv4_address" {
+  type    = string
+  default = ""
+}
+
+variable "ipv4_netmask" {
+  type    = number
+  default = 24
+}
+
+variable "ipv4_gateway" {
+  type    = string
+  default = ""
+}
+
+variable "dns_servers" {
+  type    = list(string)
+  default = ["8.8.8.8"]
+}

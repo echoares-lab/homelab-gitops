@@ -42,26 +42,58 @@ export VMWARE_USER="$VCENTER_USERNAME"
 export VMWARE_PASSWORD="$VCENTER_PASSWORD"
 export VMWARE_VALIDATE_CERTS="no"
 
-# Parse Flags
+# Defaults
 KEEP=false
-ARGS=()
-for arg in "$@"; do
-    case $arg in
-        -k|--keep)
-            KEEP=true
-            shift
-            ;;
+PROFILE=""
+INSTANCE_ID=""
+TARGET_HOST="esxi-01.mgmt.plexplease.com"
+MAC_OVERRIDE=""
+IP_OVERRIDE=""
+HOSTNAME_OVERRIDE=""
+NETMASK="24"
+GATEWAY=""
+DNS="8.8.8.8"
+COMMAND=""
+
+# Parse flags and positional arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -k|--keep) KEEP=true ;;
+        --ip) IP_OVERRIDE="$2"; shift ;;
+        --hostname) HOSTNAME_OVERRIDE="$2"; shift ;;
+        --mac) MAC_OVERRIDE="$2"; shift ;;
+        --host) TARGET_HOST="$2"; shift ;;
+        --netmask) NETMASK="$2"; shift ;;
+        --gateway) GATEWAY="$2"; shift ;;
+        --dns) DNS="$2"; shift ;;
+        -*) echo "Unknown flag: $1"; exit 1 ;;
         *)
-            ARGS+=("$arg")
+            if [[ -z "$COMMAND" ]]; then
+                COMMAND="$1"
+            elif [[ -z "$PROFILE" ]]; then
+                PROFILE="$1"
+            elif [[ -z "$INSTANCE_ID" ]]; then
+                INSTANCE_ID="$1"
+            else
+                echo "Unknown argument: $1"
+                exit 1
+            fi
             ;;
     esac
+    shift
 done
 
-COMMAND=${ARGS[0]}
-PROFILE=${ARGS[1]:-"photon-docker"}
-INSTANCE_ID=${ARGS[2]:-"01"}
-TARGET_HOST=${ARGS[3]:-"esxi-01.mgmt.plexplease.com"}
-MAC_OVERRIDE=${ARGS[4]:-""}
+# Validate required positional arguments
+if [[ -z "$COMMAND" ]]; then
+    echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile] [id] [flags]"
+    exit 1
+fi
+
+# Set defaults for profile/id if not provided (except for specific commands)
+if [[ "$COMMAND" != "build" && "$COMMAND" != "config" ]]; then
+    PROFILE=${PROFILE:-"photon-docker"}
+    INSTANCE_ID=${INSTANCE_ID:-"01"}
+fi
 
 validate_mac "$MAC_OVERRIDE"
 
@@ -79,7 +111,6 @@ case $COMMAND in
         export PKR_VAR_vcenter_server="$VCENTER_SERVER"
         export PKR_VAR_vcenter_username="$VCENTER_USERNAME"
         export PKR_VAR_vcenter_password="$VCENTER_PASSWORD"
-        # Map remaining consolidated vars to Packer
         export PKR_VAR_datacenter="$VCENTER_DATACENTER"
         export PKR_VAR_cluster="$VCENTER_CLUSTER"
         export PKR_VAR_datastore="$VCENTER_DATASTORE"
@@ -121,7 +152,6 @@ case $COMMAND in
             print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
             print(f'export YAML_MAC=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
             print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
-            print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
             print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
 
         export TF_VAR_vcenter_server="$VCENTER_SERVER"
@@ -129,17 +159,29 @@ case $COMMAND in
         export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
         export TF_VAR_host="$TARGET_HOST"
 
+        # Hardware Overrides
         if [[ -n "$MAC_OVERRIDE" ]]; then
             export TF_VAR_mac_address="$MAC_OVERRIDE"
-            echo "Using Runtime MAC Address: $MAC_OVERRIDE"
         else
             export TF_VAR_mac_address="$YAML_MAC"
         fi
 
-        VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+        # Static IP Overrides
+        export TF_VAR_ipv4_address="$IP_OVERRIDE"
+        export TF_VAR_ipv4_netmask="$NETMASK"
+        export TF_VAR_ipv4_gateway="$GATEWAY"
+        export TF_VAR_dns_servers="[\"$DNS\"]"
+
+        # Identity Overrides
+        if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
+            VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
+        else
+            VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+        fi
         export TF_VAR_vm_name="$VM_NAME"
         
         echo "Targeting VM: $VM_NAME"
+        if [[ -n "$IP_OVERRIDE" ]]; then echo "Static IP: $IP_OVERRIDE"; fi
 
         cd tofu
         tofu init
@@ -150,7 +192,7 @@ case $COMMAND in
         echo "VM Deployed at $VM_IP"
         
         python3 ../scripts/test_connectivity.py "$VM_IP"
-        echo "photon-node ansible_host=$VM_IP ansible_user=$SSH_ADMIN_USERNAME" > ../ansible/inventory.ini
+        echo "node ansible_host=$VM_IP ansible_user=$SSH_ADMIN_USERNAME" > ../ansible/inventory.ini
         cd ..
         track_time $START $(date +%s) "Deployment"
         ;;
@@ -181,38 +223,17 @@ case $COMMAND in
             echo "Keep flag set. Skipping destruction phase."
             exit 0
         fi
-        START=$(date +%s)
-        echo "Destroying Deployment ($PROFILE - $INSTANCE_ID)..."
+        eval $(python3 -c "import yaml; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); print(f'VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); print(f'VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
+        if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
+            VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
+        else
+            VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+        fi
         
-        eval $(python3 -c "import yaml, json; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); \
-            print(f'export TF_VAR_datacenter=\"{c[\"vcenter\"][\"datacenter\"]}\"'); \
-            print(f'export TF_VAR_cluster=\"{c[\"vcenter\"][\"cluster\"]}\"'); \
-            print(f'export TF_VAR_host=\"{c[\"vcenter\"][\"host\"]}\"'); \
-            print(f'export TF_VAR_datastore=\"{c[\"vcenter\"][\"datastore\"]}\"'); \
-            print(f'export TF_VAR_network=\"{c[\"vcenter\"][\"network\"]}\"'); \
-            print(f'export TF_VAR_vm_cpu=\"{c[\"vm_specs\"][\"cpu\"]}\"'); \
-            print(f'export TF_VAR_vm_ram_gb=\"{c[\"vm_specs\"][\"ram_gb\"]}\"'); \
-            print(f'export TF_VAR_guest_id=\"{c[\"vm_specs\"][\"guest_id\"]}\"'); \
-            print(f'export TF_VAR_disk_size_gb=\"{c[\"vm_specs\"][\"disk_size_gb\"]}\"'); \
-            print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
-            print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
-            print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
-            print(f'export TF_VAR_mac_address=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
-            print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
-            print(f'export VM_INSTANCE=\"{c[\"deployment\"].get(\"vm_instance\", \"01\")}\"'); \
-            print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
-
-        export TF_VAR_vcenter_server="$VCENTER_SERVER"
-        export TF_VAR_vcenter_user="$VCENTER_USERNAME"
-        export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
-        export TF_VAR_host="$TARGET_HOST"
-
-        VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
-        export TF_VAR_vm_name="$VM_NAME"
-        
+        echo "Destroying Workspace: $VM_NAME"
         cd tofu
         tofu workspace select "$VM_NAME" || exit 1
-        tofu destroy -auto-approve
+        tofu destroy -auto-approve -var="vcenter_server=$VCENTER_SERVER" -var="vcenter_user=$VCENTER_USERNAME" -var="vcenter_password=$VCENTER_PASSWORD" -var="datacenter=x" -var="cluster=x" -var="host=x" -var="datastore=x" -var="network=x" -var="vm_name=$VM_NAME" -var="vm_cpu=1" -var="vm_ram_gb=1" -var="guest_id=x" -var="library_name=x" -var="template_name=x" -var="vm_tags=x"
         tofu workspace select default
         tofu workspace delete "$VM_NAME"
         cd ..
@@ -221,20 +242,26 @@ case $COMMAND in
 
     all)
         TOTAL_START=$(date +%s)
-        $0 lint $PROFILE $INSTANCE_ID $TARGET_HOST
-        $0 deploy $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
+        $0 lint $PROFILE $INSTANCE_ID --host "$TARGET_HOST"
+        $0 deploy $PROFILE $INSTANCE_ID --host "$TARGET_HOST" --mac "$MAC_OVERRIDE" --ip "$IP_OVERRIDE" --hostname "$HOSTNAME_OVERRIDE" --netmask "$NETMASK" --gateway "$GATEWAY" --dns "$DNS"
         $0 config $PROFILE
-        $0 test $PROFILE $INSTANCE_ID $TARGET_HOST $MAC_OVERRIDE
+        $0 test $PROFILE $INSTANCE_ID --mac "$MAC_OVERRIDE"
         if [ "$KEEP" = false ]; then
-            $0 destroy $PROFILE $INSTANCE_ID $TARGET_HOST
+            $0 destroy $PROFILE $INSTANCE_ID --hostname "$HOSTNAME_OVERRIDE"
         fi
         track_time $TOTAL_START $(date +%s) "TOTAL SYNTHESIS PIPELINE"
         ;;
 
     *)
-        echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile_name] [instance_id] [target_host] [mac_address]"
-        echo "Options:"
-        echo "  -k, --keep    Skip the destruction phase at the end of 'all' or explicit 'destroy'."
+        echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile] [id] [flags]"
+        echo "Flags:"
+        echo "  --host <name>      Override target ESXi host"
+        echo "  --mac <addr>       Override network MAC address"
+        echo "  --ip <addr>        Set static IPv4 address (enables guest customization)"
+        echo "  --hostname <name>  Override VM hostname"
+        echo "  --netmask <bits>   Set IPv4 netmask (default: 24)"
+        echo "  --gateway <addr>   Set IPv4 gateway (required for --ip)"
+        echo "  --dns <addr>       Set DNS server (default: 8.8.8.8)"
         exit 1
         ;;
 esac
