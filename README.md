@@ -4,6 +4,8 @@ A professional-grade automation framework for building, provisioning, and config
 
 ## 🚀 Key Features
 *   **Unified Orchestrator:** A single script (`manage.sh`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy.
+*   **Interactive Command Builder:** Running `./manage.sh` with no arguments launches a guided wizard to build and execute pipeline commands.
+*   **Scaffolding Helpers:** Built-in wizards for creating Profiles, Roles, and Ansible Plays (`create-profile`, `create-role`, `create-play`).
 *   **Optimized Golden Images:** All templates are pre-remediated to use VMware best practices: **PVSCSI** controllers, **VMXNET3** adapters, and Hardware Version **vmx-21**.
 *   **Declarative Infrastructure:** Uses **OpenTofu** (Terraform) with **Workspace isolation** to manage virtual hardware state idempotently.
 *   **Automated Verification:** Integrated **Pytest-Testinfra** suite validates OS hardening and service state immediately after deployment.
