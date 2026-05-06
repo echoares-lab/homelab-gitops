@@ -498,14 +498,19 @@ case $COMMAND in
         echo "Destroying Workspace: $RESOLVED_NAME"
         cd tofu
         tofu workspace select "$RESOLVED_NAME" || exit 1
-        # satisfaction of all variables
-        tofu destroy -auto-approve \
+
+        # We use -refresh=false to bypass the need for all original input variables.
+        # Tofu will use the IDs stored in the state to perform the deletion.
+        tofu destroy -auto-approve -refresh=false \
             -var="vcenter_server=$VCENTER_SERVER" \
             -var="vcenter_user=$VCENTER_USERNAME" \
             -var="vcenter_password=$VCENTER_PASSWORD" \
             -var="datacenter=x" -var="cluster=x" -var="host=x" -var="datastore=x" -var="network=x" \
             -var="vm_name=$RESOLVED_NAME" -var="vm_cpu=1" -var="vm_ram_gb=1" \
             -var="guest_id=x" -var="library_name=x" -var="template_name=x" -var="vm_tags=x"
+
+        tofu workspace select default
+
         tofu workspace select default
         tofu workspace delete "$RESOLVED_NAME"
         cd ..
