@@ -180,6 +180,7 @@ def build(
 @app.command()
 def lint(
     profile: Annotated[str, typer.Argument(help="Profile to lint")] = "photon-docker",
+    id: Annotated[Optional[str], typer.Argument(help="Instance ID (Optional)")] = "01",
     host: Annotated[str, typer.Option(help="Override target ESXi host")] = "esxi-01.mgmt.plexplease.com"
 ):
     """[blue]Audit:[/blue] Validate YAML schema and vCenter objects."""
@@ -295,7 +296,8 @@ def test(
 @app.command()
 def destroy(
     identifier: Annotated[str, typer.Argument(help="VM Name, IP, or MAC")] = "",
-    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False
+    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False,
+    auto_approve: Annotated[bool, typer.Option("--yes", "-y", help="Bypass confirmation")] = False
 ):
     """[blue]Teardown:[/blue] Remove VM and its isolated Tofu state."""
     if keep:
@@ -314,9 +316,10 @@ def destroy(
         console.print(f"[bold red]Error:[/bold red] Could not identify a managed VM matching '{identifier}'.")
         sys.exit(1)
         
-    if not Confirm.ask(f"\n[bold red]WARNING:[/bold red] Are you sure you want to permanently destroy '[bold cyan]{resolved_name}[/bold cyan]'?"):
-        console.print("[yellow]Destruction cancelled.[/yellow]")
-        return
+    if not auto_approve:
+        if not Confirm.ask(f"\n[bold red]WARNING:[/bold red] Are you sure you want to permanently destroy '[bold cyan]{resolved_name}[/bold cyan]'?"):
+            console.print("[yellow]Destruction cancelled.[/yellow]")
+            return
 
     console.print(f"[red]Destroying Workspace:[/red] {resolved_name}")
     run_cmd(f"tofu workspace select '{resolved_name}'", cwd="tofu")
@@ -414,10 +417,10 @@ def interactive_mode():
         func_map[i_command]()
         sys.exit(0)
 
-    # Destruction
+    # Destruction (Special path for single identifier)
     if i_command == "destroy":
         i_id = Prompt.ask("\nEnter VM Name, IP, or MAC to destroy")
-        if i_id: destroy(i_id)
+        if i_id: destroy(identifier=i_id)
         sys.exit(0)
 
     # Profile Selection
@@ -440,23 +443,54 @@ def interactive_mode():
     i_id = Prompt.ask("Instance ID", default="01")
 
     # Overrides
-    flags = {}
+    overrides = {}
     console.print("\n[dim]Optional Overrides (Press Enter to skip):[/dim]")
-    i_host = Prompt.ask("Override Target ESXi Host", default="esxi-01.mgmt.plexplease.com")
-    i_ip = Prompt.ask("Set Static IP (e.g. 10.10.10.50)", default="")
+    overrides['host'] = Prompt.ask("Override Target Host", default="esxi-01.mgmt.plexplease.com")
+    overrides['ip'] = Prompt.ask("Set Static IP (e.g. 10.10.10.50)", default="")
+    if overrides['ip']:
+        overrides['gateway'] = Prompt.ask("  Gateway", default="10.10.10.1")
+    
+    overrides['mac'] = Prompt.ask("Custom MAC address", default="")
+    overrides['hostname'] = Prompt.ask("Hostname Override", default="")
+
+    # Build and show command
+    cmd_parts = [f"python3 manage.py {i_command} {i_profile} {i_id}"]
+    for k, v in overrides.items():
+        if v: cmd_parts.append(f"--{k} {v}")
+    
+    full_cmd = " ".join(cmd_parts)
+    console.print(f"\n[bold green]Constructed Command:[/bold green] [cyan]{full_cmd}[/cyan]")
+    console.print("-" * 40)
     
     if Confirm.ask("Execute now?"):
-        if i_command == "all": all(profile=i_profile, id=i_id, host=i_host, ip=i_ip)
-        elif i_command == "deploy": deploy(profile=i_profile, id=i_id, host=i_host, ip=i_ip)
-        elif i_command == "config": config(profile=i_profile, id=i_id)
-        elif i_command == "test": test(profile=i_profile)
-        elif i_command == "lint": lint(profile=i_profile, host=i_host)
-        elif i_command == "build": build(profile=i_profile)
+        # Map interactive command to Typer function
+        func_map = {
+            "all": all, "deploy": deploy, "config": config,
+            "test": test, "lint": lint, "build": build
+        }
+        
+        # We need to filter overrides to only those accepted by the function
+        import inspect
+        target_func = func_map[i_command]
+        sig = inspect.signature(target_func)
+        valid_args = {k: v for k, v in overrides.items() if k in sig.parameters}
+        
+        # Add required positionals
+        if "profile" in sig.parameters: valid_args["profile"] = i_profile
+        if "id" in sig.parameters: valid_args["id"] = i_id
+        
+        target_func(**valid_args)
+        console.print(f"\n[bold green]Execution Summary:[/bold green] {full_cmd}")
     sys.exit(0)
 
 if __name__ == "__main__":
+    load_env()
+    os.environ["VMWARE_HOST"] = os.environ.get("VCENTER_SERVER", "")
+    os.environ["VMWARE_USER"] = os.environ.get("VCENTER_USERNAME", "")
+    os.environ["VMWARE_PASSWORD"] = os.environ.get("VCENTER_PASSWORD", "")
+    os.environ["VMWARE_VALIDATE_CERTS"] = "no"
+
     if len(sys.argv) == 1:
         interactive_mode()
     else:
-        load_env()
         app()
