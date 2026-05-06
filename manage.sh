@@ -19,6 +19,21 @@ load_env() {
     fi
 }
 
+# Pre-flight check for secrets
+check_secrets() {
+    if [ ! -f "config/secrets.env" ]; then
+        echo "Error: 'config/secrets.env' not found."
+        echo "Hint: Copy 'config/secrets.env.example' to 'config/secrets.env' and fill in your credentials."
+        exit 1
+    fi
+    # Check for redacted values
+    if grep -q "REDACTED" "config/secrets.env"; then
+        echo "Error: 'config/secrets.env' contains REDACTED values."
+        echo "Hint: Open the file and replace REDACTED placeholders with real vCenter/SSH credentials."
+        exit 1
+    fi
+}
+
 # Function to track execution time
 track_time() {
     local start_time=$1
@@ -32,7 +47,8 @@ track_time() {
 validate_mac() {
     local mac=$1
     if [[ -n "$mac" ]] && ! [[ "$mac" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]; then
-        echo "Error: Invalid MAC address format ($mac). Expected xx:xx:xx:xx:xx:xx"
+        echo "Error: Invalid MAC address format ($mac)."
+        echo "Hint: MAC must be in the format xx:xx:xx:xx:xx:xx"
         exit 1
     fi
 }
@@ -43,10 +59,10 @@ show_help() {
     echo "Usage: $0 [flags] {command} [profile] [id] [overrides]"
     echo ""
     echo "Core Commands:"
-    echo "  build       Build a Golden OVF template via Packer (Photon only currently)"
+    echo "  build       Build a Golden OVF template via Packer (Photon only)"
     echo "  lint        Validate YAML profile and vCenter infrastructure objects"
     echo "  deploy      Provision virtual hardware via OpenTofu (Isolated Workspaces)"
-    echo "  config      Apply post-deployment configuration via Ansible"
+    echo "  config      Apply configuration via Ansible (Auto-Limited by Profile/ID)"
     echo "  test        Run Pytest-Testinfra OS and service validation"
     echo "  destroy     Remove VM and its isolated Tofu workspace"
     echo "  all         Full pipeline: Lint -> Deploy -> Config -> Test -> Destroy (unless -k)"
@@ -54,7 +70,6 @@ show_help() {
     echo "Options & Flags:"
     echo "  -h, --help           Show this help menu"
     echo "  -k, --keep           Skip 'destroy' phase at end of 'all' or explicit 'destroy'"
-    echo "  --limit <type>       Ansible filter: 'profile' (e.g. tag_ubuntu), 'instance' (FQDN), or 'none' (default)"
     echo ""
     echo "Runtime Overrides:"
     echo "  --host <name>        Override target ESXi host"
@@ -64,12 +79,16 @@ show_help() {
     echo "  --gateway <addr>     Set IPv4 gateway (Required for --ip)"
     echo "  --dns <addr>         Set DNS server (Default: 8.8.8.8)"
     echo ""
-    echo "Examples:"
-    echo "  1. Full Synthesis (DHCP):"
-    echo "     $0 all ubuntu-base 01"
+    echo "Automatic Filtering (Implied Limits):"
+    echo "  Providing both Profile and ID (e.g. config ubuntu-base 04) limits Ansible to that single VM."
+    echo "  Providing only a Profile (e.g. config ubuntu-base) limits Ansible to all VMs with that profile tag."
     echo ""
-    echo "  2. Static IP Deployment with Instance Limit:"
-    echo "     $0 deploy photon-docker 02 --ip 10.10.10.50 --gateway 10.10.10.1 --limit instance"
+    echo "Examples:"
+    echo "  1. Provision node with Static IP:"
+    echo "     $0 deploy ubuntu-base 01 --ip 10.10.10.50 --gateway 10.10.10.1"
+    echo ""
+    echo "  2. Configure only a specific instance:"
+    echo "     $0 config photon-docker 02"
     echo ""
     echo "  3. Interactive Mode (Builder):"
     echo "     $0"
@@ -123,9 +142,6 @@ interactive_mode() {
         I_FLAGS+=" --mac $I_MAC"
     fi
 
-    read -p "Limit Ansible to this instance? (y/N): " I_LIM
-    [[ "$I_LIM" =~ ^[Yy]$ ]] && I_FLAGS+=" --limit instance"
-
     echo ""
     FULL_CMD="./manage.sh $I_COMMAND $I_PROFILE $I_ID $I_FLAGS"
     echo "Constructed Command: $FULL_CMD"
@@ -147,8 +163,15 @@ if [[ "$#" -eq 0 ]]; then
     interactive_mode
 fi
 
-# Load Consolidated Secrets
+# Load Consolidated Secrets (Fail-Fast if missing)
+check_secrets
 load_env "config/secrets.env"
+
+# Export standard Ansible VMware vars
+export VMWARE_HOST="$VCENTER_SERVER"
+export VMWARE_USER="$VCENTER_USERNAME"
+export VMWARE_PASSWORD="$VCENTER_PASSWORD"
+export VMWARE_VALIDATE_CERTS="no"
 
 # Defaults
 KEEP=false
@@ -161,7 +184,6 @@ HOSTNAME_OVERRIDE=""
 NETMASK="24"
 GATEWAY=""
 DNS="8.8.8.8"
-LIMIT="none"
 COMMAND=""
 
 # Parse flags and positional arguments
@@ -176,17 +198,28 @@ while [[ "$#" -gt 0 ]]; do
         --netmask) NETMASK="$2"; shift ;;
         --gateway) GATEWAY="$2"; shift ;;
         --dns) DNS="$2"; shift ;;
-        --limit) LIMIT="$2"; shift ;;
-        -*) echo "Unknown flag: $1"; exit 1 ;;
+        --limit) 
+            echo "Warning: '--limit' is deprecated. Targeting is now automatic (Implied Limits)."
+            echo "Hint: Pass Profile + ID for a single instance, or just Profile for a group."
+            shift 
+            ;;
+        -*) 
+            echo "Error: Unrecognized flag '$1'"
+            echo "Hint: Use './manage.sh --help' to see all valid flags."
+            exit 1 
+            ;;
         *)
             if [[ -z "$COMMAND" ]]; then
                 COMMAND="$1"
             elif [[ -z "$PROFILE" ]]; then
                 PROFILE="$1"
+                PROFILE_SET=true
             elif [[ -z "$INSTANCE_ID" ]]; then
                 INSTANCE_ID="$1"
+                INSTANCE_SET=true
             else
-                echo "Unknown argument: $1"
+                echo "Error: Unexpected positional argument '$1'"
+                echo "Hint: Correct usage is './manage.sh [flags] command profile id'"
                 exit 1
             fi
             ;;
@@ -194,19 +227,19 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Validate positional arguments
+# Validate required positional arguments
 if [[ -z "$COMMAND" ]]; then show_help; fi
 
-# Set defaults for profile/id
-if [[ "$COMMAND" != "build" && "$COMMAND" != "config" ]]; then
+# Set defaults for profile/id (for build/config/lint where they might be partial)
+if [[ "$COMMAND" != "build" && "$COMMAND" != "config" && "$COMMAND" != "lint" ]]; then
     PROFILE=${PROFILE:-"photon-docker"}
     INSTANCE_ID=${INSTANCE_ID:-"01"}
 fi
 
 validate_mac "$MAC_OVERRIDE"
 
-# Load profile data for Name construction
-if [[ -f "config/profiles/${PROFILE}.yml" ]]; then
+# Load profile data for Name construction (if profile provided)
+if [[ -n "$PROFILE" && -f "config/profiles/${PROFILE}.yml" ]]; then
     eval $(python3 -c "import yaml; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); \
         print(f'VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
         print(f'VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
@@ -214,7 +247,7 @@ if [[ -f "config/profiles/${PROFILE}.yml" ]]; then
     if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
         VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
     else
-        VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+        VM_NAME="${VM_PREFIX}-${INSTANCE_ID:-"01"}.${VM_DOMAIN}"
     fi
 fi
 
@@ -312,15 +345,19 @@ case $COMMAND in
         START=$(date +%s)
         echo "Starting Tag-Based Ansible Configuration..."
         
-        # Determine Limit
-        LIMIT_ARG=""
-        if [[ "$LIMIT" == "profile" ]]; then
-            LIMIT_ARG="-l tag_$PROFILE"
-        elif [[ "$LIMIT" == "instance" ]]; then
+        # Implied Limits Logic
+        if [[ -n "$INSTANCE_SET" ]]; then
             LIMIT_ARG="-l $VM_NAME"
+            echo "Auto-Filter: Instance ($VM_NAME)"
+        elif [[ -n "$PROFILE_SET" ]]; then
+            # Extract the first tag from the profile YAML
+            PRIMARY_TAG=$(python3 -c "import yaml; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); print(c['deployment']['tags'][0])")
+            LIMIT_ARG="-l tag_$PRIMARY_TAG"
+            echo "Auto-Filter: Profile group (tag_$PRIMARY_TAG)"
+        else
+            LIMIT_ARG=""
+            echo "Auto-Filter: None (Broad Deployment)"
         fi
-        
-        echo "Filter: ${LIMIT_ARG:-"None"}"
         
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
@@ -369,7 +406,7 @@ case $COMMAND in
         TOTAL_START=$(date +%s)
         $0 lint $PROFILE $INSTANCE_ID --host "$TARGET_HOST"
         $0 deploy $PROFILE $INSTANCE_ID --host "$TARGET_HOST" --mac "$MAC_OVERRIDE" --ip "$IP_OVERRIDE" --hostname "$HOSTNAME_OVERRIDE" --netmask "$NETMASK" --gateway "$GATEWAY" --dns "$DNS"
-        $0 config $PROFILE --limit "$LIMIT"
+        $0 config $PROFILE $INSTANCE_ID
         $0 test $PROFILE $INSTANCE_ID --mac "$MAC_OVERRIDE"
         if [ "$KEEP" = false ]; then
             $0 destroy $PROFILE $INSTANCE_ID --hostname "$HOSTNAME_OVERRIDE"
