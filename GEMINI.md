@@ -4,6 +4,7 @@
 - **Naming Conventions**:
     - **Profiles**: Must use lowercase alphanumeric characters and hyphens only (e.g., `ubuntu-base`, `db-cluster`). No underscores or spaces.
     - **Roles**: Must use lowercase alphanumeric characters and underscores only (e.g., `harden_os`, `install_docker`). No hyphens or spaces.
+    - **Tags**: Must use lowercase alphanumeric characters and underscores only (e.g., `primary_dns`, `docker_host`). No hyphens or spaces.
 - **Golden Image:** Always use Ubuntu LTS (26.04+) or Photon OS 5.0 with the `minimal` installation profile.
 - **Build Stack:** Utilize vCenter-native capture workflows. Provision a source VM via ISO/Cloud-Init, standardize hardware to **PVSCSI** and **VMXNET3**, and capture as an OVF template in the `GOLDEN` Content Library.
 - **Hardware Version:** Standardize on **Hardware Version 21** (vmx-21) for all templates to leverage modern vSphere 8.x features.
