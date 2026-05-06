@@ -1,23 +1,45 @@
 #!/usr/bin/env python3
-import argparse
 import os
 import sys
 import subprocess
 import time
 import re
 import yaml
-from pathlib import Path
+import json
+from typing import Optional, List
+from typing_extensions import Annotated
+
+import typer
 from rich.console import Console
 from rich.table import Table
-from rich.prompt import Prompt, Confirm, IntPrompt
-from rich.status import Status
+from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
+from rich import print as rprint
 
+# Initialize Typer and Rich
+app = typer.Typer(
+    help="Unified HomeLab GitOps Orchestrator",
+    add_completion=False,
+    rich_markup_mode="rich"
+)
 console = Console()
+
+# --- GLOBALS & METADATA ---
+METADATA_FILE = "config/metadata.yml"
+metadata = {
+    "commands": {},
+    "tags": {},
+    "roles": {}
+}
+
+if os.path.exists(METADATA_FILE):
+    with open(METADATA_FILE, 'r') as f:
+        metadata = yaml.safe_load(f)
 
 # --- HELPER FUNCTIONS ---
 
 def load_env(env_file="config/secrets.env"):
+    """Loads infrastructure secrets into the environment."""
     if not os.path.exists(env_file):
         console.print(f"[bold red]Error:[/bold red] '{env_file}' not found.")
         console.print("[yellow]Hint:[/yellow] Copy 'config/secrets.env.example' to 'config/secrets.env' and fill in your credentials.")
@@ -36,42 +58,46 @@ def load_env(env_file="config/secrets.env"):
                 continue
             if '=' in line:
                 key, val = line.split('=', 1)
-                val = val.split(' #')[0].strip() # Remove inline comments
-                val = val.strip('"\'') # Remove quotes
+                val = val.split(' #')[0].strip()
+                val = val.strip('"\'')
                 os.environ[key.strip()] = val
 
 def track_time(start_time, task_name):
+    """Calculates and prints the duration of a task."""
     duration = int(time.time() - start_time)
     console.print(f"[bold green]Task [{task_name}][/bold green] completed in {duration // 60}m {duration % 60}s")
 
-def validate_mac(mac):
+def validate_mac(mac: Optional[str]):
+    """Ensures MAC address follows the xx:xx:xx:xx:xx:xx format."""
     if mac and not re.match(r"^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$", mac):
-        console.print(f"[bold red]Error:[/bold red] Invalid MAC address format ({mac}). Expected xx:xx:xx:xx:xx:xx")
+        console.print(f"[bold red]Error:[/bold red] Invalid MAC address format ({mac}).")
         sys.exit(1)
 
 def run_cmd(cmd, cwd=None, capture=False):
+    """Executes a shell command via subprocess."""
     res = subprocess.run(cmd, shell=True, cwd=cwd, text=True, capture_output=capture)
     if res.returncode != 0 and not capture:
         sys.exit(res.returncode)
     return res
 
-def identify_vm(target):
-    with console.status("[bold blue]Identifying VM..."):
-        # 1. Check for exact workspace match
+def identify_vm(target: str):
+    """Discovers a VM Name/Workspace using an IP, MAC, or Partial Name."""
+    with console.status(f"[bold blue]Identifying VM for '{target}'..."):
+        # 1. Direct Workspace Match
         res = run_cmd("tofu workspace list", cwd="tofu", capture=True)
         for line in res.stdout.splitlines():
             ws = line.replace('*', '').strip()
             if ws == target:
                 return ws
 
-        # 2. Check by IP
+        # 2. Query vCenter by IP
         if re.match(r"^([0-9]{1,3}\.){3}[0-9]{1,3}$", target):
             govc_cmd = f"./build/govc find . -type m -guest.ipAddress '{target}'"
             res = run_cmd(govc_cmd, capture=True)
             if res.returncode == 0 and res.stdout.strip():
                 return os.path.basename(res.stdout.strip().splitlines()[0])
 
-        # 3. Check for partial name match
+        # 3. Partial Workspace Match
         res = run_cmd("tofu workspace list", cwd="tofu", capture=True)
         for line in res.stdout.splitlines():
             ws = line.replace('*', '').strip()
@@ -80,6 +106,7 @@ def identify_vm(target):
     return None
 
 def get_vm_ip():
+    """Extracts the VM IP from the Ansible temporary inventory."""
     if not os.path.exists('ansible/inventory.ini'):
         console.print("[bold red]Error:[/bold red] ansible/inventory.ini not found. Cannot determine IP.")
         sys.exit(1)
@@ -91,45 +118,9 @@ def get_vm_ip():
     console.print("[bold red]Error:[/bold red] Could not extract IP from inventory.ini")
     sys.exit(1)
 
-# --- COMMAND LOGIC ---
-
-def cmd_build(args):
-    start = time.time()
-    console.print(Panel(f"Building Golden OVF Template via Packer ({args.profile})", style="blue"))
-    if "ubuntu" in args.profile:
-        console.print("[bold red]Error:[/bold red] Ubuntu packer build not yet integrated. Use govc capture method.")
-        sys.exit(1)
-    packer_file = "packer/photon.pkr.hcl"
-
-    # Map remaining consolidated vars to Packer
-    os.environ["PKR_VAR_vcenter_server"] = os.environ.get("VCENTER_SERVER", "")
-    os.environ["PKR_VAR_vcenter_username"] = os.environ.get("VCENTER_USERNAME", "")
-    os.environ["PKR_VAR_vcenter_password"] = os.environ.get("VCENTER_PASSWORD", "")
-    os.environ["PKR_VAR_datacenter"] = os.environ.get("VCENTER_DATACENTER", "")
-    os.environ["PKR_VAR_cluster"] = os.environ.get("VCENTER_CLUSTER", "")
-    os.environ["PKR_VAR_datastore"] = os.environ.get("VCENTER_DATASTORE", "")
-    os.environ["PKR_VAR_network"] = os.environ.get("VCENTER_NETWORK", "")
-    os.environ["PKR_VAR_photon_iso_url"] = os.environ.get("PHOTON_ISO_URL", "")
-    os.environ["PKR_VAR_photon_iso_checksum"] = os.environ.get("PHOTON_ISO_CHECKSUM", "")
-    os.environ["PKR_VAR_ssh_username"] = os.environ.get("SSH_ADMIN_USERNAME", "")
-    os.environ["PKR_VAR_ssh_password"] = os.environ.get("SSH_ADMIN_PASSWORD", "")
-
-    run_cmd(f"packer init {packer_file}")
-    run_cmd(f"packer build -var-file=\"config/secrets.env\" {packer_file}")
-    track_time(start, "Packer Build")
-
-def cmd_lint(args):
-    start = time.time()
-    console.print(Panel(f"Configuration Linting for {args.profile} targeting {args.host}", style="blue"))
-    os.environ["RUNTIME_PROFILE"] = args.profile
-    os.environ["VCENTER_HOST_OVER_RIDE"] = args.host # Note: lint_config script expects VCENTER_HOST_OVERRIDE (fixing typo in script or here?)
-    # Fix: manage.sh uses VCENTER_HOST_OVERRIDE.
-    os.environ["VCENTER_HOST_OVERRIDE"] = args.host
-    run_cmd("python3 scripts/lint_config.py")
-    track_time(start, "Linting")
-
-def load_profile_to_env(profile_name, args):
-    profile_path = f"config/profiles/{profile_name}.yml"
+def load_profile_to_env(profile: str, id: str, host: str, mac: str, ip: str, hostname: str, netmask: str, gateway: str, dns: str):
+    """Maps YAML profile data and CLI overrides to OpenTofu environment variables."""
+    profile_path = f"config/profiles/{profile}.yml"
     if not os.path.exists(profile_path):
         console.print(f"[bold red]Error:[/bold red] Profile {profile_path} not found.")
         sys.exit(1)
@@ -147,72 +138,117 @@ def load_profile_to_env(profile_name, args):
     os.environ["TF_VAR_disk_size_gb"] = str(c["vm_specs"].get("disk_size_gb", ""))
     os.environ["TF_VAR_library_name"] = c["content_library"].get("name", "")
     os.environ["TF_VAR_template_name"] = c["content_library"].get("template", "")
-    os.environ["TF_VAR_vm_tags"] = '["' + '","'.join(c["deployment"].get("tags", [])) + '"]'
+    os.environ["TF_VAR_vm_tags"] = ",".join(c["deployment"].get("tags", []))
     
     yaml_mac = c["deployment"].get("mac_address", "")
-    mac = args.mac if args.mac else yaml_mac
-    os.environ["TF_VAR_mac_address"] = mac
-    
-    os.environ["TF_VAR_ipv4_address"] = args.ip or ""
-    os.environ["TF_VAR_ipv4_netmask"] = str(args.netmask)
-    os.environ["TF_VAR_ipv4_gateway"] = args.gateway or ""
-    os.environ["TF_VAR_dns_servers"] = f'["{args.dns}"]'
+    os.environ["TF_VAR_mac_address"] = mac if mac else yaml_mac
+    os.environ["TF_VAR_ipv4_address"] = ip or ""
+    os.environ["TF_VAR_ipv4_netmask"] = str(netmask)
+    os.environ["TF_VAR_ipv4_gateway"] = gateway or ""
+    os.environ["TF_VAR_dns_servers"] = f'["{dns}"]'
+    os.environ["TF_VAR_host"] = host
 
     vm_domain = c["deployment"].get("vm_name_domain", "local")
     vm_prefix = c["deployment"].get("vm_name_prefix", "node")
     
-    if args.hostname:
-        vm_name = f"{args.hostname}.{vm_domain}"
-    else:
-        vm_name = f"{vm_prefix}-{args.id}.{vm_domain}"
-        
+    vm_name = f"{hostname}.{vm_domain}" if hostname else f"{vm_prefix}-{id}.{vm_domain}"
     os.environ["TF_VAR_vm_name"] = vm_name
     return vm_name, c["deployment"].get("tags", [])
 
-def cmd_deploy(args):
+# --- CLI COMMANDS ---
+
+@app.command()
+def build(
+    profile: Annotated[str, typer.Argument(help="Profile to build")] = "photon-docker"
+):
+    """[blue]Packer:[/blue] Build a fresh Golden OVF template."""
     start = time.time()
-    console.print(Panel(f"Unified OpenTofu Deployment ({args.profile})", style="blue"))
+    console.print(Panel(f"Building Golden OVF Template via Packer ({profile})", style="blue"))
+    if "ubuntu" in profile:
+        console.print("[bold red]Error:[/bold red] Ubuntu packer build not yet integrated. Use govc capture method.")
+        sys.exit(1)
     
-    vm_name, _ = load_profile_to_env(args.profile, args)
+    packer_file = "packer/photon.pkr.hcl"
+    # Inject Consolidated Environment
+    for var in ["VCENTER_SERVER", "VCENTER_USERNAME", "VCENTER_PASSWORD", "VCENTER_DATACENTER", "VCENTER_CLUSTER", "VCENTER_DATASTORE", "VCENTER_NETWORK", "PHOTON_ISO_URL", "PHOTON_ISO_CHECKSUM", "SSH_ADMIN_USERNAME", "SSH_ADMIN_PASSWORD"]:
+        os.environ[f"PKR_VAR_{var.lower()}"] = os.environ.get(var, "")
+
+    run_cmd(f"packer init {packer_file}")
+    run_cmd(f"packer build -var-file=\"config/secrets.env\" {packer_file}")
+    track_time(start, "Packer Build")
+
+@app.command()
+def lint(
+    profile: Annotated[str, typer.Argument(help="Profile to lint")] = "photon-docker",
+    host: Annotated[str, typer.Option(help="Override target ESXi host")] = "esxi-01.mgmt.plexplease.com"
+):
+    """[blue]Audit:[/blue] Validate YAML schema and vCenter objects."""
+    start = time.time()
+    console.print(Panel(f"Configuration Linting for {profile} targeting {host}", style="blue"))
+    os.environ["RUNTIME_PROFILE"] = profile
+    os.environ["VCENTER_HOST_OVERRIDE"] = host
+    run_cmd("python3 scripts/lint_config.py")
+    track_time(start, "Linting")
+
+@app.command()
+def deploy(
+    profile: Annotated[str, typer.Argument(help="Profile to deploy")] = "photon-docker",
+    id: Annotated[str, typer.Argument(help="Instance ID")] = "01",
+    host: Annotated[str, typer.Option(help="Override target host")] = "esxi-01.mgmt.plexplease.com",
+    mac: Annotated[str, typer.Option(help="Override MAC")] = "",
+    ip: Annotated[str, typer.Option(help="Set static IP")] = "",
+    hostname: Annotated[str, typer.Option(help="Override hostname")] = "",
+    netmask: Annotated[str, typer.Option(help="Subnet bits")] = "24",
+    gateway: Annotated[str, typer.Option(help="Default gateway")] = "",
+    dns: Annotated[str, typer.Option(help="Primary DNS")] = "8.8.8.8"
+):
+    """[blue]Provision:[/blue] Deploy virtual hardware via OpenTofu."""
+    start = time.time()
+    console.print(Panel(f"Unified OpenTofu Deployment ({profile})", style="blue"))
     
+    vm_name, tags = load_profile_to_env(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
     os.environ["TF_VAR_vcenter_server"] = os.environ.get("VCENTER_SERVER", "")
     os.environ["TF_VAR_vcenter_user"] = os.environ.get("VCENTER_USERNAME", "")
     os.environ["TF_VAR_vcenter_password"] = os.environ.get("VCENTER_PASSWORD", "")
-    os.environ["TF_VAR_host"] = args.host
     
     console.print(f"[blue]Targeting VM:[/blue] {vm_name}")
-    if args.ip:
-        console.print(f"[blue]Static IP:[/blue] {args.ip}")
+    if tags:
+        table = Table(title="Associated Tags", box=None)
+        table.add_column("Tag", style="cyan")
+        table.add_column("Description", style="white")
+        for t in tags:
+            table.add_row(t, metadata["tags"].get(t, "No description available."))
+        console.print(table)
 
     run_cmd("tofu init", cwd="tofu")
     if run_cmd(f"tofu workspace select '{vm_name}'", cwd="tofu", capture=True).returncode != 0:
         run_cmd(f"tofu workspace new '{vm_name}'", cwd="tofu")
     
     run_cmd("tofu apply -auto-approve", cwd="tofu")
-    
-    res = run_cmd("tofu output -raw vm_ip", cwd="tofu", capture=True)
-    vm_ip = res.stdout.strip()
+    vm_ip = run_cmd("tofu output -raw vm_ip", cwd="tofu", capture=True).stdout.strip()
     console.print(f"[bold green]VM Deployed at {vm_ip}[/bold green]")
     
     run_cmd(f"python3 ../scripts/test_connectivity.py '{vm_ip}'", cwd="tofu")
-    
     with open("ansible/inventory.ini", "w") as f:
         f.write(f"node ansible_host={vm_ip} ansible_user={os.environ.get('SSH_ADMIN_USERNAME', 'ansible')}\n")
-    
     track_time(start, "Deployment")
 
-def cmd_config(args):
+@app.command()
+def config(
+    profile: Annotated[str, typer.Argument(help="Profile to configure")] = "photon-docker",
+    id: Annotated[Optional[str], typer.Argument(help="Instance ID for strict targeting")] = None
+):
+    """[blue]Configure:[/blue] Apply Ansible roles (Auto-Limited by Profile/ID)."""
     start = time.time()
     console.print(Panel("Tag-Based Ansible Configuration", style="blue"))
     
     limit_arg = ""
-    # Implied Limits Logic
-    if args.id and args.id != "01": 
-        vm_name, _ = load_profile_to_env(args.profile, args)
+    if id:
+        vm_name, _ = load_profile_to_env(profile, id, "", "", "", "", "24", "", "8.8.8.8")
         limit_arg = f"-l {vm_name}"
         console.print(f"[yellow]Auto-Filter:[/yellow] Instance ({vm_name})")
     else:
-        profile_path = f"config/profiles/{args.profile}.yml"
+        profile_path = f"config/profiles/{profile}.yml"
         if os.path.exists(profile_path):
             with open(profile_path, 'r') as f:
                 c = yaml.safe_load(f)
@@ -228,47 +264,54 @@ def cmd_config(args):
     ssh_key = os.environ.get("SSH_PRIVATE_KEY_PATH", "")
     ssh_pass = os.environ.get("SSH_ADMIN_PASSWORD", "")
     
-    ansible_cmd = f"ansible-playbook -i inventory/vmware_vms.yml site.yml {limit_arg} "
-    ansible_cmd += f"--private-key '{ssh_key}' --extra-vars \"ansible_ssh_pass={ssh_pass}\" "
-    ansible_cmd += f"--ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
-    
+    ansible_cmd = (
+        f"ansible-playbook -i inventory/vmware_vms.yml site.yml {limit_arg} "
+        f"--private-key '{ssh_key}' --extra-vars \"ansible_ssh_pass={ssh_pass}\" "
+        f"--ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
+    )
     run_cmd(ansible_cmd, cwd="ansible")
     track_time(start, "Ansible Configuration")
 
-def cmd_test(args):
+@app.command()
+def test(
+    profile: Annotated[str, typer.Argument(help="Profile to test")] = "photon-docker",
+    mac: Annotated[str, typer.Option(help="Expected MAC address")] = ""
+):
+    """[blue]Verify:[/blue] Run automated Pytest-Testinfra validation."""
     start = time.time()
-    console.print(Panel(f"End-to-End Testing for {args.profile}", style="blue"))
+    console.print(Panel(f"End-to-End Testing for {profile}", style="blue"))
     vm_ip = get_vm_ip()
     
-    console.print(f"[blue]Running pytest against {vm_ip} using unified test suite...[/blue]")
-    if args.mac:
-        os.environ["EXPECTED_MAC"] = args.mac
-        
+    if mac: os.environ["EXPECTED_MAC"] = mac
     ssh_key = os.environ.get("SSH_PRIVATE_KEY_PATH", "")
-    pytest_cmd = f"pytest --hosts='ansible@{vm_ip}' --ssh-config='/dev/null' "
-    pytest_cmd += f"--ssh-extra-args='-o StrictHostKeyChecking=no -o IdentityFile={ssh_key}' "
-    pytest_cmd += f"--sudo tests/test_common.py tests/test_os.py"
-    
+    pytest_cmd = (
+        f"pytest --hosts='ansible@{vm_ip}' --ssh-config='/dev/null' "
+        f"--ssh-extra-args='-o StrictHostKeyChecking=no -o IdentityFile={ssh_key}' "
+        f"--sudo tests/test_common.py tests/test_os.py"
+    )
     run_cmd(pytest_cmd)
     track_time(start, "E2E Testing")
 
-def cmd_destroy(args):
-    if args.keep:
+@app.command()
+def destroy(
+    identifier: Annotated[str, typer.Argument(help="VM Name, IP, or MAC")] = "",
+    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False
+):
+    """[blue]Teardown:[/blue] Remove VM and its isolated Tofu state."""
+    if keep:
         console.print("[yellow]Keep flag set. Skipping destruction phase.[/yellow]")
         return
         
     start = time.time()
-    if hasattr(args, 'identifier') and args.identifier:
-        target_id = args.identifier
-    else:
-        vm_name, _ = load_profile_to_env(args.profile, args)
-        target_id = vm_name
+    if not identifier:
+        console.print("[bold red]Error:[/bold red] 'destroy' requires an identifier (Name, IP, or MAC).")
+        sys.exit(1)
 
-    console.print(f"[bold red]Identifying VM for destruction:[/bold red] {target_id}...")
-    resolved_name = identify_vm(target_id)
+    console.print(f"[bold red]Identifying VM for destruction:[/bold red] {identifier}...")
+    resolved_name = identify_vm(identifier)
     
     if not resolved_name:
-        console.print(f"[bold red]Error:[/bold red] Could not identify a managed VM matching '{target_id}'.")
+        console.print(f"[bold red]Error:[/bold red] Could not identify a managed VM matching '{identifier}'.")
         sys.exit(1)
         
     if not Confirm.ask(f"\n[bold red]WARNING:[/bold red] Are you sure you want to permanently destroy '[bold cyan]{resolved_name}[/bold cyan]'?"):
@@ -293,122 +336,127 @@ def cmd_destroy(args):
     run_cmd(f"tofu workspace delete '{resolved_name}'", cwd="tofu")
     track_time(start, "Destruction")
 
-def cmd_all(args):
+@app.command()
+def all(
+    profile: Annotated[str, typer.Argument(help="Profile to deploy")] = "photon-docker",
+    id: Annotated[str, typer.Argument(help="Instance ID")] = "01",
+    host: Annotated[str, typer.Option(help="ESXi host")] = "esxi-01.mgmt.plexplease.com",
+    mac: Annotated[str, typer.Option(help="Custom MAC")] = "",
+    ip: Annotated[str, typer.Option(help="Static IP")] = "",
+    hostname: Annotated[str, typer.Option(help="Hostname override")] = "",
+    netmask: Annotated[str, typer.Option(help="Netmask")] = "24",
+    gateway: Annotated[str, typer.Option(help="Gateway")] = "",
+    dns: Annotated[str, typer.Option(help="DNS")] = "8.8.8.8",
+    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False
+):
+    """[blue]Synthesis:[/blue] Execute the full pipeline (Lint -> Deploy -> Config -> Test -> Destroy)."""
     total_start = time.time()
-    cmd_lint(args)
-    cmd_deploy(args)
-    cmd_config(args)
-    cmd_test(args)
-    if not args.keep:
-        cmd_destroy(args)
+    
+    # Internal CLI invocation to reuse logic
+    lint(profile, host)
+    deploy(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
+    config(profile, id)
+    test(profile, mac)
+    if not keep:
+        vm_name, _ = load_profile_to_env(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
+        destroy(vm_name)
+        
     track_time(total_start, "TOTAL SYNTHESIS PIPELINE")
 
+# --- GENERATORS ---
+
+@app.command()
+def create_profile():
+    """[blue]Generator:[/blue] Scaffold a new YAML configuration profile."""
+    run_cmd("python3 scripts/profile_manager.py create")
+
+@app.command()
+def edit_profile():
+    """[blue]Generator:[/blue] Update an existing profile."""
+    run_cmd("python3 scripts/profile_manager.py edit")
+
+@app.command()
+def create_role():
+    """[blue]Generator:[/blue] Scaffold a new Ansible role."""
+    run_cmd("python3 scripts/role_manager.py")
+
+@app.command()
+def create_play():
+    """[blue]Generator:[/blue] Create a new targeting bucket in site.yml."""
+    run_cmd("python3 scripts/play_manager.py")
+
+# --- INTERACTIVE MODE ---
+
 def interactive_mode():
-    console.print(Panel("HomeLab GitOps Command Builder", style="bold magenta"))
+    console.print(Panel.fit("HomeLab GitOps Command Builder", style="bold magenta", border_style="cyan"))
     
-    commands = ["build", "lint", "deploy", "config", "test", "destroy", "all", "create-profile", "edit-profile", "create-role", "create-play", "Quit"]
-    i_command = Prompt.ask("Select Command", choices=commands)
+    cmd_table = Table(show_header=True, header_style="bold cyan", box=None)
+    cmd_table.add_column("Command", style="bold white")
+    cmd_table.add_column("Description", style="italic")
     
-    if i_command == "Quit":
+    core_cmds = ["build", "lint", "deploy", "config", "test", "destroy", "all"]
+    gen_cmds = ["create-profile", "edit-profile", "create-role", "create-play"]
+    
+    for c in core_cmds + gen_cmds:
+        desc = metadata["commands"].get(c, "No description.")
+        cmd_table.add_row(c, desc)
+    
+    console.print(cmd_table)
+    i_command = Prompt.ask("\nSelect Command", choices=core_cmds + gen_cmds + ["Quit"])
+    if i_command == "Quit": sys.exit(0)
+
+    # Generators
+    if i_command in gen_cmds:
+        func_map = {
+            "create-profile": create_profile, "edit-profile": edit_profile,
+            "create-role": create_role, "create-play": create_play
+        }
+        func_map[i_command]()
         sys.exit(0)
 
-    if i_command in ["create-profile", "edit-profile", "create-role", "create-play"]:
-        if i_command == "create-profile": run_cmd("python3 scripts/profile_manager.py create")
-        if i_command == "edit-profile": run_cmd("python3 scripts/profile_manager.py edit")
-        if i_command == "create-role": run_cmd("python3 scripts/role_manager.py")
-        if i_command == "create-play": run_cmd("python3 scripts/play_manager.py")
-        sys.exit(0)
-
+    # Destruction
     if i_command == "destroy":
         i_id = Prompt.ask("\nEnter VM Name, IP, or MAC to destroy")
-        if i_id:
-            run_cmd(f"python3 manage.py destroy {i_id}")
+        if i_id: destroy(i_id)
         sys.exit(0)
 
+    # Profile Selection
     profiles = [f.replace('.yml','') for f in os.listdir("config/profiles") if f.endswith('.yml')]
+    p_table = Table(show_header=True, header_style="bold green", box=None)
+    p_table.add_column("Profile", style="bold white")
+    p_table.add_column("Tags", style="cyan")
+    p_table.add_column("Specs", style="dim")
+
+    for p in profiles:
+        with open(f"config/profiles/{p}.yml", 'r') as f:
+            c = yaml.safe_load(f)
+            tags = ",".join(c["deployment"].get("tags", []))
+            specs = f"{c['vm_specs']['cpu']}vCPU / {c['vm_specs']['ram_gb']}GB RAM"
+            p_table.add_row(p, tags, specs)
+    
+    console.print("\nAvailable Profiles:")
+    console.print(p_table)
     i_profile = Prompt.ask("Select Profile", choices=profiles)
     i_id = Prompt.ask("Instance ID", default="01")
 
-    flags = ""
-    i_host = Prompt.ask("Override Host? (Leave empty for default)", default="")
-    if i_host: flags += f" --host {i_host}"
-
-    i_ip = Prompt.ask("Set Static IP? (empty for DHCP)", default="")
-    if i_ip:
-        flags += f" --ip {i_ip}"
-        i_gw = Prompt.ask("  Gateway", default="10.10.10.1")
-        flags += f" --gateway {i_gw}"
-
-    i_mac = Prompt.ask("Custom MAC? (xx:xx...)", default="")
-    if i_mac: flags += f" --mac {i_mac}"
-
-    full_cmd = f"python3 manage.py {i_command} {i_profile} {i_id} {flags}".strip()
-    console.print(f"\n[bold green]Constructed Command:[/bold green] {full_cmd}")
-    console.print("-" * 40)
-    run_cmd(full_cmd)
-    console.print(f"\n[bold green]Execution Summary:[/bold green] {full_cmd}")
+    # Overrides
+    flags = {}
+    console.print("\n[dim]Optional Overrides (Press Enter to skip):[/dim]")
+    i_host = Prompt.ask("Override Target ESXi Host", default="esxi-01.mgmt.plexplease.com")
+    i_ip = Prompt.ask("Set Static IP (e.g. 10.10.10.50)", default="")
+    
+    if Confirm.ask("Execute now?"):
+        if i_command == "all": all(profile=i_profile, id=i_id, host=i_host, ip=i_ip)
+        elif i_command == "deploy": deploy(profile=i_profile, id=i_id, host=i_host, ip=i_ip)
+        elif i_command == "config": config(profile=i_profile, id=i_id)
+        elif i_command == "test": test(profile=i_profile)
+        elif i_command == "lint": lint(profile=i_profile, host=i_host)
+        elif i_command == "build": build(profile=i_profile)
     sys.exit(0)
 
-# --- MAIN ---
-
-def main():
+if __name__ == "__main__":
     if len(sys.argv) == 1:
         interactive_mode()
-
-    parser = argparse.ArgumentParser(description="Unified HomeLab GitOps Orchestrator")
-    parser.add_argument('-k', '--keep', action='store_true', help="Skip 'destroy' phase")
-    
-    subparsers = parser.parse_known_args() # We use manual subshell logic to avoid argparse subparser complexity for now
-    
-    # Simple manual subparser logic for Rich compatibility
-    command = sys.argv[1] if len(sys.argv) > 1 else None
-    
-    parser = argparse.ArgumentParser(description="Unified HomeLab GitOps Orchestrator")
-    parser.add_argument('-k', '--keep', action='store_true')
-    parser.add_argument('command', choices=["build", "lint", "deploy", "config", "test", "destroy", "all", "create-profile", "edit-profile", "create-role", "create-play"])
-    parser.add_argument('profile', nargs='?', default='photon-docker')
-    parser.add_argument('id', nargs='?', default='01')
-    parser.add_argument('--host', default='esxi-01.mgmt.plexplease.com')
-    parser.add_argument('--mac', default='')
-    parser.add_argument('--ip', default='')
-    parser.add_argument('--hostname', default='')
-    parser.add_argument('--netmask', default='24')
-    parser.add_argument('--gateway', default='')
-    parser.add_argument('--dns', default='8.8.8.8')
-    parser.add_argument('identifier', nargs='?', default='') # For destroy
-
-    # Special handling for 'destroy <identifier>'
-    if command == "destroy" and len(sys.argv) > 2 and not sys.argv[2].startswith('-'):
-        # Re-parse but treat sys.argv[2] as identifier
-        pass
-
-    args = parser.parse_args()
-
-    # Pre-flight checks
-    load_env("config/secrets.env")
-    
-    os.environ["VMWARE_HOST"] = os.environ.get("VCENTER_SERVER", "")
-    os.environ["VMWARE_USER"] = os.environ.get("VCENTER_USERNAME", "")
-    os.environ["VMWARE_PASSWORD"] = os.environ.get("VCENTER_PASSWORD", "")
-    os.environ["VMWARE_VALIDATE_CERTS"] = "no"
-
-    validate_mac(args.mac)
-
-    if args.command == "build": cmd_build(args)
-    elif args.command == "lint": cmd_lint(args)
-    elif args.command == "deploy": cmd_deploy(args)
-    elif args.command == "config": cmd_config(args)
-    elif args.command == "test": cmd_test(args)
-    elif args.command == "destroy": 
-        # Fix identifier for destroy
-        if args.profile and not args.identifier:
-            args.identifier = args.profile
-        cmd_destroy(args)
-    elif args.command == "all": cmd_all(args)
-    elif args.command == "create-profile": run_cmd("python3 scripts/profile_manager.py create")
-    elif args.command == "edit-profile": run_cmd("python3 scripts/profile_manager.py edit")
-    elif args.command == "create-role": run_cmd("python3 scripts/role_manager.py")
-    elif args.command == "create-play": run_cmd("python3 scripts/play_manager.py")
-
-if __name__ == "__main__":
-    main()
+    else:
+        load_env()
+        app()
