@@ -23,8 +23,8 @@ keyed_groups:
     separator: "_"
 
 hostnames:
-  - guest.ipAddress
   - config.name
+  - guest.ipAddress
 
 # Set default connection variables
 compose:
