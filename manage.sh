@@ -59,13 +59,18 @@ show_help() {
     echo "Usage: $0 [flags] {command} [profile] [id] [overrides]"
     echo ""
     echo "Core Commands:"
-    echo "  build       Build a Golden OVF template via Packer (Photon only)"
-    echo "  lint        Validate YAML profile and vCenter infrastructure objects"
-    echo "  deploy      Provision virtual hardware via OpenTofu (Isolated Workspaces)"
-    echo "  config      Apply configuration via Ansible (Auto-Limited by Profile/ID)"
-    echo "  test        Run Pytest-Testinfra OS and service validation"
-    echo "  destroy     Remove VM and its isolated Tofu workspace"
-    echo "  all         Full pipeline: Lint -> Deploy -> Config -> Test -> Destroy (unless -k)"
+    echo "  build           Build a Golden OVF template via Packer (Photon only)"
+    echo "  lint            Validate YAML profile and vCenter infrastructure objects"
+    echo "  deploy          Provision virtual hardware via OpenTofu (Isolated Workspaces)"
+    echo "  config          Apply configuration via Ansible (Auto-Limited by Profile/ID)"
+    echo "  test            Run Pytest-Testinfra OS and service validation"
+    echo "  destroy         Remove VM and its isolated Tofu workspace"
+    echo "  all             Full pipeline: Lint -> Deploy -> Config -> Test -> Destroy (unless -k)"
+    echo ""
+    echo "Generator Helpers:"
+    echo "  create-profile  Interactive wizard to scaffold a new YAML configuration profile"
+    echo "  edit-profile    Interactive wizard to update an existing profile"
+    echo "  create-role     Interactive wizard to scaffold a new Ansible role and attach it to site.yml"
     echo ""
     echo "Options & Flags:"
     echo "  -h, --help           Show this help menu"
@@ -101,13 +106,19 @@ interactive_mode() {
     
     # 1. Pick Command
     PS3="Select Command: "
-    options=("build" "lint" "deploy" "config" "test" "destroy" "all" "Quit")
+    options=("build" "lint" "deploy" "config" "test" "destroy" "all" "create-profile" "edit-profile" "create-role" "Quit")
     select opt in "${options[@]}"; do
         case $opt in
             "Quit") exit 0 ;;
             *) I_COMMAND=$opt; break ;;
         esac
     done
+
+    # Handle Generator Commands separately (no profile/id required)
+    if [[ "$I_COMMAND" == "create-profile" || "$I_COMMAND" == "edit-profile" || "$I_COMMAND" == "create-role" ]]; then
+        $0 $I_COMMAND
+        exit 0
+    fi
 
     # 2. Pick Profile
     echo ""
@@ -230,8 +241,8 @@ done
 # Validate required positional arguments
 if [[ -z "$COMMAND" ]]; then show_help; fi
 
-# Set defaults for profile/id (for build/config/lint where they might be partial)
-if [[ "$COMMAND" != "build" && "$COMMAND" != "config" && "$COMMAND" != "lint" ]]; then
+# Set defaults for profile/id (for commands that need them)
+if [[ "$COMMAND" != "build" && "$COMMAND" != "config" && "$COMMAND" != "lint" && "$COMMAND" != "create-profile" && "$COMMAND" != "edit-profile" && "$COMMAND" != "create-role" ]]; then
     PROFILE=${PROFILE:-"photon-docker"}
     INSTANCE_ID=${INSTANCE_ID:-"01"}
 fi
@@ -256,6 +267,18 @@ fi
 # ==========================================================
 
 case $COMMAND in
+    create-profile)
+        python3 scripts/profile_manager.py create
+        ;;
+
+    edit-profile)
+        python3 scripts/profile_manager.py edit
+        ;;
+
+    create-role)
+        python3 scripts/role_manager.py
+        ;;
+
     build)
         START=$(date +%s)
         echo "Building Golden OVF Template via Packer ($PROFILE)..."
