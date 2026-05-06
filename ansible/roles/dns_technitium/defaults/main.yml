@@ -1,0 +1,42 @@
+# File: roles/technitium_photon/defaults/main.yml
+# Purpose: Default tunables for installing Technitium DNS Server on VMware Photon OS.
+# Usage: Override these values in inventory/group_vars/host_vars or in the playbook vars section.
+---
+technitium_dotnet_dir: /opt/dotnet
+technitium_dotnet_channel: "10.0"
+technitium_dotnet_runtime_match: "Microsoft.AspNetCore.App 10.0."
+
+technitium_dotnet_install_url: "https://dot.net/v1/dotnet-install.sh"
+technitium_download_url: "https://download.technitium.com/dns/DnsServerPortable.tar.gz"
+
+technitium_base_dir: /opt/technitium
+technitium_app_dir: /opt/technitium/dns
+technitium_config_dir: /opt/technitium/config
+technitium_log_dir: /var/log/technitium/dns
+technitium_service_user: dns-server
+technitium_service_name: dns
+
+technitium_disable_systemd_resolved: true
+technitium_set_local_resolver: true
+technitium_resolv_conf_nameserver: 127.0.0.1
+
+technitium_open_firewall: true
+technitium_firewall_ports:
+  - { port: "53", protocol: "tcp" }     # DNS TCP
+  - { port: "53", protocol: "udp" }     # DNS UDP
+  - { port: "67", protocol: "udp" }     # DHCP IPv4 server
+  - { port: "546", protocol: "udp" }    # DHCPv6 client
+  - { port: "547", protocol: "udp" }    # DHCPv6 server
+  - { port: "5380", protocol: "tcp" }   # Technitium web console HTTP
+  - { port: "53443", protocol: "tcp" }  # Technitium web console HTTPS
+  - { port: "80", protocol: "tcp" }     # HTTP / ACME / optional DoH fronting
+  - { port: "443", protocol: "tcp" }    # HTTPS / DoH
+  - { port: "443", protocol: "udp" }    # HTTP/3 / QUIC
+  - { port: "853", protocol: "tcp" }    # DNS-over-TLS
+  - { port: "853", protocol: "udp" }    # DNS-over-QUIC
+  - { port: "8053", protocol: "tcp" }   # Optional alternate DNS/web binding
+  - { port: "8053", protocol: "udp" }   # Optional alternate DNS binding
+
+technitium_optional_firewall_ports: []
+
+technitium_validate_icu: true

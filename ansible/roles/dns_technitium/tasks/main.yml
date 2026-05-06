@@ -1,0 +1,164 @@
+# File: roles/technitium_photon/tasks/main.yml
+# Purpose: Install and configure Technitium DNS Server on VMware Photon OS with DHCP-capable firewall rules.
+# Usage: Include role technitium_photon from a playbook targeting Photon OS hosts with become: true.
+---
+- name: Assert Photon OS target
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] is search('Photon')
+    fail_msg: "This role is intended for VMware Photon OS. Detected: {{ ansible_facts['distribution'] | default('unknown') }}"
+
+- name: Install required Photon packages
+  ansible.builtin.command:
+    cmd: "tdnf install -y curl tar gzip shadow icu firewalld"
+  register: technitium_tdnf
+  changed_when: "'Nothing to do' not in technitium_tdnf.stdout and 'already installed' not in technitium_tdnf.stdout"
+  failed_when: technitium_tdnf.rc != 0
+
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    state: started
+  when: technitium_open_firewall
+
+- name: Create Technitium directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ technitium_base_dir }}"
+    - "{{ technitium_app_dir }}"
+    - "{{ technitium_config_dir }}"
+    - "{{ technitium_log_dir }}"
+    - "{{ technitium_dotnet_dir }}"
+
+- name: Check installed dotnet runtimes
+  ansible.builtin.command: dotnet --list-runtimes
+  register: technitium_dotnet_runtimes
+  changed_when: false
+  failed_when: false
+
+- name: Download dotnet install script
+  ansible.builtin.get_url:
+    url: "{{ technitium_dotnet_install_url }}"
+    dest: /tmp/dotnet-install.sh
+    mode: "0755"
+  when: technitium_dotnet_runtime_match not in technitium_dotnet_runtimes.stdout
+
+- name: Install ASP.NET Core runtime
+  ansible.builtin.command:
+    cmd: >
+      /tmp/dotnet-install.sh
+      -c {{ technitium_dotnet_channel }}
+      --runtime aspnetcore
+      --no-path
+      --install-dir {{ technitium_dotnet_dir }}
+      --verbose
+  when: technitium_dotnet_runtime_match not in technitium_dotnet_runtimes.stdout
+  notify: Restart Technitium DNS
+
+- name: Symlink dotnet into /usr/bin
+  ansible.builtin.file:
+    src: "{{ technitium_dotnet_dir }}/dotnet"
+    dest: /usr/bin/dotnet
+    state: link
+
+- name: Create Technitium service user
+  ansible.builtin.user:
+    name: "{{ technitium_service_user }}"
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+
+- name: Download Technitium portable tarball
+  ansible.builtin.get_url:
+    url: "{{ technitium_download_url }}"
+    dest: "{{ technitium_app_dir }}/DnsServerPortable.tar.gz"
+    mode: "0644"
+  register: technitium_tarball
+
+- name: Extract Technitium DNS Server
+  ansible.builtin.unarchive:
+    src: "{{ technitium_app_dir }}/DnsServerPortable.tar.gz"
+    dest: "{{ technitium_app_dir }}"
+    remote_src: true
+  when: technitium_tarball.changed
+  notify: Restart Technitium DNS
+
+- name: Test ICU support
+  ansible.builtin.command:
+    cmd: "dotnet {{ technitium_app_dir }}/DnsServerApp.dll --icu-test"
+  changed_when: false
+  when: technitium_validate_icu
+
+- name: Set Technitium ownership
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ technitium_service_user }}"
+    group: "{{ technitium_service_user }}"
+    recurse: true
+  loop:
+    - "{{ technitium_app_dir }}"
+    - "{{ technitium_config_dir }}"
+    - "{{ technitium_log_dir }}"
+
+- name: Install Technitium systemd service
+  ansible.builtin.template:
+    src: dns.service.j2
+    dest: "/etc/systemd/system/{{ technitium_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart Technitium DNS
+
+- name: Disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: technitium_disable_systemd_resolved
+
+- name: Backup current resolv.conf
+  ansible.builtin.copy:
+    src: /etc/resolv.conf
+    dest: "{{ technitium_app_dir }}/resolv.conf.bak"
+    remote_src: true
+    force: false
+  when: technitium_set_local_resolver
+
+- name: Point host resolver to local Technitium
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      # File: /etc/resolv.conf
+      # Purpose: Managed by Ansible role technitium_photon so this host resolves through local Technitium.
+      nameserver {{ technitium_resolv_conf_nameserver }}
+    owner: root
+    group: root
+    mode: "0644"
+  when: technitium_set_local_resolver
+
+- name: Enable and start Technitium DNS service
+  ansible.builtin.systemd:
+    name: "{{ technitium_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Open Technitium firewall ports
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/{{ item.protocol }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ technitium_firewall_ports + technitium_optional_firewall_ports }}"
+  when: technitium_open_firewall
+  notify: Reload firewalld
