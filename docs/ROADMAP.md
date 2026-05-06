@@ -8,7 +8,13 @@ This document outlines the strategic vision for the unified GitOps pipeline, det
 
 These high-impact features are prioritized for near-term development to further mature the pipeline's operational capabilities.
 
-*   **Profile & Role Generator Helpers:** Implement interactive CLI subcommands (`./manage.sh create-profile`, `./manage.sh create-role`) to scaffold perfectly formatted YAML configurations and Ansible folder structures, reducing boilerplate overhead.
+### Phase 3: Usability & Advanced Orchestration
+*   **Profile, Role & Play Generator Helpers:** [DONE] Implemented interactive wizards (`create-profile`, `create-role`, `create-play`) with strict naming standards.
+*   **Implied Limits:** [DONE] Refactored orchestrator to automatically calculate Ansible targeting scope.
+*   **Simplified Destruction:** [DONE] Enabled targeting via single identifier (IP/MAC/Name) with safety confirmation.
+*   **Static IP Injection:** [DONE] Implemented native guest customization via OpenTofu for both Ubuntu and Photon OS.
+*   **CLI Refactor:** [DONE] Transitioned to clean, named CLI flags for all runtime overrides.
+*   **Inventory Migration:** [DONE] Migrated to modern `vmware.vmware.vms` plugin and resolved all deprecation warnings.
 *   **Ansible Vault Integration:** Transition from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files, allowing application-level secrets (DB passwords, API keys) to be securely committed to the Git repository.
 *   **Fleet Status Dashboard:** Add a read-only orchestrator command (`./manage.sh status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
 *   **Automated Golden Image Refresh:** Develop a scheduled automation script that deploys a temporary VM from the existing golden image, runs OS-level package updates (`apt-get upgrade` / `tdnf update`), and automatically captures and versions a new, patched golden image.

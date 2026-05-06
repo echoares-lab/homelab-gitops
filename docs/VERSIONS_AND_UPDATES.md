@@ -13,6 +13,13 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.1.0 - Usability & Lifecycle Enhancements
+- **Interactive Builder:** Added a guided CLI wizard (triggered by running `./manage.sh` with no arguments).
+- **Generator Helpers:** Implemented `create-profile`, `edit-profile`, `create-role`, and `create-play` to automate GitOps boilerplate.
+- **Simplified Destruction:** Refactored `destroy` to support single-identifier targeting (IP/MAC/Name) with safety confirmation.
+- **Implied Limits:** Automated Ansible targeting logic; the script now automatically limits runs based on provided Profile/ID.
+- **Inventory Cleanup:** Migrated to modern `vmware.vmware.vms` plugin and resolved all dot-notation variable deprecations.
+
 ### v3.0.0 - Pipeline Synthesis & Remediation
 - **MAJOR CHANGE:** Implemented `manage.sh` unified lifecycle orchestrator (Lint, Deploy, Config, Test, Destroy).
 - **Architecture:** Switched to **OpenTofu Workspaces** for granular, per-VM state isolation.
