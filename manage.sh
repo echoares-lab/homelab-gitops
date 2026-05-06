@@ -58,6 +58,7 @@ identify_vm() {
     local target=$1
     
     # 1. Check for exact workspace match
+    echo "  - Checking OpenTofu workspaces..."
     cd tofu > /dev/null
     local ws_match=$(tofu workspace list | grep -w "$target" | tr -d '* ' || true)
     cd .. > /dev/null
@@ -68,31 +69,20 @@ identify_vm() {
 
     # 2. Check by IP
     if [[ "$target" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        echo "  - Querying vCenter by IP ($target)..."
         export GOVC_URL="$VCENTER_SERVER"
         export GOVC_USERNAME="$VCENTER_USERNAME"
         export GOVC_PASSWORD="$VCENTER_PASSWORD"
         export GOVC_INSECURE=true
-        local ip_match=$(./build/govc vm.info -ip "$target" -json 2>/dev/null | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['virtualMachines'][0]['name']) if 'virtualMachines' in data and data['virtualMachines'] else exit(1)" 2>/dev/null || true)
-        if [[ -n "$ip_match" ]]; then
-            echo "$ip_match"
+        local vm_path=$(./build/govc find . -type m -guest.ipAddress "$target" 2>/dev/null || true)
+        if [[ -n "$vm_path" ]]; then
+            basename "$vm_path"
             return
         fi
     fi
 
-    # 3. Check by MAC
-    if [[ "$target" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]; then
-        export GOVC_URL="$VCENTER_SERVER"
-        export GOVC_USERNAME="$VCENTER_USERNAME"
-        export GOVC_PASSWORD="$VCENTER_PASSWORD"
-        export GOVC_INSECURE=true
-        local mac_match=$(./build/govc vm.info -net.mac "$target" -json 2>/dev/null | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['virtualMachines'][0]['name']) if 'virtualMachines' in data and data['virtualMachines'] else exit(1)" 2>/dev/null || true)
-        if [[ -n "$mac_match" ]]; then
-            echo "$mac_match"
-            return
-        fi
-    fi
-
-    # 4. Check for partial name match in workspaces
+    # 3. Check for partial name match in workspaces
+    echo "  - Checking for partial name matches in workspaces..."
     cd tofu > /dev/null
     local part_match=$(tofu workspace list | grep "$target" | head -n 1 | tr -d '* ' || true)
     cd .. > /dev/null
@@ -480,7 +470,6 @@ case $COMMAND in
         START=$(date +%s)
         
         # Identification Logic
-        # For destroy, the identifier might be in PROFILE (if used as ./manage.sh destroy 10.10.10.x)
         TARGET_ID="${PROFILE:-$INSTANCE_ID}"
         if [[ -z "$TARGET_ID" ]]; then
             echo "Error: 'destroy' requires an identifier (Name, IP, or MAC)."
@@ -489,8 +478,11 @@ case $COMMAND in
         fi
 
         echo "Identifying VM for destruction: $TARGET_ID..."
-        RESOLVED_NAME=$(identify_vm "$TARGET_ID")
-        if [[ $? -ne 0 ]] || [[ -z "$RESOLVED_NAME" ]]; then
+        # We run identify_vm in a subshell to capture its output but keep its echo's visible
+        # Actually, we'll just run it.
+        RESOLVED_NAME=$(identify_vm "$TARGET_ID" | tail -n 1)
+        
+        if [[ -z "$RESOLVED_NAME" ]]; then
             echo "Error: Could not identify a managed VM matching '$TARGET_ID'."
             exit 1
         fi
@@ -506,6 +498,7 @@ case $COMMAND in
         echo "Destroying Workspace: $RESOLVED_NAME"
         cd tofu
         tofu workspace select "$RESOLVED_NAME" || exit 1
+        # satisfaction of all variables
         tofu destroy -auto-approve \
             -var="vcenter_server=$VCENTER_SERVER" \
             -var="vcenter_user=$VCENTER_USERNAME" \
