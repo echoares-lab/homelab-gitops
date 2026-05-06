@@ -68,6 +68,15 @@ def lint():
             print(f"[FAIL] {check['name']} '{check['path']}' not found")
             sys.exit(1)
         print(f"[OK] {check['name']}: {check['path']}")
+
+    # --- Host-Datastore Accessibility Check ---
+    host_path = f"/{dc}/host/{cluster}/{host}"
+    res = run_govc(["ls", "-l", host_path])
+    if ds not in res.stdout:
+        print(f"[FAIL] Datastore '{ds}' is NOT accessible from host '{host}'")
+        print(f"Hint: This usually means the datastore is local to another host.")
+        sys.exit(1)
+    print(f"[OK] Accessibility: Host '{host}' can reach Datastore '{ds}'")
     
     print(f"--- Infrastructure Linting Passed ---")
 
