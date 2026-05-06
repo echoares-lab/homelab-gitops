@@ -32,4 +32,13 @@ As established in `GEMINI.md`, any significant feature change must be reflected 
 3.  `RUNBOOK.md` (Update usage examples).
 4.  `DESIGN.md` (Update architectural diagrams if workflow changes).
 
-**Failure to maintain these files constitutes an incomplete task.**
+## 4. Matrix Testing (`scripts/matrix_test.py`)
+To prevent regressions in the orchestrator's logic or hardware mapping, agents must validate their changes using the Matrix Test suite.
+
+**MANDATE:** Agents MUST execute `python3 scripts/matrix_test.py` before considering any of the following tasks complete:
+*   Refactoring `manage.py` argument parsing or command logic.
+*   Modifying OpenTofu `main.tf` or `variables.tf`.
+*   Updating Ansible dynamic inventory grouping logic.
+*   Adding new lifecycle phases or generator helpers.
+
+If a change breaks the current matrix, the agent MUST update `scripts/matrix_test.py` to reflect the new expected behavior.
