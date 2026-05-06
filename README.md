@@ -3,9 +3,10 @@
 A professional-grade automation framework for building, provisioning, and configuring high-performance Ubuntu and VMware Photon OS nodes on vSphere.
 
 ## 🚀 Key Features
-*   **Unified Orchestrator:** A single script (`manage.sh`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy.
-*   **Interactive Command Builder:** Running `./manage.sh` with no arguments launches a guided wizard to build and execute pipeline commands.
-*   **Scaffolding Helpers:** Built-in wizards for creating Profiles, Roles, and Ansible Plays (`create-profile`, `create-role`, `create-play`).
+*   **Unified Orchestrator:** A modern Python-based controller (`manage.py`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy. (Bash fallback `manage.sh` preserved).
+*   **Interactive Command Builder:** Running `python3 manage.py` with no arguments launches a Rich-styled wizard to build and execute commands.
+*   **Scaffolding Helpers:** Built-in interactive wizards for creating Profiles, Roles, and Ansible Plays.
+*   **Matrix Testing:** Automated E2E test suite (`scripts/matrix_test.py`) ensures logic consistency across all OS and networking scenarios.
 *   **Optimized Golden Images:** All templates are pre-remediated to use VMware best practices: **PVSCSI** controllers, **VMXNET3** adapters, and Hardware Version **vmx-21**.
 *   **Declarative Infrastructure:** Uses **OpenTofu** (Terraform) with **Workspace isolation** to manage virtual hardware state idempotently.
 *   **Automated Verification:** Integrated **Pytest-Testinfra** suite validates OS hardening and service state immediately after deployment.
