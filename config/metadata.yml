@@ -1,0 +1,27 @@
+# HomeLab GitOps Metadata
+# Provides human-readable descriptions for interactive CLI prompts
+
+commands:
+  build: "Create a fresh Golden OVF template using Packer."
+  lint: "Verify YAML schema and check if vCenter objects (Datacenter, Host, Net) exist."
+  deploy: "Provision virtual hardware and isolate state via OpenTofu workspaces."
+  config: "Apply OS-level configuration and security hardening via Ansible."
+  test: "Run automated validation tests to confirm node compliance."
+  destroy: "Safely remove a VM and its associated Tofu state from vCenter."
+  all: "Execute the entire pipeline (Lint -> Deploy -> Config -> Test -> Destroy)."
+  create-profile: "Interactive wizard to scaffold a new hardware blueprint."
+  edit-profile: "Update resource specs (CPU, RAM, Disk) for an existing profile."
+  create-role: "Scaffold a new Ansible role directory structure."
+  create-play: "Create a new targeting 'bucket' in site.yml for specific tags."
+
+tags:
+  ubuntu: "Standard Ubuntu LTS (26.04) configuration."
+  photon: "VMware Photon OS 5.0 (minimal) configuration."
+  docker: "Install and configure Docker Engine and Docker Compose."
+  dns: "Configure Technitium DNS services."
+
+roles:
+  base: "Core system utilities, hostname setup, and package updates."
+  security: "SSH hardening (disable root/passwords) and UFW firewall setup."
+  docker: "Container runtime installation and daemon optimization."
+  dns_technitium: "Automated Technitium DNS stack deployment."
