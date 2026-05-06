@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# ==========================================================
+# 1. HELPER FUNCTIONS
+# ==========================================================
+
 # Function to load env files safely and export variables
 load_env() {
     local env_file=$1
@@ -33,14 +37,118 @@ validate_mac() {
     fi
 }
 
+# Function to show comprehensive help
+show_help() {
+    echo "Unified HomeLab GitOps Orchestrator"
+    echo "Usage: $0 [flags] {command} [profile] [id] [overrides]"
+    echo ""
+    echo "Core Commands:"
+    echo "  build       Build a Golden OVF template via Packer (Photon only currently)"
+    echo "  lint        Validate YAML profile and vCenter infrastructure objects"
+    echo "  deploy      Provision virtual hardware via OpenTofu (Isolated Workspaces)"
+    echo "  config      Apply post-deployment configuration via Ansible"
+    echo "  test        Run Pytest-Testinfra OS and service validation"
+    echo "  destroy     Remove VM and its isolated Tofu workspace"
+    echo "  all         Full pipeline: Lint -> Deploy -> Config -> Test -> Destroy (unless -k)"
+    echo ""
+    echo "Options & Flags:"
+    echo "  -h, --help           Show this help menu"
+    echo "  -k, --keep           Skip 'destroy' phase at end of 'all' or explicit 'destroy'"
+    echo "  --limit <type>       Ansible filter: 'profile' (e.g. tag_ubuntu), 'instance' (FQDN), or 'none' (default)"
+    echo ""
+    echo "Runtime Overrides:"
+    echo "  --host <name>        Override target ESXi host"
+    echo "  --mac <addr>         Override network MAC address"
+    echo "  --ip <addr>          Set static IPv4 (Enables Guest Customization)"
+    echo "  --hostname <name>    Override VM hostname"
+    echo "  --gateway <addr>     Set IPv4 gateway (Required for --ip)"
+    echo "  --dns <addr>         Set DNS server (Default: 8.8.8.8)"
+    echo ""
+    echo "Examples:"
+    echo "  1. Full Synthesis (DHCP):"
+    echo "     $0 all ubuntu-base 01"
+    echo ""
+    echo "  2. Static IP Deployment with Instance Limit:"
+    echo "     $0 deploy photon-docker 02 --ip 10.10.10.50 --gateway 10.10.10.1 --limit instance"
+    echo ""
+    echo "  3. Interactive Mode (Builder):"
+    echo "     $0"
+    exit 0
+}
+
+# Function for Interactive Mode
+interactive_mode() {
+    echo "--- HomeLab GitOps Command Builder ---"
+    
+    # 1. Pick Command
+    PS3="Select Command: "
+    options=("build" "lint" "deploy" "config" "test" "destroy" "all" "Quit")
+    select opt in "${options[@]}"; do
+        case $opt in
+            "Quit") exit 0 ;;
+            *) I_COMMAND=$opt; break ;;
+        esac
+    done
+
+    # 2. Pick Profile
+    echo ""
+    echo "Available Profiles:"
+    profiles=($(ls config/profiles/*.yml | xargs -n 1 basename | sed 's/\.yml//'))
+    PS3="Select Profile: "
+    select prof in "${profiles[@]}"; do
+        if [[ -n "$prof" ]]; then I_PROFILE=$prof; break; fi
+    done
+
+    # 3. Instance ID
+    echo ""
+    read -p "Instance ID [01]: " I_ID
+    I_ID=${I_ID:-"01"}
+
+    # 4. Optional Overrides
+    I_FLAGS=""
+    echo ""
+    read -p "Override Host? (Leave empty for default): " I_HOST
+    [[ -n "$I_HOST" ]] && I_FLAGS+=" --host $I_HOST"
+
+    read -p "Set Static IP? (e.g. 10.10.10.50, empty for DHCP): " I_IP
+    if [[ -n "$I_IP" ]]; then
+        I_FLAGS+=" --ip $I_IP"
+        read -p "  Gateway [10.10.10.1]: " I_GW
+        I_FLAGS+=" --gateway ${I_GW:-"10.10.10.1"}"
+    fi
+
+    read -p "Custom MAC? (xx:xx...): " I_MAC
+    if [[ -n "$I_MAC" ]]; then
+        validate_mac "$I_MAC"
+        I_FLAGS+=" --mac $I_MAC"
+    fi
+
+    read -p "Limit Ansible to this instance? (y/N): " I_LIM
+    [[ "$I_LIM" =~ ^[Yy]$ ]] && I_FLAGS+=" --limit instance"
+
+    echo ""
+    FULL_CMD="./manage.sh $I_COMMAND $I_PROFILE $I_ID $I_FLAGS"
+    echo "Constructed Command: $FULL_CMD"
+    echo "---------------------------------------"
+    
+    # Execute
+    $FULL_CMD
+    echo ""
+    echo "Execution Summary: $FULL_CMD"
+    exit 0
+}
+
+# ==========================================================
+# 2. INITIALIZATION & PARSING
+# ==========================================================
+
+# Enter interactive mode if no arguments
+if [[ "$#" -eq 0 ]]; then
+    interactive_mode
+fi
+
 # Load Consolidated Secrets
 load_env "config/secrets.env"
-
-# Export standard Ansible VMware vars
-export VMWARE_HOST="$VCENTER_SERVER"
-export VMWARE_USER="$VCENTER_USERNAME"
-export VMWARE_PASSWORD="$VCENTER_PASSWORD"
-export VMWARE_VALIDATE_CERTS="no"
 
 # Defaults
 KEEP=false
@@ -53,11 +161,13 @@ HOSTNAME_OVERRIDE=""
 NETMASK="24"
 GATEWAY=""
 DNS="8.8.8.8"
+LIMIT="none"
 COMMAND=""
 
 # Parse flags and positional arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
+        -h|--help) show_help ;;
         -k|--keep) KEEP=true ;;
         --ip) IP_OVERRIDE="$2"; shift ;;
         --hostname) HOSTNAME_OVERRIDE="$2"; shift ;;
@@ -66,6 +176,7 @@ while [[ "$#" -gt 0 ]]; do
         --netmask) NETMASK="$2"; shift ;;
         --gateway) GATEWAY="$2"; shift ;;
         --dns) DNS="$2"; shift ;;
+        --limit) LIMIT="$2"; shift ;;
         -*) echo "Unknown flag: $1"; exit 1 ;;
         *)
             if [[ -z "$COMMAND" ]]; then
@@ -83,19 +194,33 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Validate required positional arguments
-if [[ -z "$COMMAND" ]]; then
-    echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile] [id] [flags]"
-    exit 1
-fi
+# Validate positional arguments
+if [[ -z "$COMMAND" ]]; then show_help; fi
 
-# Set defaults for profile/id if not provided (except for specific commands)
+# Set defaults for profile/id
 if [[ "$COMMAND" != "build" && "$COMMAND" != "config" ]]; then
     PROFILE=${PROFILE:-"photon-docker"}
     INSTANCE_ID=${INSTANCE_ID:-"01"}
 fi
 
 validate_mac "$MAC_OVERRIDE"
+
+# Load profile data for Name construction
+if [[ -f "config/profiles/${PROFILE}.yml" ]]; then
+    eval $(python3 -c "import yaml; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); \
+        print(f'VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
+        print(f'VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
+    
+    if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
+        VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
+    else
+        VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
+    fi
+fi
+
+# ==========================================================
+# 3. COMMAND EXECUTION
+# ==========================================================
 
 case $COMMAND in
     build)
@@ -150,38 +275,23 @@ case $COMMAND in
             print(f'export TF_VAR_library_name=\"{c[\"content_library\"][\"name\"]}\"'); \
             print(f'export TF_VAR_template_name=\"{c[\"content_library\"][\"template\"]}\"'); \
             print(f'export TF_VAR_vm_tags=\"{\",\".join(c[\"deployment\"][\"tags\"])}\"'); \
-            print(f'export YAML_MAC=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"'); \
-            print(f'export VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); \
-            print(f'export VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
+            print(f'export YAML_MAC=\"{c[\"deployment\"].get(\"mac_address\", \"\")}\"');")
 
         export TF_VAR_vcenter_server="$VCENTER_SERVER"
         export TF_VAR_vcenter_user="$VCENTER_USERNAME"
         export TF_VAR_vcenter_password="$VCENTER_PASSWORD"
         export TF_VAR_host="$TARGET_HOST"
+        export TF_VAR_vm_name="$VM_NAME"
 
-        # Hardware Overrides
-        if [[ -n "$MAC_OVERRIDE" ]]; then
-            export TF_VAR_mac_address="$MAC_OVERRIDE"
-        else
-            export TF_VAR_mac_address="$YAML_MAC"
-        fi
-
-        # Static IP Overrides
+        # Overrides
+        [[ -n "$MAC_OVERRIDE" ]] && export TF_VAR_mac_address="$MAC_OVERRIDE" || export TF_VAR_mac_address="$YAML_MAC"
         export TF_VAR_ipv4_address="$IP_OVERRIDE"
         export TF_VAR_ipv4_netmask="$NETMASK"
         export TF_VAR_ipv4_gateway="$GATEWAY"
         export TF_VAR_dns_servers="[\"$DNS\"]"
 
-        # Identity Overrides
-        if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
-            VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
-        else
-            VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
-        fi
-        export TF_VAR_vm_name="$VM_NAME"
-        
         echo "Targeting VM: $VM_NAME"
-        if [[ -n "$IP_OVERRIDE" ]]; then echo "Static IP: $IP_OVERRIDE"; fi
+        [[ -n "$IP_OVERRIDE" ]] && echo "Static IP: $IP_OVERRIDE"
 
         cd tofu
         tofu init
@@ -192,6 +302,7 @@ case $COMMAND in
         echo "VM Deployed at $VM_IP"
         
         python3 ../scripts/test_connectivity.py "$VM_IP"
+        # Update static inventory for quick access
         echo "node ansible_host=$VM_IP ansible_user=$SSH_ADMIN_USERNAME" > ../ansible/inventory.ini
         cd ..
         track_time $START $(date +%s) "Deployment"
@@ -200,9 +311,23 @@ case $COMMAND in
     config)
         START=$(date +%s)
         echo "Starting Tag-Based Ansible Configuration..."
+        
+        # Determine Limit
+        LIMIT_ARG=""
+        if [[ "$LIMIT" == "profile" ]]; then
+            LIMIT_ARG="-l tag_$PROFILE"
+        elif [[ "$LIMIT" == "instance" ]]; then
+            LIMIT_ARG="-l $VM_NAME"
+        fi
+        
+        echo "Filter: ${LIMIT_ARG:-"None"}"
+        
         cd ansible
         export ANSIBLE_HOST_KEY_CHECKING=False
-        ansible-playbook -i inventory/vmware_vms.yml site.yml --private-key "$SSH_PRIVATE_KEY_PATH" --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        ansible-playbook -i inventory/vmware_vms.yml site.yml $LIMIT_ARG \
+            --private-key "$SSH_PRIVATE_KEY_PATH" \
+            --extra-vars "ansible_ssh_pass=$SSH_ADMIN_PASSWORD" \
+            --ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
         cd ..
         track_time $START $(date +%s) "Ansible Configuration"
         ;;
@@ -224,17 +349,16 @@ case $COMMAND in
             exit 0
         fi
         START=$(date +%s)
-        eval $(python3 -c "import yaml; c=yaml.safe_load(open('config/profiles/${PROFILE}.yml')); print(f'VM_PREFIX=\"{c[\"deployment\"][\"vm_name_prefix\"]}\"'); print(f'VM_DOMAIN=\"{c[\"deployment\"][\"vm_name_domain\"]}\"');")
-        if [[ -n "$HOSTNAME_OVERRIDE" ]]; then
-            VM_NAME="${HOSTNAME_OVERRIDE}.${VM_DOMAIN}"
-        else
-            VM_NAME="${VM_PREFIX}-${INSTANCE_ID}.${VM_DOMAIN}"
-        fi
-        
         echo "Destroying Workspace: $VM_NAME"
         cd tofu
         tofu workspace select "$VM_NAME" || exit 1
-        tofu destroy -auto-approve -var="vcenter_server=$VCENTER_SERVER" -var="vcenter_user=$VCENTER_USERNAME" -var="vcenter_password=$VCENTER_PASSWORD" -var="datacenter=x" -var="cluster=x" -var="host=x" -var="datastore=x" -var="network=x" -var="vm_name=$VM_NAME" -var="vm_cpu=1" -var="vm_ram_gb=1" -var="guest_id=x" -var="library_name=x" -var="template_name=x" -var="vm_tags=x"
+        tofu destroy -auto-approve \
+            -var="vcenter_server=$VCENTER_SERVER" \
+            -var="vcenter_user=$VCENTER_USERNAME" \
+            -var="vcenter_password=$VCENTER_PASSWORD" \
+            -var="datacenter=x" -var="cluster=x" -var="host=x" -var="datastore=x" -var="network=x" \
+            -var="vm_name=$VM_NAME" -var="vm_cpu=1" -var="vm_ram_gb=1" \
+            -var="guest_id=x" -var="library_name=x" -var="template_name=x" -var="vm_tags=x"
         tofu workspace select default
         tofu workspace delete "$VM_NAME"
         cd ..
@@ -245,7 +369,7 @@ case $COMMAND in
         TOTAL_START=$(date +%s)
         $0 lint $PROFILE $INSTANCE_ID --host "$TARGET_HOST"
         $0 deploy $PROFILE $INSTANCE_ID --host "$TARGET_HOST" --mac "$MAC_OVERRIDE" --ip "$IP_OVERRIDE" --hostname "$HOSTNAME_OVERRIDE" --netmask "$NETMASK" --gateway "$GATEWAY" --dns "$DNS"
-        $0 config $PROFILE
+        $0 config $PROFILE --limit "$LIMIT"
         $0 test $PROFILE $INSTANCE_ID --mac "$MAC_OVERRIDE"
         if [ "$KEEP" = false ]; then
             $0 destroy $PROFILE $INSTANCE_ID --hostname "$HOSTNAME_OVERRIDE"
@@ -254,15 +378,6 @@ case $COMMAND in
         ;;
 
     *)
-        echo "Usage: $0 [-k|--keep] {build|lint|deploy|config|test|destroy|all} [profile] [id] [flags]"
-        echo "Flags:"
-        echo "  --host <name>      Override target ESXi host"
-        echo "  --mac <addr>       Override network MAC address"
-        echo "  --ip <addr>        Set static IPv4 address (enables guest customization)"
-        echo "  --hostname <name>  Override VM hostname"
-        echo "  --netmask <bits>   Set IPv4 netmask (default: 24)"
-        echo "  --gateway <addr>   Set IPv4 gateway (required for --ip)"
-        echo "  --dns <addr>       Set DNS server (default: 8.8.8.8)"
-        exit 1
+        show_help
         ;;
 esac
