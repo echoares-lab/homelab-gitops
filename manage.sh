@@ -70,7 +70,8 @@ show_help() {
     echo "Generator Helpers:"
     echo "  create-profile  Interactive wizard to scaffold a new YAML configuration profile"
     echo "  edit-profile    Interactive wizard to update an existing profile"
-    echo "  create-role     Interactive wizard to scaffold a new Ansible role and attach it to site.yml"
+    echo "  create-role     Interactive wizard to scaffold a new Ansible role"
+    echo "  create-play     Interactive wizard to create a new targeting 'bucket' (play) in site.yml"
     echo ""
     echo "Options & Flags:"
     echo "  -h, --help           Show this help menu"
@@ -106,7 +107,7 @@ interactive_mode() {
     
     # 1. Pick Command
     PS3="Select Command: "
-    options=("build" "lint" "deploy" "config" "test" "destroy" "all" "create-profile" "edit-profile" "create-role" "Quit")
+    options=("build" "lint" "deploy" "config" "test" "destroy" "all" "create-profile" "edit-profile" "create-role" "create-play" "Quit")
     select opt in "${options[@]}"; do
         case $opt in
             "Quit") exit 0 ;;
@@ -115,7 +116,7 @@ interactive_mode() {
     done
 
     # Handle Generator Commands separately (no profile/id required)
-    if [[ "$I_COMMAND" == "create-profile" || "$I_COMMAND" == "edit-profile" || "$I_COMMAND" == "create-role" ]]; then
+    if [[ "$I_COMMAND" == "create-profile" || "$I_COMMAND" == "edit-profile" || "$I_COMMAND" == "create-role" || "$I_COMMAND" == "create-play" ]]; then
         $0 $I_COMMAND
         exit 0
     fi
@@ -242,7 +243,7 @@ done
 if [[ -z "$COMMAND" ]]; then show_help; fi
 
 # Set defaults for profile/id (for commands that need them)
-if [[ "$COMMAND" != "build" && "$COMMAND" != "config" && "$COMMAND" != "lint" && "$COMMAND" != "create-profile" && "$COMMAND" != "edit-profile" && "$COMMAND" != "create-role" ]]; then
+if [[ "$COMMAND" != "build" && "$COMMAND" != "config" && "$COMMAND" != "lint" && "$COMMAND" != "create-profile" && "$COMMAND" != "edit-profile" && "$COMMAND" != "create-role" && "$COMMAND" != "create-play" ]]; then
     PROFILE=${PROFILE:-"photon-docker"}
     INSTANCE_ID=${INSTANCE_ID:-"01"}
 fi
@@ -277,6 +278,10 @@ case $COMMAND in
 
     create-role)
         python3 scripts/role_manager.py
+        ;;
+
+    create-play)
+        python3 scripts/play_manager.py
         ;;
 
     build)
