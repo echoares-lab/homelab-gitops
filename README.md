@@ -28,7 +28,7 @@ For detailed guides, please refer to:
 ```bash
 cp config/vault.yml.example config/vault.yml
 # Populate with your vCenter details
-echo "your_secure_password" > config/.vault_pass
+echo 'your_secure_password' > config/.vault_pass
 ansible-vault encrypt config/vault.yml --vault-password-file config/.vault_pass
 ```
 
