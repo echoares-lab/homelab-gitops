@@ -15,8 +15,8 @@ These high-impact features are prioritized for near-term development to further 
 *   **Static IP Injection:** [DONE] Implemented native guest customization via OpenTofu for both Ubuntu and Photon OS.
 *   **CLI Refactor:** [DONE] Transitioned to clean, named CLI flags for all runtime overrides.
 *   **Inventory Migration:** [DONE] Migrated to modern `vmware.vmware.vms` plugin and resolved all deprecation warnings.
-*   **Ansible Vault Integration:** Transition from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files, allowing application-level secrets (DB passwords, API keys) to be securely committed to the Git repository.
-*   **Fleet Status Dashboard:** Add a read-only orchestrator command (`./manage.sh status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
+*   **Ansible Vault Integration:** [DONE] Transitioned from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files, allowing application-level secrets (DB passwords, API keys) to be securely committed to the Git repository.
+*   **Fleet Status Dashboard:** Add a read-only orchestrator command (`python3 manage.py status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
 *   **Automated Golden Image Refresh:** Develop a scheduled automation script that deploys a temporary VM from the existing golden image, runs OS-level package updates (`apt-get upgrade` / `tdnf update`), and automatically captures and versions a new, patched golden image.
 
 ---

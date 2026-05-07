@@ -3,7 +3,7 @@
 A professional-grade automation framework for building, provisioning, and configuring high-performance Ubuntu and VMware Photon OS nodes on vSphere.
 
 ## 🚀 Key Features
-*   **Unified Orchestrator:** A modern Python-based controller (`manage.py`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy. (Bash fallback `manage.sh` preserved).
+*   **Unified Orchestrator:** A modern Python-based controller (`manage.py`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy.
 *   **Interactive Command Builder:** Running `python3 manage.py` with no arguments launches a Rich-styled wizard to build and execute commands.
 *   **Scaffolding Helpers:** Built-in interactive wizards for creating Profiles, Roles, and Ansible Plays.
 *   **Matrix Testing:** Automated E2E test suite (`scripts/matrix_test.py`) ensures logic consistency across all OS and networking scenarios.
@@ -26,14 +26,16 @@ For detailed guides, please refer to:
 
 ### 1. Configure Credentials
 ```bash
-cp config/secrets.env.example config/secrets.env
+cp config/vault.yml.example config/vault.yml
 # Populate with your vCenter details
+echo "your_secure_password" > config/.vault_pass
+ansible-vault encrypt config/vault.yml --vault-password-file config/.vault_pass
 ```
 
 ### 2. Deploy a New Node
 Deploy a Photon OS Docker node targeting a specific host:
 ```bash
-./manage.sh all photon-docker 02 esxi-01.mgmt.plexplease.com
+python3 manage.py all photon-docker 02 esxi-01.mgmt.plexplease.com
 ```
 
 This single command executes the full pipeline:

@@ -8,7 +8,7 @@ The pipeline utilizes a tiered "Build-Provision-Configure" model to ensure consi
 
 ```mermaid
 graph TD
-    A[Node Profile YAML] -->|manage.sh| B(Orchestrator)
+    A[Node Profile YAML] -->|manage.py| B(Orchestrator)
     B -->|Phase 1: Packer/Capture| C[Remediated Golden OVF]
     C -->|Content Library| D[vCenter]
     B -->|Phase 2: OpenTofu| E[Virtual Machine]

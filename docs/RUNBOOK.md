@@ -4,7 +4,7 @@ Detailed operational procedures for the unified GitOps pipeline managing high-pe
 
 ## Table of Contents
 1. [Prerequisites](#1-prerequisites)
-2. [Command Reference (`manage.sh`)](#2-command-reference-managesh)
+2. [Command Reference (`manage.py`)](#2-command-reference-managesh)
 3. [Generator Helpers](#3-generator-helpers)
 4. [Configuration System](#4-configuration-system)
 5. [Deployment Workflow](#5-deployment-workflow)
@@ -22,33 +22,33 @@ Ensure the orchestration host has the following:
 
 ---
 
-## 2. Command Reference (`manage.sh`)
+## 2. Command Reference (`manage.py`)
 
-The `./manage.sh` orchestrator provides a unified interface for the entire lifecycle.
+The `python3 manage.py` orchestrator provides a unified interface for the entire lifecycle.
 
 ### `Interactive Mode`
-Running `./manage.sh` with no arguments launches the **Command Builder**. This guided wizard helps you construct and execute the correct CLI syntax.
+Running `python3 manage.py` with no arguments launches the **Command Builder**. This guided wizard helps you construct and execute the correct CLI syntax.
 
 ### `lint`
 Validates the YAML profile schema and checks if all vCenter objects actually exist.
-*   **Example:** `./manage.sh lint photon-docker 02 --host esxi-01.mgmt.plexplease.com`
+*   **Example:** `python3 manage.py lint photon-docker 02 --host esxi-01.mgmt.plexplease.com`
 
 ### `deploy`
 Provisions the virtual hardware via OpenTofu. Supports runtime overrides for IP, Hostname, and MAC.
-*   **Example:** `./manage.sh deploy ubuntu-base 01 --ip 10.10.10.50 --gateway 10.10.10.1`
+*   **Example:** `python3 manage.py deploy ubuntu-base 01 --ip 10.10.10.50 --gateway 10.10.10.1`
 
 ### `config` (Implied Limits)
 Applies post-deployment OS configuration. Targeting is **Automatic**:
-*   **Specific VM:** `./manage.sh config ubuntu-base 04` (Targets only the 04 node).
-*   **Whole Group:** `./manage.sh config ubuntu-base` (Targets all VMs with the `ubuntu` tag).
+*   **Specific VM:** `python3 manage.py config ubuntu-base 04` (Targets only the 04 node).
+*   **Whole Group:** `python3 manage.py config ubuntu-base` (Targets all VMs with the `ubuntu` tag).
 
 ### `test`
 Executes Pytest-Testinfra validation.
-*   **Example:** `./manage.sh test ubuntu-base 01`
+*   **Example:** `python3 manage.py test ubuntu-base 01`
 
 ### `destroy` (Safety First)
 Removes a VM using a **single identifier** (Name, IP, or MAC).
-*   **Example:** `./manage.sh destroy 10.10.10.50`
+*   **Example:** `python3 manage.py destroy 10.10.10.50`
 *   **Safety:** Always requires an interactive `(y/N)` confirmation before proceeding.
 
 ---
@@ -69,9 +69,11 @@ Wizards to automate the "Logic -> Play -> Blueprint" GitOps chain.
 ## 4. Configuration System
 
 ### Consolidated Secrets
-All credentials and defaults are stored in `config/secrets.env`.
-*   **Template:** Use `config/secrets.env.example` to set up a new environment.
-*   **Security:** This file is ignored by Git.
+All credentials and defaults are stored in an encrypted Ansible Vault file at `config/vault.yml`.
+*   **Template:** Use `config/vault.yml.example` to set up a new environment. Copy it to `config/vault.yml`.
+*   **Vault Password:** Create a file at `config/.vault_pass` containing your password.
+*   **Encryption:** Encrypt the file using `ansible-vault encrypt config/vault.yml --vault-password-file config/.vault_pass`.
+*   **Security:** `vault.yml` CAN be securely committed to Git if fully encrypted. `.vault_pass` MUST NOT be committed and is ignored by Git.
 
 ---
 
@@ -100,4 +102,4 @@ The pipeline uses `pytest-testinfra` to verify the "Final State":
 
 ### Ansible "Unreachable"
 *   **Cause:** Incorrect SSH key or path.
-*   **Fix:** Check `SSH_PRIVATE_KEY_PATH` in `secrets.env`. The pipeline uses ED25519 by default.
+*   **Fix:** Check `ssh_private_key_path` in `config/vault.yml`. The pipeline uses ED25519 by default.
