@@ -82,6 +82,7 @@ resource "vsphere_virtual_machine" "vm" {
 
   clone {
     template_uuid = data.vsphere_content_library_item.template.id
+    datastore_id  = data.vsphere_datastore.datastore.id
 
     dynamic "customize" {
       for_each = var.ipv4_address != "" || var.vm_name != "" ? [1] : []

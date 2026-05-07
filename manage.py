@@ -188,7 +188,10 @@ def load_profile_to_env(profile: str, id: str, host: str, mac: str, ip: str, hos
     vm_prefix = c["deployment"].get("vm_name_prefix", "node")
     
     if hostname:
-        vm_name = hostname if "." in hostname else f"{hostname}.{vm_domain}"
+        if hostname.endswith(f".{vm_domain}") or "." in hostname:
+            vm_name = hostname
+        else:
+            vm_name = f"{hostname}.{vm_domain}"
     else:
         vm_name = f"{vm_prefix}-{id}.{vm_domain}"
     
