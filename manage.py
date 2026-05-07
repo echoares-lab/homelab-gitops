@@ -38,29 +38,39 @@ if os.path.exists(METADATA_FILE):
 
 # --- HELPER FUNCTIONS ---
 
-def load_env(env_file="config/secrets.env"):
-    """Loads infrastructure secrets into the environment."""
-    if not os.path.exists(env_file):
-        console.print(f"[bold red]Error:[/bold red] '{env_file}' not found.")
-        console.print("[yellow]Hint:[/yellow] Copy 'config/secrets.env.example' to 'config/secrets.env' and fill in your credentials.")
+def load_vault(vault_file="config/vault.yml"):
+    """Loads infrastructure secrets into the environment from Ansible Vault."""
+    if not os.path.exists(vault_file):
+        console.print(f"[bold red]Error:[/bold red] '{vault_file}' not found.")
+        console.print("[yellow]Hint:[/yellow] Copy 'config/vault.yml.example' to 'config/vault.yml', edit it, and encrypt it with 'ansible-vault encrypt config/vault.yml'.")
         sys.exit(1)
         
-    with open(env_file, 'r') as f:
-        content = f.read()
-        if "REDACTED" in content:
-            console.print(f"[bold red]Error:[/bold red] '{env_file}' contains REDACTED values.")
-            console.print("[yellow]Hint:[/yellow] Open the file and replace REDACTED placeholders with real credentials.")
-            sys.exit(1)
-            
-        for line in content.splitlines():
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            if '=' in line:
-                key, val = line.split('=', 1)
-                val = val.split(' #')[0].strip()
-                val = val.strip('"\'')
-                os.environ[key.strip()] = val
+    vault_pass_file = "config/.vault_pass"
+    if not os.path.exists(vault_pass_file):
+        console.print(f"[bold red]Error:[/bold red] '{vault_pass_file}' not found.")
+        console.print("[yellow]Hint:[/yellow] Create 'config/.vault_pass' containing your Ansible Vault password.")
+        sys.exit(1)
+
+    # Use ansible-vault to decrypt the file
+    res = subprocess.run(f"ansible-vault view {vault_file} --vault-password-file {vault_pass_file}", shell=True, text=True, capture_output=True)
+    if res.returncode != 0:
+        console.print(f"[bold red]Error:[/bold red] Failed to decrypt '{vault_file}'. Check your vault password.")
+        sys.exit(1)
+        
+    content = res.stdout
+    if "REDACTED" in content:
+        console.print(f"[bold red]Error:[/bold red] '{vault_file}' contains REDACTED values.")
+        console.print("[yellow]Hint:[/yellow] Decrypt the file, replace REDACTED placeholders, and re-encrypt.")
+        sys.exit(1)
+        
+    try:
+        secrets = yaml.safe_load(content)
+        if secrets:
+            for key, val in secrets.items():
+                os.environ[key.upper()] = str(val)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] Failed to parse decrypted YAML: {e}")
+        sys.exit(1)
 
 def track_time(start_time, task_name):
     """Calculates and prints the duration of a task."""
@@ -174,7 +184,7 @@ def build(
         os.environ[f"PKR_VAR_{var.lower()}"] = os.environ.get(var, "")
 
     run_cmd(f"packer init {packer_file}")
-    run_cmd(f"packer build -var-file=\"config/secrets.env\" {packer_file}")
+    run_cmd(f"packer build {packer_file}")
     track_time(start, "Packer Build")
 
 @app.command()
@@ -484,7 +494,7 @@ def interactive_mode():
     sys.exit(0)
 
 if __name__ == "__main__":
-    load_env()
+    load_vault()
     os.environ["VMWARE_HOST"] = os.environ.get("VCENTER_SERVER", "")
     os.environ["VMWARE_USER"] = os.environ.get("VCENTER_USERNAME", "")
     os.environ["VMWARE_PASSWORD"] = os.environ.get("VCENTER_PASSWORD", "")

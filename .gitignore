@@ -11,7 +11,8 @@ build/govc
 
 # Local config and Secrets
 config/*.env
-!config/secrets.env.example
+config/.vault_pass
+!config/vault.yml.example
 ansible/inventory.ini
 
 # Terraform/OpenTofu

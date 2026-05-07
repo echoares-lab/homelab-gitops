@@ -13,8 +13,12 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.2.0 - Security & Secrets Management
+- **Ansible Vault Integration:** Transitioned from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files (`vault.yml`), allowing application-level secrets to be securely committed to the Git repository.
+- Refactored `manage.py` orchestrator to natively pipe decrypted secrets into runtime environments using `ansible-vault view`.
+
 ### v3.1.0 - Usability & Lifecycle Enhancements
-- **Interactive Builder:** Added a guided CLI wizard (triggered by running `./manage.sh` with no arguments).
+- **Interactive Builder:** Added a guided CLI wizard (triggered by running `python3 manage.py` with no arguments).
 - **Generator Helpers:** Implemented `create-profile`, `edit-profile`, `create-role`, and `create-play` to automate GitOps boilerplate.
 - **Simplified Destruction:** Refactored `destroy` to support single-identifier targeting (IP/MAC/Name) with safety confirmation.
 - **Implied Limits:** Automated Ansible targeting logic; the script now automatically limits runs based on provided Profile/ID.
@@ -46,3 +50,4 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 ### v1.0.0 - Initial Release
 - Automated pipeline for Golden Image creation via Packer and Ansible.
 - Standardized configuration via `defaults.env` and `inputs.env`.
+nv`.
