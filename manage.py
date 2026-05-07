@@ -83,6 +83,32 @@ def validate_mac(mac: Optional[str]):
         console.print(f"[bold red]Error:[/bold red] Invalid MAC address format ({mac}).")
         sys.exit(1)
 
+def ensure_tags_exist(tags: List[str]):
+    """Checks and creates vSphere tags using govc."""
+    if not tags:
+        return
+
+    env = os.environ.copy()
+    env["GOVC_URL"] = env.get("VCENTER_SERVER")
+    env["GOVC_USERNAME"] = env.get("VCENTER_USERNAME")
+    env["GOVC_PASSWORD"] = env.get("VCENTER_PASSWORD")
+    env["GOVC_INSECURE"] = "true"
+    govc_path = "/home/gemini-cli/template-pipeline/build/govc"
+
+    with console.status("[bold blue]Ensuring vCenter tags exist..."):
+        # 1. Ensure category exists
+        res = subprocess.run([govc_path, "tags.category.ls"], capture_output=True, text=True, env=env)
+        if "Provisioning" not in res.stdout:
+            console.print("[yellow]Creating tag category 'Provisioning'...[/yellow]")
+            subprocess.run([govc_path, "tags.category.create", "Provisioning"], env=env)
+
+        # 2. Ensure each tag exists
+        res = subprocess.run([govc_path, "tags.ls", "-c", "Provisioning"], capture_output=True, text=True, env=env)
+        for t in tags:
+            if t not in res.stdout:
+                console.print(f"[yellow]Creating vCenter tag '{t}' in category 'Provisioning'...[/yellow]")
+                subprocess.run([govc_path, "tags.create", "-c", "Provisioning", t], env=env)
+
 def run_cmd(cmd, cwd=None, capture=False):
     """Executes a shell command via subprocess."""
     res = subprocess.run(cmd, shell=True, cwd=cwd, text=True, capture_output=capture)
@@ -161,7 +187,11 @@ def load_profile_to_env(profile: str, id: str, host: str, mac: str, ip: str, hos
     vm_domain = c["deployment"].get("vm_name_domain", "local")
     vm_prefix = c["deployment"].get("vm_name_prefix", "node")
     
-    vm_name = f"{hostname}.{vm_domain}" if hostname else f"{vm_prefix}-{id}.{vm_domain}"
+    if hostname:
+        vm_name = hostname if "." in hostname else f"{hostname}.{vm_domain}"
+    else:
+        vm_name = f"{vm_prefix}-{id}.{vm_domain}"
+    
     os.environ["TF_VAR_vm_name"] = vm_name
     return vm_name, c["deployment"].get("tags", [])
 
@@ -218,6 +248,8 @@ def deploy(
     console.print(Panel(f"Unified OpenTofu Deployment ({profile})", style="blue"))
     
     vm_name, tags = load_profile_to_env(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
+    ensure_tags_exist(tags)
+    
     os.environ["TF_VAR_vcenter_server"] = os.environ.get("VCENTER_SERVER", "")
     os.environ["TF_VAR_vcenter_user"] = os.environ.get("VCENTER_USERNAME", "")
     os.environ["TF_VAR_vcenter_password"] = os.environ.get("VCENTER_PASSWORD", "")
