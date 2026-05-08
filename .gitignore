@@ -11,6 +11,7 @@ build/govc
 
 # Local config and Secrets
 config/*.env
+config/vault.yml
 config/.vault_pass
 !config/vault.yml.example
 ansible/inventory.ini

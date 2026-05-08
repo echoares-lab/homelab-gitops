@@ -19,8 +19,10 @@
   community.general.ufw:
     state: enabled
     policy: deny
+  when: ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Allow SSH
   community.general.ufw:
     rule: allow
     name: OpenSSH
+  when: ansible_facts['distribution'] == 'Ubuntu'
