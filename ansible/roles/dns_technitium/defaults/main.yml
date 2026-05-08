@@ -20,7 +20,7 @@ technitium_disable_systemd_resolved: true
 technitium_set_local_resolver: true
 technitium_resolv_conf_nameserver: 127.0.0.1
 
-technitium_open_firewall: true
+technitium_open_firewall: false
 technitium_firewall_ports:
   - { port: "53", protocol: "tcp" }     # DNS TCP
   - { port: "53", protocol: "udp" }     # DNS UDP

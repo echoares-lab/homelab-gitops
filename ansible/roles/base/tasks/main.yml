@@ -3,20 +3,28 @@
   ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
-- name: Wait for apt locks
+- name: Wait for apt locks (Ubuntu)
   ansible.builtin.shell: |
     while fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
       echo "Waiting for apt locks..."
       sleep 5
     done
   changed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: Update all packages
+- name: Update all packages (Ubuntu)
   ansible.builtin.apt:
     upgrade: dist
     update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: Ensure useful utilities are present
+- name: Update all packages (Photon)
+  ansible.builtin.command: tdnf update -y
+  register: tdnf_update
+  changed_when: "'Nothing to do' not in tdnf_update.stdout"
+  when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution'] == 'VMware Photon OS'
+
+- name: Ensure useful utilities are present (Ubuntu)
   ansible.builtin.apt:
     name:
       - htop
@@ -24,3 +32,10 @@
       - unzip
       - ufw
     state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Ensure useful utilities are present (Photon)
+  ansible.builtin.command: tdnf install -y htop rsync unzip
+  register: tdnf_utils
+  changed_when: "'Nothing to do' not in tdnf_utils.stdout and 'already installed' not in tdnf_utils.stdout"
+  when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution'] == 'VMware Photon OS'

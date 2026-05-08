@@ -41,7 +41,16 @@
 - name: primary_dns
   hosts: tag_dns
   become: true
+  pre_tasks:
+  - name: Ensure DNS resolution is functional for installation
+    ansible.builtin.copy:
+      dest: /etc/resolv.conf
+      content: |
+        nameserver 8.8.8.8
+        nameserver 1.1.1.1
+      mode: "0644"
+    ignore_errors: true
   roles:
-  - dns_technitium
-  - security
   - base
+  - security
+  - dns_technitium

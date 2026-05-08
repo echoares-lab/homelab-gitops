@@ -10,7 +10,7 @@
 
 - name: Install required Photon packages
   ansible.builtin.command:
-    cmd: "tdnf install -y curl tar gzip shadow icu firewalld"
+    cmd: "tdnf install -y curl tar gzip shadow icu"
   register: technitium_tdnf
   changed_when: "'Nothing to do' not in technitium_tdnf.stdout and 'already installed' not in technitium_tdnf.stdout"
   failed_when: technitium_tdnf.rc != 0
@@ -67,9 +67,15 @@
     dest: /usr/bin/dotnet
     state: link
 
+- name: Create Technitium service group
+  ansible.builtin.group:
+    name: "{{ technitium_service_user }}"
+    system: true
+
 - name: Create Technitium service user
   ansible.builtin.user:
     name: "{{ technitium_service_user }}"
+    group: "{{ technitium_service_user }}"
     system: true
     create_home: false
     shell: /sbin/nologin
@@ -118,6 +124,13 @@
     - Reload systemd
     - Restart Technitium DNS
 
+- name: Enable and start Technitium DNS service
+  ansible.builtin.systemd:
+    name: "{{ technitium_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
 - name: Disable systemd-resolved
   ansible.builtin.systemd:
     name: systemd-resolved
@@ -145,13 +158,6 @@
     group: root
     mode: "0644"
   when: technitium_set_local_resolver
-
-- name: Enable and start Technitium DNS service
-  ansible.builtin.systemd:
-    name: "{{ technitium_service_name }}"
-    enabled: true
-    state: started
-    daemon_reload: true
 
 - name: Open Technitium firewall ports
   ansible.posix.firewalld:

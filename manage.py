@@ -282,14 +282,18 @@ def deploy(
 @app.command()
 def config(
     profile: Annotated[str, typer.Argument(help="Profile to configure")] = "photon-docker",
-    id: Annotated[Optional[str], typer.Argument(help="Instance ID for strict targeting")] = None
+    id: Annotated[Optional[str], typer.Argument(help="Instance ID for strict targeting")] = None,
+    hostname: Annotated[str, typer.Option(help="Explicit hostname to target")] = ""
 ):
     """[blue]Configure:[/blue] Apply Ansible roles (Auto-Limited by Profile/ID)."""
     start = time.time()
     console.print(Panel("Tag-Based Ansible Configuration", style="blue"))
     
     limit_arg = ""
-    if id:
+    if hostname:
+        limit_arg = f"-l {hostname}"
+        console.print(f"[yellow]Auto-Filter:[/yellow] Explicit Host ({hostname})")
+    elif id:
         vm_name, _ = load_profile_to_env(profile, id, "", "", "", "", "24", "", "8.8.8.8")
         limit_arg = f"-l {vm_name}"
         console.print(f"[yellow]Auto-Filter:[/yellow] Instance ({vm_name})")
@@ -328,6 +332,7 @@ def test(
     console.print(Panel(f"End-to-End Testing for {profile}", style="blue"))
     vm_ip = get_vm_ip()
     
+    os.environ["RUNTIME_PROFILE"] = profile
     if mac: os.environ["EXPECTED_MAC"] = mac
     ssh_key = os.environ.get("SSH_PRIVATE_KEY_PATH", "")
     pytest_cmd = (

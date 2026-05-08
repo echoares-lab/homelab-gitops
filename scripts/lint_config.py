@@ -63,11 +63,11 @@ def lint():
     ]
     
     for check in checks:
-        res = run_govc(["ls", check["path"]])
+        res = run_govc(["ls", "-i", check["path"]])
         if res.returncode != 0 or not res.stdout.strip():
             print(f"[FAIL] {check['name']} '{check['path']}' not found")
             sys.exit(1)
-        print(f"[OK] {check['name']}: {check['path']}")
+        print(f"[OK] {check['name']}: {check['path']} (ID: {res.stdout.strip()})")
 
     # --- Host-Datastore Accessibility Check ---
     host_path = f"/{dc}/host/{cluster}/{host}"
