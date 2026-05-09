@@ -83,3 +83,17 @@ This initializes OpenTofu and applies the configuration.
 ```bash
 python3 scripts/technitium_manager.py apply
 ```
+
+---
+
+## 6. Copy-Paste Template
+Copy the block below and save it as `config/dns_records.csv` to get started.
+
+```csv
+resource_type,name,parent,type,value,ttl,mac_address,network_address,subnet_mask,start_address,end_address,gateway,comments,depends_on,advanced_json
+zone,plexplease.com,,Primary,,,,, ,,,,Technitium Primary Zone,,
+record,dns-01.plexplease.com,plexplease.com,A,10.10.10.2,3600,,,, ,,,,Primary DNS,,
+record,www.plexplease.com,plexplease.com,CNAME,dns-01.plexplease.com,3600,,,, ,,,,Web Server,,
+dhcp_scope,Management LAN,,,,, ,10.10.10.0,255.255.255.0,10.10.10.100,10.10.10.200,10.10.10.1,Main Pool,,
+dhcp_lease,printer-01,10.10.10.0,,10.10.10.50,,00:11:22:33:44:55,,,,,,Static Printer,,
+```
