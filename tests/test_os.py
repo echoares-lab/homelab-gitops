@@ -29,3 +29,14 @@ def test_docker_ready(host):
         assert host.service("docker").is_enabled
     else:
         pytest.fail("Docker package expected but not installed for docker profile")
+
+def test_technitium_ready(host):
+    profile = os.environ.get("RUNTIME_PROFILE", "").lower()
+    if "dns" not in profile:
+        pytest.skip("Skipping Technitium check for non-dns profile")
+
+    # Check if the dns service is running
+    assert host.service("dns").is_running
+    
+    # Check if port 5380 is listening
+    assert host.socket("tcp://0.0.0.0:5380").is_listening
