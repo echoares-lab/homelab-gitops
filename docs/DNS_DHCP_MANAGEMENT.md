@@ -86,7 +86,18 @@ python3 scripts/technitium_manager.py apply
 
 ---
 
-## 6. Copy-Paste Template
+## 6. Declarative State & Deletions
+This system follows a **declarative model** powered by OpenTofu. This means Technitium will always be synced to match exactly what is in your CSV.
+
+### Important Behaviors:
+*   **Automatic Deletions:** If you remove a row from `config/dns_records.csv`, the corresponding record will be **deleted** from Technitium during the next `apply`.
+*   **Source of Truth:** The CSV is your source of truth. Manual changes made directly in the Technitium Web UI are **not** managed by this tool and will generally be left alone unless they conflict with a CSV record.
+*   **Safety:** The `apply` command will show you a plan before making changes. Review any lines marked with a red minus (`-`) to ensure you aren't accidentally deleting a record.
+*   **Temporary Deactivation:** To temporarily disable a record without deleting it from your file, add a `#` to the beginning of the `resource_type` column (e.g., `#record`). The script will skip the row, causing OpenTofu to delete it from the server while preserving your data.
+
+---
+
+## 7. Copy-Paste Template
 Copy the block below and save it as `config/dns_records.csv` to get started.
 
 ```csv
