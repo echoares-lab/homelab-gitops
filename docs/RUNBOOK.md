@@ -94,7 +94,12 @@ The pipeline uses `pytest-testinfra` to verify the "Final State":
 
 ---
 
-## 7. Troubleshooting
+## 7. Post-Deployment: Technitium DNS
+Once your DNS server is deployed, you can manage its zones, records, and DHCP settings using the specialized **Technitium Manager**.
+
+See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed instructions on using the interactive wizard and Universal CSV.
+
+## 8. Troubleshooting
 
 ### vCenter REST API 500 Error
 *   **Cause:** Hardware mismatch in the OVF template.
