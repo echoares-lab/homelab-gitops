@@ -40,3 +40,7 @@ def test_technitium_ready(host):
     
     # Check if port 5380 is listening
     assert host.socket("tcp://0.0.0.0:5380").is_listening
+
+    # Check if port 53 is listening (UDP and TCP)
+    assert host.socket("udp://0.0.0.0:53").is_listening
+    assert host.socket("tcp://0.0.0.0:53").is_listening

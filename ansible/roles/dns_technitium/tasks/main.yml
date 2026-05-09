@@ -117,13 +117,6 @@
     - Reload systemd
     - Restart Technitium DNS
 
-- name: Enable and start Technitium DNS service
-  ansible.builtin.systemd:
-    name: "{{ technitium_service_name }}"
-    enabled: true
-    state: started
-    daemon_reload: true
-
 - name: Disable systemd-resolved
   ansible.builtin.systemd:
     name: systemd-resolved
@@ -131,6 +124,14 @@
     state: stopped
   failed_when: false
   when: technitium_disable_systemd_resolved
+  notify: Restart Technitium DNS
+
+- name: Enable and start Technitium DNS service
+  ansible.builtin.systemd:
+    name: "{{ technitium_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
 
 - name: Backup current resolv.conf
   ansible.builtin.copy:

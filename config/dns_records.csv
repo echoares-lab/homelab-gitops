@@ -1,0 +1,4 @@
+resource_type,name,parent,type,value,ttl,mac_address,network_address,subnet_mask,start_address,end_address,gateway,comments,depends_on,advanced_json
+zone,plexplease.com,,Primary,,,,, ,,,,Technitium Primary Zone,,
+record,dns-01.plexplease.com,plexplease.com,A,10.10.10.2,3600,,,, ,,,,Technitium Primary DNS,,
+record,www.plexplease.com,plexplease.com,CNAME,dns-01.plexplease.com,3600,,,, ,,,,Web Server,,
