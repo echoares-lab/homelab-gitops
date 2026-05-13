@@ -1,0 +1,43 @@
+# .github/workflows/smoke-test.yml
+# Purpose: Basic GitHub Actions smoke test to confirm workflows run correctly.
+
+name: Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Basic repo smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        run: |
+          echo "Runner hostname: $(hostname)"
+          echo "Current user: $(whoami)"
+          echo "Working directory: $(pwd)"
+          echo "Git version: $(git --version)"
+
+      - name: Show repo files
+        run: |
+          echo "Repository files:"
+          find . -maxdepth 3 -type f | sort | sed 's#^\./##' | head -100
+
+      - name: Confirm README exists if present
+        run: |
+          if [ -f README.md ]; then
+            echo "README.md found"
+          else
+            echo "README.md not found, but this is not a failure"
+          fi
