@@ -22,3 +22,5 @@ ansible/inventory.ini
 .terraform/
 .terraform.lock.hcl
 tofu/terraform.tfstate.d/
+__pycache__/
+*.pyc
