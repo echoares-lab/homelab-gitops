@@ -52,7 +52,13 @@ def load_vault(vault_file="config/vault.yml"):
         sys.exit(1)
 
     # Use ansible-vault to decrypt the file
-    res = subprocess.run(f"ansible-vault view {vault_file} --vault-password-file {vault_pass_file}", shell=True, text=True, capture_output=True)
+    try:
+        res = subprocess.run(f"ansible-vault view {vault_file} --vault-password-file {vault_pass_file}", shell=True, text=True, capture_output=True)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+        return
+
     if res.returncode != 0:
         console.print(f"[bold red]Error:[/bold red] Failed to decrypt '{vault_file}'. Check your vault password.")
         sys.exit(1)
