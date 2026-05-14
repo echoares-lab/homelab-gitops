@@ -5,6 +5,8 @@ import subprocess
 import time
 import re
 import yaml
+import json
+import shlex
 from typing import Optional, List
 from typing_extensions import Annotated
 
@@ -50,6 +52,7 @@ def load_vault(vault_file="config/vault.yml"):
         sys.exit(1)
 
     # Use ansible-vault to decrypt the file
+    res = subprocess.run(["ansible-vault", "view", vault_file, "--vault-password-file", vault_pass_file], shell=False, text=True, capture_output=True)
     try:
         res = subprocess.run(f"ansible-vault view {vault_file} --vault-password-file {vault_pass_file}", shell=True, text=True, capture_output=True)
     except Exception as e:
@@ -114,8 +117,10 @@ def ensure_tags_exist(tags: List[str]):
                 subprocess.run([govc_path, "tags.create", "-c", "Provisioning", t], env=env)
 
 def run_cmd(cmd, cwd=None, capture=False):
-    """Executes a shell command via subprocess."""
-    res = subprocess.run(cmd, shell=True, cwd=cwd, text=True, capture_output=capture)
+    """Executes a shell command via subprocess safely."""
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    res = subprocess.run(cmd, shell=False, cwd=cwd, text=True, capture_output=capture)
     if res.returncode != 0 and not capture:
         sys.exit(res.returncode)
     return res
