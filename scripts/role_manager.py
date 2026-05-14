@@ -31,13 +31,16 @@ def create_role():
         return
 
     # Scaffold directories
-    subdirs = ["tasks", "handlers", "defaults", "vars", "templates", "files", "meta"]
-    for sd in subdirs:
+    yaml_content = f"---\n# main.yml for role: {name}\n"
+
+    for sd in ["templates", "files", "meta"]:
         os.makedirs(os.path.join(role_path, sd), exist_ok=True)
-        # Create empty main.yml in relevant dirs
-        if sd in ["tasks", "handlers", "defaults", "vars"]:
-            with open(os.path.join(role_path, sd, "main.yml"), "w") as f:
-                f.write("---\n# main.yml for role: " + name + "\n")
+
+    for sd in ["tasks", "handlers", "defaults", "vars"]:
+        path = os.path.join(role_path, sd)
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "main.yml"), "w") as f:
+            f.write(yaml_content)
 
     print(f"Successfully scaffolded role at: {role_path}")
 
