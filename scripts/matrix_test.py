@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import pexpect
+import shlex
 
 # Configuration
 TEST_PROFILE = "matrix-test-node"
@@ -13,8 +14,10 @@ def log(msg):
     print(f"\n[MATRIX TEST] {msg}")
 
 def run_cmd(cmd):
-    print(f"Running: {cmd}")
-    res = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+    print(f"Running: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
+    res = subprocess.run(cmd, shell=False, text=True, capture_output=True)
     if res.returncode != 0:
         print(f"Error: Command failed with code {res.returncode}")
         print(f"STDOUT: {res.stdout}")
@@ -52,13 +55,13 @@ def test_logic_audit():
     log("Testing Orchestrator Logic...")
     
     # 1. Lint the new profile
-    out = run_cmd(f"python3 manage.py lint {TEST_PROFILE} 01")
+    out = run_cmd(["python3", "manage.py", "lint", TEST_PROFILE, "01"])
     if "Infrastructure Linting Passed" not in out:
         print("Error: Linting failed.")
         sys.exit(1)
         
     # 2. Check help menu
-    out = run_cmd("python3 manage.py --help")
+    out = run_cmd(["python3", "manage.py", "--help"])
     if "Synthesis" not in out:
         print("Error: Help menu malformed.")
         sys.exit(1)
