@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ "$*" == *"ls -l /HOMELAB/host/Primary/esxi-01.mgmt.plexplease.com"* ]]; then
+  echo "NVME_2TB_970_SAMSUNG_EVO_M.2"
+elif [[ "$*" == *"ls"* ]]; then
+  echo "mocked govc"
+else
+  echo "mocked govc"
+fi
