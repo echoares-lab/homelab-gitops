@@ -10,7 +10,7 @@ def run_govc(args):
     env["GOVC_USERNAME"] = env.get("VCENTER_USERNAME")
     env["GOVC_PASSWORD"] = env.get("VCENTER_PASSWORD")
     env["GOVC_INSECURE"] = "true"
-    cmd = ["/home/gemini-cli/template-pipeline/build/govc"] + args
+    cmd = ["./build/govc"] + args
     result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     return result
 

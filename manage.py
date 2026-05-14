@@ -100,7 +100,7 @@ def ensure_tags_exist(tags: List[str]):
     env["GOVC_USERNAME"] = env.get("VCENTER_USERNAME")
     env["GOVC_PASSWORD"] = env.get("VCENTER_PASSWORD")
     env["GOVC_INSECURE"] = "true"
-    govc_path = "/home/gemini-cli/template-pipeline/build/govc"
+    govc_path = "./build/govc"
 
     with console.status("[bold blue]Ensuring vCenter tags exist..."):
         # 1. Ensure category exists
