@@ -5,7 +5,6 @@ import subprocess
 import time
 import re
 import yaml
-import json
 from typing import Optional, List
 from typing_extensions import Annotated
 
@@ -14,7 +13,6 @@ from rich.console import Console
 from rich.table import Table
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
-from rich import print as rprint
 
 # Initialize Typer and Rich
 app = typer.Typer(
