@@ -1,6 +1,5 @@
 import pexpect
 import sys
-import os
 
 def init_photon(ip, old_pass, new_password, pubkey):
     print(f"Initializing Photon OS at {ip}...")

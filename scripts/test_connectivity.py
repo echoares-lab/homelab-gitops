@@ -5,6 +5,7 @@ import time
 def check_ssh(ip, timeout=300):
     print(f"Waiting for SSH (Port 22) on {ip}...")
     start_time = time.time()
+    retry_delay = 1
     
     while time.time() - start_time < timeout:
         try:
@@ -13,7 +14,8 @@ def check_ssh(ip, timeout=300):
                 return True
         except (socket.timeout, ConnectionRefusedError, OSError):
             print(f"Still waiting for {ip}:22...")
-            time.sleep(10)
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 10)
             
     print(f"[FAIL] Timeout reached waiting for SSH on {ip}")
     return False
