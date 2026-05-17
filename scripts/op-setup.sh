@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/op-setup.sh
-# Validates that 1Password CLI is installed, the service account token works,
-# and all required items/fields exist in the Homelab-GitOps vault.
+# Validates all required 1Password vault items and fields exist.
+# When a field is missing it prompts for the value and uploads it.
 #
 # Usage:
 #   export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
@@ -17,11 +17,14 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
+DIM='\033[2m'
 RESET='\033[0m'
 
-pass() { echo -e "  ${GREEN}✓${RESET} $1"; }
-fail() { echo -e "  ${RED}✗${RESET} $1"; ERRORS=$((ERRORS+1)); }
-info() { echo -e "  ${CYAN}→${RESET} $1"; }
+pass()    { echo -e "  ${GREEN}✓${RESET} $1"; }
+fail()    { echo -e "  ${RED}✗${RESET} $1"; ERRORS=$((ERRORS+1)); }
+info()    { echo -e "  ${CYAN}→${RESET} $1"; }
+warn()    { echo -e "  ${YELLOW}!${RESET} $1"; }
+section() { echo -e "\n  ${BOLD}${CYAN}── $1 ──${RESET}"; }
 
 ERRORS=0
 
@@ -33,30 +36,23 @@ echo -e "${BOLD}╚════════════════════�
 echo ""
 
 # ── 1. Check op CLI ───────────────────────────────────────────────────────────
-echo -e "${BOLD}[1/4] Checking 1Password CLI${RESET}"
+echo -e "${BOLD}[1/5] Checking 1Password CLI${RESET}"
 if command -v op &>/dev/null; then
     OP_VER=$(op --version 2>/dev/null || echo "unknown")
     pass "op CLI installed (v${OP_VER})"
 else
     fail "op CLI not found"
-    echo ""
-    info "Install via: https://developer.1password.com/docs/cli/get-started/"
-    info "  Ubuntu/Debian: curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg"
-    info "  Then add apt repo and: sudo apt install 1password-cli"
+    info "Run: bash scripts/op-vault-setup.sh  (installs the CLI and fills the vault)"
     exit 1
 fi
 
 # ── 2. Check service account token ───────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[2/4] Checking OP_SERVICE_ACCOUNT_TOKEN${RESET}"
+echo -e "${BOLD}[2/5] Checking OP_SERVICE_ACCOUNT_TOKEN${RESET}"
 if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
     fail "OP_SERVICE_ACCOUNT_TOKEN is not set"
-    echo ""
-    info "Create a service account:"
-    info "  1. Open 1Password → Settings → Developer → Service Accounts"
-    info "  2. Create new account scoped to '${VAULT}' vault (read-only)"
-    info "  3. Copy the ops_... token"
-    info "  4. export OP_SERVICE_ACCOUNT_TOKEN='ops_...'"
+    info "1Password → Settings → Developer → Service Accounts → create one scoped to '${VAULT}'"
+    info "Then: export OP_SERVICE_ACCOUNT_TOKEN='ops_...'"
     exit 1
 else
     pass "OP_SERVICE_ACCOUNT_TOKEN is set"
@@ -64,15 +60,14 @@ fi
 
 # ── 3. Test authentication ────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[3/4] Testing 1Password authentication${RESET}"
+echo -e "${BOLD}[3/5] Testing 1Password authentication${RESET}"
 if op vault list --format=json &>/dev/null; then
     pass "Authentication successful"
     if op vault get "${VAULT}" &>/dev/null; then
         pass "Vault '${VAULT}' is accessible"
     else
         fail "Vault '${VAULT}' not found or not accessible"
-        echo ""
-        info "Create the vault in 1Password UI, then grant the service account read access."
+        info "Create the vault in 1Password UI and grant the service account read+write access."
         exit 1
     fi
 else
@@ -80,68 +75,109 @@ else
     exit 1
 fi
 
-# ── 4. Check all required items and fields ───────────────────────────────────
-echo ""
-echo -e "${BOLD}[4/4] Checking vault items and fields${RESET}"
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-check_field() {
-    local item="$1" field="$2"
-    local ref="op://${VAULT}/${item}/${field}"
-    if val=$(op read "${ref}" 2>/dev/null) && [[ -n "$val" ]]; then
-        pass "${item}/${field}"
+# Upload a single field to an existing item, or create the item if it doesn't exist.
+# Usage: _upload item field field_type category value
+_upload() {
+    local item="$1" field="$2" field_type="$3" category="$4" value="$5"
+
+    if op item get "$item" --vault "$VAULT" &>/dev/null; then
+        op item edit "$item" --vault "$VAULT" \
+            "${field}[${field_type}]=${value}" --format json >/dev/null \
+            || { fail "${item}/${field} — upload failed"; return 0; }
     else
-        fail "${item}/${field}  ${YELLOW}(op read ${ref})${RESET}"
+        op item create --category "$category" --title "$item" --vault "$VAULT" \
+            "${field}[${field_type}]=${value}" --format json >/dev/null \
+            || { fail "${item}/${field} — create failed"; return 0; }
     fi
+    pass "${item}/${field} — uploaded"
 }
 
-echo "  ${CYAN}── vCenter ──${RESET}"
-check_field "vCenter" "server"
-check_field "vCenter" "username"
-check_field "vCenter" "password"
-check_field "vCenter" "datacenter"
-check_field "vCenter" "cluster"
-check_field "vCenter" "datastore"
-check_field "vCenter" "network"
-check_field "vCenter" "build_folder"
-check_field "vCenter" "template_folder"
-check_field "vCenter" "build_test_folder"
-check_field "vCenter" "deploy_prod_folder"
-check_field "vCenter" "deploy_test_folder"
+# Check a field; prompt and upload if missing.
+# Usage: check_field item field [field_type] [category]
+#   field_type: text (default) | password | concealed
+#   category:   Login (default) | Secure Note
+check_field() {
+    local item="$1" field="$2" field_type="${3:-text}" category="${4:-Login}"
+    local ref="op://${VAULT}/${item}/${field}"
 
-echo "  ${CYAN}── SSH-Admin ──${RESET}"
-check_field "SSH-Admin" "username"
-check_field "SSH-Admin" "password"
-check_field "SSH-Admin" "pubkey"
-check_field "SSH-Admin" "key_path"
+    if val=$(op read "${ref}" 2>/dev/null) && [[ -n "$val" ]]; then
+        pass "${item}/${field}"
+        return 0
+    fi
 
-echo "  ${CYAN}── Content-Library ──${RESET}"
-check_field "Content-Library" "name"
-check_field "Content-Library" "item_name"
+    # Missing — prompt for value
+    warn "${item}/${field} is missing"
+    local new_val
+    if [[ "$field_type" == "password" || "$field_type" == "concealed" ]]; then
+        read -rsp "$(echo -e "    ${YELLOW}Enter value${RESET} ${DIM}(hidden)${RESET}: ")" new_val
+        echo ""
+    else
+        read -rp "$(echo -e "    ${YELLOW}Enter value${RESET}: ")" new_val
+    fi
 
-echo "  ${CYAN}── Build-ISOs ──${RESET}"
-check_field "Build-ISOs" "ubuntu_2404_iso_url"
-check_field "Build-ISOs" "ubuntu_2404_iso_checksum"
-check_field "Build-ISOs" "ubuntu_2604_iso_url"
-check_field "Build-ISOs" "ubuntu_2604_iso_checksum"
-check_field "Build-ISOs" "photon_iso_url"
-check_field "Build-ISOs" "photon_iso_checksum"
+    if [[ -z "$new_val" ]]; then
+        fail "${item}/${field} — skipped (left blank)"
+        return 0
+    fi
 
-echo "  ${CYAN}── Build-Config ──${RESET}"
-check_field "Build-Config" "packer_firmware"
-check_field "Build-Config" "template_cpu_count"
-check_field "Build-Config" "template_memory_mb"
-check_field "Build-Config" "template_disk_size_mb"
+    _upload "$item" "$field" "$field_type" "$category" "$new_val"
+}
 
-echo "  ${CYAN}── GitHub ──${RESET}"
-check_field "GitHub" "github_pat"
+# ── 4. Check all required items and fields ───────────────────────────────────
+echo ""
+echo -e "${BOLD}[4/5] Checking vault items and fields${RESET}"
+
+section "vCenter"
+check_field "vCenter" "server"         text     Login
+check_field "vCenter" "username"       text     Login
+check_field "vCenter" "password"       password Login
+check_field "vCenter" "datacenter"     text     Login
+check_field "vCenter" "cluster"        text     Login
+check_field "vCenter" "datastore"      text     Login
+check_field "vCenter" "network"        text     Login
+check_field "vCenter" "build_folder"       text Login
+check_field "vCenter" "template_folder"    text Login
+check_field "vCenter" "build_test_folder"  text Login
+check_field "vCenter" "deploy_prod_folder" text Login
+check_field "vCenter" "deploy_test_folder" text Login
+
+section "SSH-Admin"
+check_field "SSH-Admin" "username" text     Login
+check_field "SSH-Admin" "password" password Login
+check_field "SSH-Admin" "pubkey"   text     Login
+check_field "SSH-Admin" "key_path" text     Login
+
+section "Content-Library"
+check_field "Content-Library" "name"      text "Secure Note"
+check_field "Content-Library" "item_name" text "Secure Note"
+
+section "Build-ISOs"
+check_field "Build-ISOs" "ubuntu_2404_iso_url"      text "Secure Note"
+check_field "Build-ISOs" "ubuntu_2404_iso_checksum" text "Secure Note"
+check_field "Build-ISOs" "ubuntu_2604_iso_url"      text "Secure Note"
+check_field "Build-ISOs" "ubuntu_2604_iso_checksum" text "Secure Note"
+check_field "Build-ISOs" "photon_iso_url"            text "Secure Note"
+check_field "Build-ISOs" "photon_iso_checksum"       text "Secure Note"
+
+section "Build-Config"
+check_field "Build-Config" "packer_firmware"     text "Secure Note"
+check_field "Build-Config" "template_cpu_count"  text "Secure Note"
+check_field "Build-Config" "template_memory_mb"  text "Secure Note"
+check_field "Build-Config" "template_disk_size_mb" text "Secure Note"
+
+section "GitHub"
+check_field "GitHub" "github_pat" password Login
 
 # ── 5. Validate secrets.env resolves ─────────────────────────────────────────
 echo ""
 echo -e "${BOLD}[5/5] Validating secrets.env resolves via op run${RESET}"
 if [[ -f "${SECRETS_ENV}" ]]; then
-    if op run --env-file="${SECRETS_ENV}" -- env | grep -q "VCENTER_SERVER"; then
+    if op run --env-file="${SECRETS_ENV}" -- env 2>/dev/null | grep -q "VCENTER_SERVER"; then
         pass "secrets.env resolves correctly"
-        info "VCENTER_SERVER = $(op run --env-file="${SECRETS_ENV}" -- sh -c 'echo $VCENTER_SERVER')"
+        VC=$(op run --env-file="${SECRETS_ENV}" -- sh -c 'echo "${VCENTER_SERVER}"' 2>/dev/null)
+        info "VCENTER_SERVER = ${VC}"
     else
         fail "secrets.env did not inject VCENTER_SERVER"
     fi
@@ -154,12 +190,11 @@ echo ""
 if [[ $ERRORS -eq 0 ]]; then
     echo -e "${GREEN}${BOLD}All checks passed! Ready to use 1Password secrets.${RESET}"
     echo ""
-    echo -e "  ${BOLD}Run manage.py with:${RESET}"
-    echo -e "  ${CYAN}export OP_SERVICE_ACCOUNT_TOKEN='ops_...'${RESET}"
+    echo -e "  ${BOLD}Run manage.py:${RESET}"
     echo -e "  ${CYAN}python3 manage.py deploy ubuntu-2404-base 01${RESET}"
     echo ""
 else
-    echo -e "${RED}${BOLD}${ERRORS} check(s) failed. Fix the issues above before proceeding.${RESET}"
+    echo -e "${RED}${BOLD}${ERRORS} check(s) failed.${RESET}"
     echo ""
     echo -e "  Reference vault structure: ${CYAN}config/vault.yml.example${RESET}"
     exit 1
