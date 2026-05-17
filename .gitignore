@@ -27,3 +27,14 @@ __pycache__/
 
 __pycache__
 *.pyc
+
+# Python virtualenv
+venv./
+venv/
+.venv/
+
+# Packer build artifacts (contain local passwords at build time)
+packer/http/ubuntu2404/meta-data
+
+# 1Password mock binary (local dev only)
+build/govc.mock

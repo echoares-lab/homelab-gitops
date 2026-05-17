@@ -17,7 +17,8 @@ autoinstall:
     hostname: ubuntu2404-golden-base
     username: ansible
     # Generate with: openssl passwd -6 'yourpassword'
-    password: "$6$tnw/zl/GuXKi4L.8$b8qCRhAIvUOC7ufO4b8eBtWXx88rD6S76LNi3INEgNGmObuGf0fRlIv70KnSoC/l399qLoSWExdeyHyhfDHJ71"
+    # Generate with: openssl passwd -6 'yourpassword'
+    password: "REPLACE_ME_SHA512_HASH"
   ssh:
     install-server: true
     authorized-keys:
