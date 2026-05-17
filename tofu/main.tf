@@ -60,7 +60,7 @@ data "vsphere_tag" "tags" {
 
 resource "vsphere_virtual_machine" "vm" {
   name             = var.vm_name
-  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  resource_pool_id = data.vsphere_host.host.resource_pool_id
   host_system_id   = data.vsphere_host.host.id
   datastore_id     = data.vsphere_datastore.datastore.id
 

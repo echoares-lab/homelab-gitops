@@ -1,5 +1,5 @@
 # .github/workflows/smoke-test.yml
-# Purpose: Basic GitHub Actions smoke test to confirm workflows run correctly.
+# Purpose: Smoke test — validates unit tests pass and 1Password secrets resolve.
 
 name: Smoke Test
 
@@ -8,36 +8,49 @@ on:
   push:
     branches:
       - main
+      - master
   pull_request:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   smoke:
-    name: Basic repo smoke test
+    name: Unit tests + secrets validation
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests (no secrets needed)
+        run: python3 -m pytest tests/test_manage.py tests/test_connectivity_optimized.py tests/test_technitium_manager.py -v
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+
+      - name: Validate 1Password secrets resolve
+        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' }}
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: |
+          echo "Validating all op:// references in config/secrets.env resolve..."
+          op run --env-file=config/secrets.env -- bash -c '
+            echo "VCENTER_SERVER=${VCENTER_SERVER:0:8}... (masked)"
+            echo "SSH_ADMIN_USERNAME=${SSH_ADMIN_USERNAME}"
+            echo "All required secrets resolved successfully."
+          '
+
       - name: Show runner info
         run: |
-          echo "Runner hostname: $(hostname)"
-          echo "Current user: $(whoami)"
-          echo "Working directory: $(pwd)"
-          echo "Git version: $(git --version)"
-
-      - name: Show repo files
-        run: |
-          echo "Repository files:"
-          find . -maxdepth 3 -type f | sort | sed 's#^\./##' | head -100
-
-      - name: Confirm README exists if present
-        run: |
-          if [ -f README.md ]; then
-            echo "README.md found"
-          else
-            echo "README.md not found, but this is not a failure"
-          fi
+          echo "Runner: $(hostname) | User: $(whoami) | Python: $(python3 --version)"
+          echo "Git: $(git --version)"

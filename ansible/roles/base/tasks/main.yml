@@ -24,6 +24,15 @@
   changed_when: "'Nothing to do' not in tdnf_update.stdout"
   when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution'] == 'VMware Photon OS'
 
+- name: Remove insecure/unnecessary packages (Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - telnet
+      - rsh-client
+    state: absent
+    purge: true
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: Ensure useful utilities are present (Ubuntu)
   ansible.builtin.apt:
     name:

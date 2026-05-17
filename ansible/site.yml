@@ -46,7 +46,7 @@
     ansible.builtin.copy:
       dest: /etc/resolv.conf
       content: |
-        nameserver 8.8.8.8
+        nameserver 10.10.10.2
         nameserver 1.1.1.1
       mode: "0644"
     ignore_errors: true

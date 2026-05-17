@@ -1,0 +1,24 @@
+vcenter:
+  datacenter: "HOMELAB"
+  cluster: "Primary"
+  host: "esxi-01.mgmt.plexplease.com"
+  datastore: "ds-nfs-prod"
+  network: "VM Network"
+
+content_library:
+  name: "GOLDEN"
+  template: "ubuntu-24.04-lts-golden"
+
+vm_specs:
+  cpu: 40
+  ram_gb: 40
+  guest_id: "ubuntu64Guest"
+  disk_size_gb: 400
+
+deployment:
+  tags:
+    - "ubuntu"
+    - "ubuntu-2404"
+    - "cf_dev"
+  vm_name_prefix: "cf-dev"
+  vm_name_domain: "mgmt.plexplease.com"

@@ -33,4 +33,4 @@ compose:
 # Only include VMs that have at least one of our core tags
 # Note: Use vmware_inventory_tags (renamed via rename_reserved_variables)
 filters:
-  - "'photon' in vmware_inventory_tags.values() or 'ubuntu' in vmware_inventory_tags.values() or 'docker' in vmware_inventory_tags.values()"
+  - "'photon' in vmware_inventory_tags.values() or 'ubuntu' in vmware_inventory_tags.values() or 'ubuntu-2404' in vmware_inventory_tags.values() or 'ubuntu-2604' in vmware_inventory_tags.values() or 'docker' in vmware_inventory_tags.values()"

@@ -1,0 +1,87 @@
+---
+- name: Wait for apt locks
+  ansible.builtin.shell: |
+    while fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      sleep 3
+    done
+  changed_when: false
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ runner_base_packages }}"
+    state: present
+
+- name: Install Playwright system deps
+  ansible.builtin.apt:
+    name: "{{ playwright_packages }}"
+    state: present
+  when: install_playwright_deps
+
+# --- Node.js via NodeSource ---
+- name: Check if NodeSource repo is already configured
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/nodesource.list
+  register: nodesource_list
+  when: install_node
+
+- name: Download NodeSource setup script
+  ansible.builtin.get_url:
+    url: "https://deb.nodesource.com/setup_{{ node_major_version }}.x"
+    dest: /tmp/nodesource_setup.sh
+    mode: "0755"
+  when: install_node and not nodesource_list.stat.exists
+
+- name: Run NodeSource setup script
+  ansible.builtin.command: bash /tmp/nodesource_setup.sh
+  changed_when: true
+  when: install_node and not nodesource_list.stat.exists
+
+- name: Install Node.js
+  ansible.builtin.apt:
+    name: nodejs
+    state: present
+    update_cache: true
+  when: install_node
+
+# --- Go ---
+- name: Check current Go version
+  ansible.builtin.command: /usr/local/go/bin/go version
+  register: current_go_version
+  changed_when: false
+  failed_when: false
+  when: install_go
+
+- name: Install Go from upstream tarball
+  when:
+    - install_go
+    - current_go_version.rc != 0 or go_version not in current_go_version.stdout
+  block:
+    - name: Download Go tarball
+      ansible.builtin.get_url:
+        url: "{{ go_tarball_url }}"
+        dest: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+        mode: "0644"
+
+    - name: Remove existing Go installation
+      ansible.builtin.file:
+        path: "{{ go_install_dir }}/go"
+        state: absent
+
+    - name: Extract Go tarball
+      ansible.builtin.unarchive:
+        src: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: "{{ go_install_dir }}"
+        remote_src: true
+
+- name: Add Go to system PATH
+  ansible.builtin.copy:
+    dest: /etc/profile.d/go.sh
+    content: |
+      export PATH=$PATH:{{ go_install_dir }}/go/bin
+      export GOPATH=$HOME/go
+    mode: "0644"

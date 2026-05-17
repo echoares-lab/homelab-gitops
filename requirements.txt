@@ -1,5 +1,7 @@
-typer[all]
+typer
 rich
 pyyaml
+typing_extensions
 pytest-testinfra
 pexpect
+paramiko
