@@ -93,13 +93,17 @@ def safe_res_name(name: str) -> str:
 
 @app.command()
 def setup_secrets(
-    host: str = typer.Option("http://10.10.10.2:5380/", "--host", help="Technitium Server URL"),
-    token: str = typer.Option("[REDACTED]", "--token", help="API Token")
+    host: Optional[str] = typer.Option(None, "--host", help="Technitium Server URL"),
+    token: Optional[str] = typer.Option(None, "--token", help="API Token")
 ):
     """Interactively setup and save Technitium secrets."""
     console.print(Panel("Technitium Secrets Setup", style="bold blue"))
-    final_host = Prompt.ask("Server URL", default=host)
-    final_token = Prompt.ask("API Token", default=token)
+    
+    default_host = host or "http://10.10.10.2:5380/"
+    default_token = token or "[REDACTED]"
+
+    final_host = Prompt.ask("Server URL", default=default_host)
+    final_token = Prompt.ask("API Token", default=default_token)
 
     os.makedirs(DNS_DIR, exist_ok=True)
     with open(TFVARS_FILE, "w") as f:
@@ -147,16 +151,21 @@ def add_resource():
 
 @app.command()
 def convert_csv(
-    csv_input: str = typer.Option(CSV_FILE, "--csv", help="Path to input CSV"),
-    output_json: str = typer.Option(JSON_CONFIG_FILE, "--output", help="Path to output JSON")
+    csv_input: Optional[str] = typer.Option(None, "--csv", help="Path to input CSV"),
+    output_json: Optional[str] = typer.Option(None, "--output", help="Path to output JSON")
 ):
     """Convert the Universal CSV to OpenTofu JSON configuration."""
-    if not os.path.exists(csv_input):
-        console.print(f"[bold red]Error:[/bold red] CSV file '{csv_input}' not found.")
+    input_path = csv_input or CSV_FILE
+    output_path = output_json or JSON_CONFIG_FILE
+
+    if not os.path.exists(input_path):
+        console.print(f"[bold red]Error:[/bold red] CSV file '{input_path}' not found.")
+        if not csv_input: # If we're in interactive mode or using default, don't just exit sys
+             return
         sys.exit(1)
 
     rows = []
-    with open(csv_input, mode='r', encoding='utf-8') as f:
+    with open(input_path, mode='r', encoding='utf-8') as f:
         rows = list(csv.DictReader(f))
 
     tf_json = {"resource": {}}
@@ -234,10 +243,11 @@ def convert_csv(
     # Clean up empty resource types
     tf_json["resource"] = {k: v for k, v in tf_json["resource"].items() if v}
 
-    with open(output_json, "w") as f:
+    with open(output_path, "w") as f:
         json.dump(tf_json, f, indent=2)
 
-    console.print(f"[bold green]Converted {len(rows)} rows to {output_json}[/bold green]")
+    console.print(f"[bold green]Converted {len(rows)} rows to {output_path}[/bold green]")
+
 
 @app.command()
 def apply():
@@ -249,6 +259,67 @@ def apply():
     subprocess.run(["tofu", "init"], cwd=DNS_DIR, check=True)
     subprocess.run(["tofu", "apply", "-auto-approve"], cwd=DNS_DIR, check=True)
     console.print("[bold green]Technitium Configuration applied successfully![/bold green]")
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """
+    Advanced Technitium DNS & DHCP OpenTofu Manager.
+    Run without arguments to enter interactive mode.
+    """
+    if ctx.invoked_subcommand is None:
+        interactive_menu()
+
+def interactive_menu():
+    """Interactive loop for the Technitium Manager."""
+    while True:
+        console.clear()
+        console.print(Panel("Technitium DNS & DHCP Manager", style="bold blue"))
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Command", style="cyan")
+        table.add_column("Description")
+
+        commands = [
+            ("1", "setup-secrets", "Configure API credentials"),
+            ("2", "add-resource", "Interactive resource wizard"),
+            ("3", "convert-csv", "Sync CSV to OpenTofu JSON"),
+            ("4", "apply", "Run 'tofu apply'"),
+            ("5", "exit", "Close the manager")
+        ]
+
+        for cmd in commands:
+            table.add_row(*cmd)
+
+        console.print(table)
+        
+        choice = Prompt.ask("Select an option", default="5")
+        choice = choice.lower().strip()
+
+        try:
+            if choice in ["1", "setup-secrets"]:
+                setup_secrets()
+            elif choice in ["2", "add-resource"]:
+                add_resource()
+            elif choice in ["3", "convert-csv"]:
+                convert_csv()
+            elif choice in ["4", "apply"]:
+                apply()
+            elif choice in ["5", "exit", "quit", "q"]:
+                console.print("[bold yellow]Goodbye![/bold yellow]")
+                break
+            else:
+                console.print(f"[bold red]Invalid option:[/bold red] {choice}")
+            
+            if choice not in ["5", "exit", "quit", "q"]:
+                Prompt.ask("\nPress Enter to return to menu...")
+                
+        except KeyboardInterrupt:
+            console.print("\n[bold yellow]Exiting...[/bold yellow]")
+            break
+        except Exception as e:
+            console.print(f"\n[bold red]Error:[/bold red] {e}")
+            Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":
     app()
