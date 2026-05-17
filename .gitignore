@@ -23,6 +23,7 @@ ansible/inventory.ini
 .terraform/
 .terraform.lock.hcl
 tofu/terraform.tfstate.d/
+tofu/dns/terraform.tfvars
 __pycache__/
 
 __pycache__

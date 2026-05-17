@@ -170,6 +170,10 @@ check_field "Build-Config" "template_disk_size_mb" text "Secure Note"
 section "GitHub"
 check_field "GitHub" "github_pat" password Login
 
+section "Technitium"
+check_field "Technitium" "host"  text     Login
+check_field "Technitium" "token" password Login
+
 # ── 5. Validate secrets.env resolves ─────────────────────────────────────────
 echo ""
 echo -e "${BOLD}[5/5] Validating secrets.env resolves via op run${RESET}"

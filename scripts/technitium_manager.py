@@ -3,6 +3,7 @@ import os
 import sys
 import csv
 import json
+import shutil
 import subprocess
 import typer
 from rich.console import Console
@@ -17,6 +18,76 @@ console = Console()
 # --- CONFIGURATION ---
 DNS_DIR = "tofu/dns"
 TFVARS_FILE = f"{DNS_DIR}/terraform.tfvars"
+OP_VAULT = "Homelab-GitOps"
+OP_ITEM = "Technitium"
+
+# --- 1PASSWORD HELPERS ---
+
+def _op_read(ref: str) -> str:
+    """Read a single field from 1Password. Returns empty string on any failure."""
+    try:
+        result = subprocess.run(
+            ["op", "read", ref],
+            capture_output=True, text=True, timeout=10
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _op_upsert(item: str, field: str, field_type: str, value: str) -> None:
+    """Create or update a single field in the 1Password vault."""
+    exists = subprocess.run(
+        ["op", "item", "get", item, "--vault", OP_VAULT],
+        capture_output=True, timeout=10
+    ).returncode == 0
+
+    cmd = (
+        ["op", "item", "edit", item, "--vault", OP_VAULT]
+        if exists else
+        ["op", "item", "create", "--category", "Login",
+         "--title", item, "--vault", OP_VAULT]
+    )
+    subprocess.run(
+        cmd + [f"{field}[{field_type}]={value}", "--format", "json"],
+        capture_output=True, check=True, timeout=10
+    )
+
+
+def _parse_tfvars() -> tuple[str, str]:
+    """Read host and token from tfvars file (legacy fallback)."""
+    host = token = ""
+    try:
+        with open(TFVARS_FILE) as f:
+            for line in f:
+                if line.startswith("technitium_host"):
+                    host = line.split("=", 1)[1].strip().strip('"')
+                elif line.startswith("technitium_token"):
+                    token = line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    return host, token
+
+
+def _load_technitium_secrets() -> tuple[str, str]:
+    """Return (host, token). Priority: env vars → 1Password → tfvars file → interactive setup."""
+    host = os.environ.get("TECHNITIUM_HOST", "")
+    token = os.environ.get("TECHNITIUM_TOKEN", "")
+    if host and token:
+        return host, token
+
+    if os.environ.get("OP_SERVICE_ACCOUNT_TOKEN") and shutil.which("op"):
+        op_host = _op_read(f"op://{OP_VAULT}/{OP_ITEM}/host")
+        op_token = _op_read(f"op://{OP_VAULT}/{OP_ITEM}/token")
+        if op_host and op_token:
+            return op_host, op_token
+
+    file_host, file_token = _parse_tfvars()
+    if file_host and file_token:
+        return file_host, file_token
+
+    setup_secrets()
+    return _load_technitium_secrets()
 JSON_CONFIG_FILE = f"{DNS_DIR}/records.tf.json"
 CSV_FILE = "config/dns_records.csv"
 
@@ -96,20 +167,35 @@ def setup_secrets(
     host: Optional[str] = typer.Option(None, "--host", help="Technitium Server URL"),
     token: Optional[str] = typer.Option(None, "--token", help="API Token")
 ):
-    """Interactively setup and save Technitium secrets."""
+    """Configure Technitium credentials — saves to 1Password if available, else to tfvars."""
     console.print(Panel("Technitium Secrets Setup", style="bold blue"))
-    
-    default_host = host or "http://10.10.10.2:5380/"
+
+    default_host = host or os.environ.get("TECHNITIUM_HOST", "http://10.10.10.2:5380/")
     default_token = token or ""
 
     final_host = Prompt.ask("Server URL", default=default_host)
-    final_token = Prompt.ask("API Token", default=default_token)
+    final_token = Prompt.ask("API Token", password=True, default=default_token)
 
+    if os.environ.get("OP_SERVICE_ACCOUNT_TOKEN") and shutil.which("op"):
+        try:
+            _op_upsert(OP_ITEM, "host", "text", final_host)
+            _op_upsert(OP_ITEM, "token", "password", final_token)
+            console.print(f"[bold green]Saved to 1Password ({OP_VAULT}/{OP_ITEM})[/bold green]")
+        except subprocess.CalledProcessError as exc:
+            console.print(f"[bold red]1Password upload failed:[/bold red] {exc}")
+            console.print("[dim]Falling back to tfvars...[/dim]")
+            _write_tfvars(final_host, final_token)
+    else:
+        _write_tfvars(final_host, final_token)
+        console.print("[dim]Tip: export OP_SERVICE_ACCOUNT_TOKEN to save to 1Password instead[/dim]")
+
+
+def _write_tfvars(host: str, token: str) -> None:
     os.makedirs(DNS_DIR, exist_ok=True)
     with open(TFVARS_FILE, "w") as f:
-        f.write(f'technitium_host = "{final_host}"\n')
-        f.write(f'technitium_token = "{final_token}"\n')
-    console.print(f"[bold green]Secrets saved to {TFVARS_FILE}[/bold green]")
+        f.write(f'technitium_host = "{host}"\n')
+        f.write(f'technitium_token = "{token}"\n')
+    console.print(f"[bold green]Credentials saved to {TFVARS_FILE}[/bold green]")
 
 @app.command()
 def add_resource():
@@ -253,8 +339,9 @@ def convert_csv(
 def apply():
     """Initialize and apply the OpenTofu configuration."""
     console.print(Panel("Applying Technitium Configuration", style="bold green"))
-    if not os.path.exists(TFVARS_FILE):
-        setup_secrets()
+
+    host, token = _load_technitium_secrets()
+    _write_tfvars(host, token)
 
     subprocess.run(["tofu", "init"], cwd=DNS_DIR, check=True)
     subprocess.run(["tofu", "apply", "-auto-approve"], cwd=DNS_DIR, check=True)

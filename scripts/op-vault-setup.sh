@@ -261,6 +261,16 @@ collect_all() {
 
     upsert_item "GitHub" "Login" \
         "github_pat[password]=${GH_PAT}"
+
+    # ── Technitium ─────────────────────────────────────────────────────────────
+    echo -e "\n  ${BOLD}${CYAN}── Technitium ──${RESET}"
+    info "The Technitium DNS server URL and API token"
+    prompt_text   "Technitium server URL" TECH_HOST "http://10.10.10.2:5380/"
+    prompt_secret "Technitium API token"  TECH_TOKEN
+
+    upsert_item "Technitium" "Login" \
+        "host[text]=${TECH_HOST}" \
+        "token[password]=${TECH_TOKEN}"
 }
 
 # ── 5. Validate ────────────────────────────────────────────────────────────────
