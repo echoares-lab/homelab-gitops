@@ -100,7 +100,7 @@ def setup_secrets(
     console.print(Panel("Technitium Secrets Setup", style="bold blue"))
     
     default_host = host or "http://10.10.10.2:5380/"
-    default_token = token or "[REDACTED]"
+    default_token = token or ""
 
     final_host = Prompt.ask("Server URL", default=default_host)
     final_token = Prompt.ask("API Token", default=default_token)
