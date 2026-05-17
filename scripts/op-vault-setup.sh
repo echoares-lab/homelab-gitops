@@ -78,32 +78,30 @@ install_op_cli() {
     info "Installing via apt..."
 
     if ! command -v apt-get &>/dev/null; then
-        if command -v snap &>/dev/null; then
-            warn "apt not found, falling back to snap"
-            sudo snap install 1password-cli
-            ok "Installed via snap — $(op --version)"
-            return
-        fi
-        err "Cannot auto-install: no apt-get or snap."
+        err "Cannot auto-install: apt-get not found."
         echo -e "  Install manually: ${CYAN}https://developer.1password.com/docs/cli/get-started/${RESET}"
         exit 1
     fi
 
+    # Add APT signing key
     curl -sS https://downloads.1password.com/linux/keys/1password.asc \
-        | sudo gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg
+        | sudo gpg --dearmor --yes -o /usr/share/keyrings/1password-archive-keyring.gpg
 
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] \
-https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" \
+    # Add APT repository
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" \
         | sudo tee /etc/apt/sources.list.d/1password.list >/dev/null
 
-    sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22 /usr/share/debsig/keyrings/AC2D62742012EA22
+    # Add debsig policy
+    sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22/
     curl -sS https://downloads.1password.com/linux/debian/debsig/1password.pol \
         | sudo tee /etc/debsig/policies/AC2D62742012EA22/1password.pol >/dev/null
-    curl -sS https://downloads.1password.com/linux/keys/1password.asc \
-        | sudo gpg --dearmor -o /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
 
-    sudo apt-get update -qq
-    sudo apt-get install -y 1password-cli
+    sudo mkdir -p /usr/share/debsig/keyrings/AC2D62742012EA22
+    curl -sS https://downloads.1password.com/linux/keys/1password.asc \
+        | sudo gpg --dearmor --yes -o /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
+
+    sudo apt update
+    sudo apt install -y 1password-cli
     ok "Installed — $(op --version)"
 }
 
