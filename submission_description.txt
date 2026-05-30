@@ -1,7 +1,0 @@
-🧪 [testing improvement] Add test for MAC address validation logic
-
-🎯 **What:** The `validate_mac` function in `manage.py` was completely untested.
-📊 **Coverage:** Added the tests `test_validate_mac_valid` and `test_validate_mac_invalid` to `tests/test_manage.py`.
-- Covers happy paths including multiple valid MAC address syntaxes (lower, upper case, numbers) and empty/None values.
-- Covers negative edge cases such as length anomalies (too short/long), incorrect delimiters (- instead of :), trailing/leading spaces, and invalid hex values (e.g., "ZZ").
-✨ **Result:** Test suite execution confirms the behavior. Ensures `sys.exit(1)` and appropriate error logging using `console.print` is triggered for badly formed MAC addresses.
