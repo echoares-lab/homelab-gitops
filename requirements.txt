@@ -5,3 +5,4 @@ typing_extensions
 pytest-testinfra
 pexpect
 paramiko
+passlib

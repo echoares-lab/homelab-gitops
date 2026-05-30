@@ -63,7 +63,7 @@
             dest: "{{ local_temp_dir.path }}/{{ item.name }}"
             mode: '0644'
           loop:
-            - { name: 'user-data', content: "{{ lookup('file', '../build/user-data') | replace('shell: /bin/bash', 'shell: /bin/bash\n    ssh_authorized_keys:\n      - ' ~ lookup('env', 'SSH_ADMIN_SSH_PUBKEY')) | replace('passwd: \"$6$gE2rmgSkNP4ffN15$ltAwlmgjgFNuR9Xb8RXGVv4YIelD3vBQDT5wh2ttv3L0/o8eH/KTAxYwT.6OKnsrYAYtOXCeOsB0Rm3MkVBp9.\"', 'password: ' ~ lookup('env', 'SSH_ADMIN_PASSWORD')) }}" }
+            - { name: 'user-data', content: "{{ lookup('file', '../build/user-data') | replace('shell: /bin/bash', 'shell: /bin/bash\n    ssh_authorized_keys:\n      - ' ~ lookup('env', 'SSH_ADMIN_SSH_PUBKEY')) | replace('passwd: \"$6$gE2rmgSkNP4ffN15$ltAwlmgjgFNuR9Xb8RXGVv4YIelD3vBQDT5wh2ttv3L0/o8eH/KTAxYwT.6OKnsrYAYtOXCeOsB0Rm3MkVBp9.\"', 'passwd: \"' ~ (lookup('env', 'SSH_ADMIN_PASSWORD') | password_hash('sha512')) ~ '\"') }}" }
             - { name: 'meta-data', content: "instance-id: {{ vm_name }}\nlocal-hostname: {{ vm_name }}" }
           when: not vm_exists
 
