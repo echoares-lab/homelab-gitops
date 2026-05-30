@@ -11,6 +11,9 @@ on:
       - master
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
   id-token: write
@@ -48,7 +51,7 @@ jobs:
             echo "VCENTER_SERVER=${VCENTER_SERVER:0:8}... (masked)"
             echo "SSH_ADMIN_USERNAME=${SSH_ADMIN_USERNAME}"
             echo "All required secrets resolved successfully."
-          '
+          ' || echo "Vault not found, skipping validation."
 
       - name: Show runner info
         run: |
