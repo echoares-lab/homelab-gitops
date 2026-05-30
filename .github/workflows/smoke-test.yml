@@ -48,7 +48,7 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: |
           echo "Validating all op:// references in config/secrets.env resolve..."
-          if [ -z "$OP_SERVICE_ACCOUNT_TOKEN" ]; then echo "Skipping validation because no op token"; return 0; fi
+          if [ -z "$OP_SERVICE_ACCOUNT_TOKEN" ]; then echo "Skipping validation because no op token"; exit 0; fi
           op run --env-file=config/secrets.env -- bash -c '
             echo "VCENTER_SERVER=${VCENTER_SERVER:0:8}... (masked)"
             echo "SSH_ADMIN_USERNAME=${SSH_ADMIN_USERNAME}"
