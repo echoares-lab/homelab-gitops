@@ -7,6 +7,8 @@ import time
 import re
 import yaml
 import json
+import functools
+import concurrent.futures
 import shlex
 from typing import Optional, List
 from typing_extensions import Annotated
@@ -136,6 +138,7 @@ def _govc_env() -> dict:
     env["GOVC_INSECURE"] = "true"
     return env
 
+@functools.lru_cache(maxsize=None)
 def get_host_info(hostname: str) -> dict:
     """Returns {'arch': str, 'cpu_model': str} for a host.
 
@@ -767,8 +770,11 @@ def interactive_mode():
             t.add_column("Host",  style="cyan")
             t.add_column("Arch",  style="yellow")
             t.add_column("CPU",   style="dim")
-            for h in hosts:
-                info = get_host_info(h)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Use map to fetch host info in parallel while preserving order
+                results = list(executor.map(get_host_info, hosts))
+
+            for h, info in zip(hosts, results):
                 t.add_row(h, info["arch"].upper(), info["cpu_model"])
             console.print("\n[dim]Available ESXi hosts in cluster:[/dim]")
             console.print(t)
