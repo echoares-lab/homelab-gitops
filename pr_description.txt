@@ -1,0 +1,3 @@
+🎯 **What:** The `validate_profile_name` function in `scripts/profile_manager.py` was completely untested. This function is critical for ensuring profile names adhere to standards (lowercase, numbers, hyphens only) before creating them.
+📊 **Coverage:** Added positive test cases verifying valid inputs (e.g., 'ubuntu-base', '123') and negative test cases checking rejection of invalid characters like underscores, uppercase letters, spaces, and empty strings.
+✨ **Result:** Improved overall test coverage and ensures regressions aren't introduced to the profile name validation logic during future refactoring.
