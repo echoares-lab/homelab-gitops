@@ -2,8 +2,9 @@ import os
 import csv
 import json
 import pytest
-from unittest.mock import patch
-from scripts.technitium_manager import app
+import subprocess
+from unittest.mock import patch, MagicMock
+from scripts.technitium_manager import app, _op_upsert, OP_VAULT
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -16,10 +17,6 @@ def test_add_zone_interactively(tmp_path):
     
     with patch("rich.prompt.Prompt.ask", side_effect=inputs):
         result = runner.invoke(app, ["add-resource"], env={"CSV_FILE": str(csv_file)})
-    
-    # Note: The script uses a hardcoded CSV_FILE constant. I'll need to patch that if I want full isolation.
-    # For now, I'll just check if the logic is sound or refactor the script to accept a CSV path if needed.
-    # Re-reading the script, CSV_FILE is a global.
     
 def test_conversion_logic(tmp_path):
     csv_input = tmp_path / "input.csv"
@@ -58,3 +55,51 @@ def test_conversion_logic(tmp_path):
         scope = list(resources["technitium_dhcp_scope"].values())[0]
         assert scope["network_address"] == "192.168.1.0"
         assert scope["gateway"] == "192.168.1.1"
+
+def test_op_upsert_item_exists():
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            MagicMock(returncode=0)
+        ]
+
+        _op_upsert("TestItem", "username", "text", "admin")
+
+        assert mock_run.call_count == 2
+        mock_run.assert_any_call(
+            ["op", "item", "get", "TestItem", "--vault", OP_VAULT],
+            capture_output=True, timeout=10
+        )
+        mock_run.assert_any_call(
+            ["op", "item", "edit", "TestItem", "--vault", OP_VAULT, "username[text]=admin", "--format", "json"],
+            capture_output=True, check=True, timeout=10
+        )
+
+def test_op_upsert_item_not_exists():
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(returncode=1),
+            MagicMock(returncode=0)
+        ]
+
+        _op_upsert("TestItem", "username", "text", "admin")
+
+        assert mock_run.call_count == 2
+        mock_run.assert_any_call(
+            ["op", "item", "get", "TestItem", "--vault", OP_VAULT],
+            capture_output=True, timeout=10
+        )
+        mock_run.assert_any_call(
+            ["op", "item", "create", "--category", "Login", "--title", "TestItem", "--vault", OP_VAULT, "username[text]=admin", "--format", "json"],
+            capture_output=True, check=True, timeout=10
+        )
+
+def test_op_upsert_edit_fails():
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            subprocess.CalledProcessError(1, ["op", "item", "edit"])
+        ]
+
+        with pytest.raises(subprocess.CalledProcessError):
+            _op_upsert("TestItem", "username", "text", "admin")
