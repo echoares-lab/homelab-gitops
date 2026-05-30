@@ -42,7 +42,7 @@ jobs:
         uses: 1password/install-cli-action@v1
 
       - name: Validate 1Password secrets resolve
-        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' }}
+        if: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN != '' }}
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: |
