@@ -2,7 +2,7 @@ import os
 import pytest
 import yaml
 from unittest.mock import patch, MagicMock
-from manage import identify_vm, resolve_playbook, PLAYBOOK_MAP, BUILD_TARGETS, app
+from manage import identify_vm, resolve_playbook, PLAYBOOK_MAP, BUILD_TARGETS, app, get_host_info
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
@@ -231,3 +231,118 @@ def test_profile_specs_are_positive(profile_path):
         assert isinstance(val, int) and val > 0, (
             f"{os.path.basename(profile_path)}: vm_specs.{field} must be a positive int, got {val!r}"
         )
+
+# ── get_host_info ─────────────────────────────────────────────────────────────
+
+@patch("manage.subprocess.run")
+def test_get_host_info_valid_intel(mock_run):
+    mock_res = MagicMock()
+    mock_res.stdout = """{
+        "hostSystems": [
+            {
+                "summary": {
+                    "hardware": {
+                        "cpuModel": "Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz"
+                    }
+                },
+                "config": {
+                    "featureCapability": [
+                        {"key": "cpuid.vmx", "value": "1"}
+                    ]
+                }
+            }
+        ]
+    }"""
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "intel", "cpu_model": "Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz"}
+
+@patch("manage.subprocess.run")
+def test_get_host_info_valid_amd(mock_run):
+    mock_res = MagicMock()
+    mock_res.stdout = """{
+        "hostSystems": [
+            {
+                "summary": {
+                    "hardware": {
+                        "cpuModel": "AMD EPYC 7302P 16-Core Processor"
+                    }
+                },
+                "config": {
+                    "featureCapability": [
+                        {"key": "cpuid.svm", "value": "1"}
+                    ]
+                }
+            }
+        ]
+    }"""
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "amd", "cpu_model": "AMD EPYC 7302P 16-Core Processor"}
+
+@patch("manage.subprocess.run")
+def test_get_host_info_invalid_json(mock_run):
+    mock_res = MagicMock()
+    mock_res.stdout = "invalid json payload"
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "unknown", "cpu_model": "unknown"}
+
+@patch("manage.subprocess.run")
+def test_get_host_info_missing_keys(mock_run):
+    mock_res = MagicMock()
+    # Returns valid JSON, but missing the expected 'hostSystems' structure
+    mock_res.stdout = "{}"
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "unknown", "cpu_model": "unknown"}
+
+@patch("manage.subprocess.run")
+def test_get_host_info_fallback_to_model_intel(mock_run):
+    mock_res = MagicMock()
+    # Valid JSON, but caps missing, model string indicates Intel
+    mock_res.stdout = """{
+        "hostSystems": [
+            {
+                "summary": {
+                    "hardware": {
+                        "cpuModel": "Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz"
+                    }
+                }
+            }
+        ]
+    }"""
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "intel", "cpu_model": "Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz"}
+
+@patch("manage.subprocess.run")
+def test_get_host_info_fallback_to_model_amd(mock_run):
+    mock_res = MagicMock()
+    # Valid JSON, but caps missing, model string indicates AMD
+    mock_res.stdout = """{
+        "hostSystems": [
+            {
+                "summary": {
+                    "hardware": {
+                        "cpuModel": "AMD EPYC 7302P 16-Core Processor"
+                    }
+                }
+            }
+        ]
+    }"""
+    mock_res.returncode = 0
+    mock_run.return_value = mock_res
+
+    res = get_host_info("test-host")
+    assert res == {"arch": "amd", "cpu_model": "AMD EPYC 7302P 16-Core Processor"}
