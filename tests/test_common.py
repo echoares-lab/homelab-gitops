@@ -1,4 +1,3 @@
-import pytest
 import os
 
 def test_ansible_user_exists(host):

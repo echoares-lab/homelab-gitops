@@ -1,7 +1,5 @@
-import os
 import csv
 import json
-import pytest
 from unittest.mock import patch
 from scripts.technitium_manager import app
 from typer.testing import CliRunner

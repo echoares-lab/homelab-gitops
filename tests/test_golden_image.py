@@ -1,4 +1,3 @@
-import pytest
 
 def test_ssh_running_and_enabled(host):
     # Ubuntu 24.04 uses ssh.service aliased as "ssh"; check running + socket active

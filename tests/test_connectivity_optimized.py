@@ -1,9 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import socket
 import sys
 import os
-import time
 
 # Ensure scripts directory is in path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
