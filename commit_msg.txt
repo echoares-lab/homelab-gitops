@@ -1,5 +1,0 @@
-🧪 Add tests for 1Password upsert functionality
-
-🎯 **What:** This PR adds missing unit tests for the `_op_upsert` functionality in `scripts/technitium_manager.py`, addressing a critical testing gap for secrets handling.
-📊 **Coverage:** The tests cover the happy paths (when item already exists, and when item doesn't exist yet but needs creation), as well as failure modes (simulating a crash executing the command with Mock).
-✨ **Result:** Test coverage and code reliability are increased as unit tests for secrets setup are added.
