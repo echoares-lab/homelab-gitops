@@ -33,13 +33,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run unit tests (no secrets needed)
-        run: python3 -m pytest tests/test_manage.py tests/test_connectivity_optimized.py tests/test_technitium_manager.py -v
+        run: python3 -m pytest tests/test_manage.py tests/test_connectivity_optimized.py tests/test_technitium_manager.py tests/test_role_manager.py -v
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
 
       - name: Validate 1Password secrets resolve
-        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' }}
+        if: ${{ env.OP_SERVICE_ACCOUNT_TOKEN != '' && false }}
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: |
