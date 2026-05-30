@@ -235,6 +235,56 @@ def add_resource():
     save_csv_row(data)
     console.print(f"\n[bold green]Success![/bold green] Resource added to {CSV_FILE}")
 
+
+def _build_resource_object(r_type: str, row: dict, row_index: int) -> dict:
+    res_obj = {}
+
+    # Mapping logic
+    if r_type == "zone":
+        res_obj["name"] = row.get("name", "")
+        res_obj["type"] = row.get("type", "") or "Primary"
+        if row.get("value"): res_obj["forwarder"] = row.get("value")
+
+    elif r_type == "record":
+        res_obj["zone"] = row.get("parent", "")
+        res_obj["domain"] = row.get("name", "")
+        res_obj["type"] = row.get("type", "") or "A"
+        rtype = res_obj["type"].upper()
+        if rtype in ["A", "AAAA"]: res_obj["ip_address"] = row.get("value", "")
+        elif rtype == "CNAME": res_obj["cname"] = row.get("value", "")
+        elif rtype == "TXT": res_obj["text"] = row.get("value", "")
+        else: res_obj["data"] = row.get("value", "")
+        if row.get("ttl"): res_obj["ttl"] = int(row.get("ttl"))
+
+    elif r_type == "dhcp_scope":
+        res_obj["name"] = row.get("name", "")
+        res_obj["network_address"] = row.get("network_address", "")
+        res_obj["subnet_mask"] = row.get("subnet_mask", "")
+        res_obj["start_address"] = row.get("start_address", "")
+        res_obj["end_address"] = row.get("end_address", "")
+        if row.get("gateway"): res_obj["gateway"] = row.get("gateway")
+
+    elif r_type == "dhcp_lease":
+        res_obj["scope"] = row.get("parent", "")
+        res_obj["ip_address"] = row.get("value", "")
+        res_obj["mac_address"] = row.get("mac_address", "")
+        if row.get("name"): res_obj["host_name"] = row.get("name")
+
+    # Universal fields
+    if row.get("comments"): res_obj["comments"] = row.get("comments")
+    if row.get("depends_on"):
+        res_obj["depends_on"] = [d.strip() for d in row.get("depends_on").split(",")]
+
+    # Advanced JSON override
+    if row.get("advanced_json"):
+        try:
+            overrides = json.loads(row.get("advanced_json"))
+            res_obj.update(overrides)
+        except Exception as e:
+            console.print(f"[red]Error parsing advanced_json at row {row_index}: {e}[/red]")
+
+    return res_obj
+
 @app.command()
 def convert_csv(
     csv_input: Optional[str] = typer.Option(None, "--csv", help="Path to input CSV"),
@@ -278,51 +328,7 @@ def convert_csv(
         res_id = safe_res_name(f"{r_type}_{name or i}")
         
         # Build resource object
-        res_obj = {}
-        
-        # Mapping logic
-        if r_type == "zone":
-            res_obj["name"] = row["name"]
-            res_obj["type"] = row["type"] or "Primary"
-            if row["value"]: res_obj["forwarder"] = row["value"]
-            
-        elif r_type == "record":
-            res_obj["zone"] = row["parent"]
-            res_obj["domain"] = row["name"]
-            res_obj["type"] = row["type"] or "A"
-            rtype = res_obj["type"].upper()
-            if rtype in ["A", "AAAA"]: res_obj["ip_address"] = row["value"]
-            elif rtype == "CNAME": res_obj["cname"] = row["value"]
-            elif rtype == "TXT": res_obj["text"] = row["value"]
-            else: res_obj["data"] = row["value"]
-            if row["ttl"]: res_obj["ttl"] = int(row["ttl"])
-
-        elif r_type == "dhcp_scope":
-            res_obj["name"] = row["name"]
-            res_obj["network_address"] = row["network_address"]
-            res_obj["subnet_mask"] = row["subnet_mask"]
-            res_obj["start_address"] = row["start_address"]
-            res_obj["end_address"] = row["end_address"]
-            if row["gateway"]: res_obj["gateway"] = row["gateway"]
-
-        elif r_type == "dhcp_lease":
-            res_obj["scope"] = row["parent"]
-            res_obj["ip_address"] = row["value"]
-            res_obj["mac_address"] = row["mac_address"]
-            if row["name"]: res_obj["host_name"] = row["name"]
-
-        # Universal fields
-        if row.get("comments"): res_obj["comments"] = row["comments"]
-        if row.get("depends_on"):
-            res_obj["depends_on"] = [d.strip() for d in row["depends_on"].split(",")]
-            
-        # Advanced JSON override
-        if row.get("advanced_json"):
-            try:
-                overrides = json.loads(row["advanced_json"])
-                res_obj.update(overrides)
-            except Exception as e:
-                console.print(f"[red]Error parsing advanced_json at row {i+2}: {e}[/red]")
+        res_obj = _build_resource_object(r_type, row, i + 2)
 
         tf_json["resource"][res_type_name][res_id] = res_obj
 
@@ -356,6 +362,35 @@ def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
         interactive_menu()
 
+
+def _process_menu_choice(choice: str) -> bool:
+    """Process the interactive menu choice. Returns False if the loop should terminate."""
+    try:
+        if choice in ["1", "setup-secrets"]:
+            setup_secrets()
+        elif choice in ["2", "add-resource"]:
+            add_resource()
+        elif choice in ["3", "convert-csv"]:
+            convert_csv()
+        elif choice in ["4", "apply"]:
+            apply()
+        elif choice in ["5", "exit", "quit", "q"]:
+            console.print("[bold yellow]Goodbye![/bold yellow]")
+            return False
+        else:
+            console.print(f"[bold red]Invalid option:[/bold red] {choice}")
+
+        Prompt.ask("\nPress Enter to return to menu...")
+        return True
+
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow]Exiting...[/bold yellow]")
+        return False
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        Prompt.ask("\nPress Enter to return to menu...")
+        return True
+
 def interactive_menu():
     """Interactive loop for the Technitium Manager."""
     while True:
@@ -383,30 +418,8 @@ def interactive_menu():
         choice = Prompt.ask("Select an option", default="5")
         choice = choice.lower().strip()
 
-        try:
-            if choice in ["1", "setup-secrets"]:
-                setup_secrets()
-            elif choice in ["2", "add-resource"]:
-                add_resource()
-            elif choice in ["3", "convert-csv"]:
-                convert_csv()
-            elif choice in ["4", "apply"]:
-                apply()
-            elif choice in ["5", "exit", "quit", "q"]:
-                console.print("[bold yellow]Goodbye![/bold yellow]")
-                break
-            else:
-                console.print(f"[bold red]Invalid option:[/bold red] {choice}")
-            
-            if choice not in ["5", "exit", "quit", "q"]:
-                Prompt.ask("\nPress Enter to return to menu...")
-                
-        except KeyboardInterrupt:
-            console.print("\n[bold yellow]Exiting...[/bold yellow]")
+        if not _process_menu_choice(choice):
             break
-        except Exception as e:
-            console.print(f"\n[bold red]Error:[/bold red] {e}")
-            Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":
     app()
