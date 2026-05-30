@@ -2,7 +2,7 @@ import os
 import pytest
 import yaml
 from unittest.mock import patch, MagicMock
-from manage import identify_vm, resolve_playbook, PLAYBOOK_MAP, BUILD_TARGETS, app
+from manage import identify_vm, resolve_playbook, PLAYBOOK_MAP, BUILD_TARGETS, app, _should_bootstrap_secrets
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
@@ -140,6 +140,21 @@ def test_build_targets_include_expected():
     assert "ubuntu-2404" in BUILD_TARGETS
     assert "ubuntu-2604" in BUILD_TARGETS
     assert "photon-docker" in BUILD_TARGETS
+
+
+@pytest.mark.parametrize("argv,expected", [
+    (["manage.py"], False),
+    (["manage.py", "--help"], False),
+    (["manage.py", "deploy", "--help"], False),
+    (["manage.py", "lint", "photon-docker"], False),
+    (["manage.py", "li", "photon-docker"], False),
+    (["manage.py", "create-profile"], False),
+    (["manage.py", "mkrole"], False),
+    (["manage.py", "deploy", "photon-docker", "01"], True),
+    (["manage.py", "all", "photon-docker", "01"], True),
+])
+def test_should_bootstrap_secrets(argv, expected):
+    assert _should_bootstrap_secrets(argv) is expected
 
 
 # ── CLI aliases ───────────────────────────────────────────────────────────────

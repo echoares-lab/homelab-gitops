@@ -84,6 +84,29 @@ def _bootstrap_secrets():
     console.print(f"    [dim]op run --env-file={secrets_env} -- python3 manage.py <command>[/dim]")
     sys.exit(1)
 
+
+def _should_bootstrap_secrets(argv: List[str]) -> bool:
+    """Return True when the requested invocation actually needs injected secrets.
+
+    Help output, interactive mode, local generators, and dry linting should stay
+    offline-safe so tests and basic CLI discovery do not require 1Password.
+    """
+    if len(argv) <= 1:
+        return False
+
+    if any(arg in ("-h", "--help") for arg in argv[1:]):
+        return False
+
+    command = argv[1]
+    commands_without_secrets = {
+        "lint", "li",
+        "create-profile", "mkprofile",
+        "edit-profile", "ep",
+        "create-role", "mkrole",
+        "create-play", "mkplay",
+    }
+    return command not in commands_without_secrets
+
 def track_time(start_time, task_name):
     """Calculates and prints the duration of a task."""
     duration = int(time.time() - start_time)
@@ -1088,7 +1111,9 @@ def interactive_mode():
     sys.exit(0)
 
 if __name__ == "__main__":
-    _bootstrap_secrets()
+    if _should_bootstrap_secrets(sys.argv):
+        _bootstrap_secrets()
+
     os.environ["VMWARE_HOST"] = os.environ.get("VCENTER_SERVER", "")
     os.environ["VMWARE_USER"] = os.environ.get("VCENTER_USERNAME", "")
     os.environ["VMWARE_PASSWORD"] = os.environ.get("VCENTER_PASSWORD", "")
