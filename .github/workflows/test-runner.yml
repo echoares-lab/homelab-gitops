@@ -1,0 +1,14 @@
+name: Test New Runner
+on: workflow_dispatch
+
+jobs:
+  test-job:
+    runs-on: [self-hosted, testing, ci]
+    steps:
+      - name: Check Environment
+        run: |
+          echo "Running on: $(hostname)"
+          echo "User: $(whoami)"
+          sudo apt-get update && echo "Sudo works without password!"
+          node --version
+          go version
