@@ -1,0 +1,13 @@
+name: Basic Runner Test
+on: workflow_dispatch
+
+jobs:
+  basic-test:
+    runs-on: [testing]
+    steps:
+      - name: Hello World
+        run: echo "Hello from $(hostname)"
+      - name: Check User
+        run: whoami
+      - name: Sudo Test
+        run: sudo -n true && echo "Sudo OK"
