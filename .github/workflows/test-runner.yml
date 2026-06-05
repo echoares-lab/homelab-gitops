@@ -3,7 +3,7 @@ on: workflow_dispatch
 
 jobs:
   test-job:
-    runs-on: [self-hosted, testing, ci]
+    runs-on: [testing]
     steps:
       - name: Check Environment
         run: |
