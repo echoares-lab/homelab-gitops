@@ -1,3 +1,5 @@
+import copy
+
 from .models import DeploymentState, TaskResult
 
 class StateMachine:
@@ -31,7 +33,6 @@ class StateMachine:
         new_state_name = stage_to_state.get(stage, stage)
 
         # Update the state
-        import copy
         new_state = copy.copy(state)
         new_state.state = new_state_name
         if result.vm_ip:
@@ -40,7 +41,6 @@ class StateMachine:
 
     def transition_to_failed(self, state: DeploymentState, error: str) -> DeploymentState:
         """Mark state as failed with error message."""
-        import copy
         new_state = copy.copy(state)
         new_state.state = "failed"
         new_state.error = error

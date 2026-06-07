@@ -1,4 +1,3 @@
-import pytest
 from homelab_gitops.domain.state_machine import StateMachine
 from homelab_gitops.domain.models import DeploymentState, TaskResult
 
