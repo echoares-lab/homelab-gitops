@@ -1,6 +1,5 @@
 """OpenTofu state management and provisioning driver."""
 
-import subprocess
 import shutil
 import time
 from .base import Driver
@@ -12,6 +11,7 @@ class TofuDriver(Driver):
     """Manage OpenTofu state and provisioning."""
 
     def __init__(self, tofu_dir: str = "tofu"):
+        """Initialize TofuDriver."""
         self.tofu_path = shutil.which("tofu")
         self.tofu_dir = tofu_dir
 

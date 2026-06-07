@@ -12,6 +12,7 @@ class AnsibleDriver(Driver):
     """Execute Ansible playbooks."""
 
     def __init__(self):
+        """Initialize AnsibleDriver."""
         self.ansible_path = shutil.which("ansible-playbook")
 
     def validate(self) -> bool:

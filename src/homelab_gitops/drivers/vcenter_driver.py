@@ -4,7 +4,7 @@ import subprocess
 import shutil
 import time
 from .base import Driver
-from .exceptions import PrerequisiteError, ExecutionError
+from .exceptions import PrerequisiteError
 from homelab_gitops.domain.models import Task, TaskResult
 
 
@@ -12,6 +12,7 @@ class vCenterDriver(Driver):
     """Query and manage vCenter infrastructure."""
 
     def __init__(self):
+        """Initialize vCenterDriver."""
         self.govc_path = shutil.which("govc") or "build/govc"
 
     def validate(self) -> bool:
