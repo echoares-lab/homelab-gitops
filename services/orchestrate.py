@@ -7,6 +7,7 @@ from services.infrastructure import InfrastructureService
 from services.config import ConfigService
 from services.utils import track_time, validate_mac
 from services.wrappers.packer_wrapper import PackerWrapper
+from services.wrappers.tofu_wrapper import TofuWrapper
 
 console = Console()
 
@@ -118,8 +119,18 @@ class OrchestrateService:
             # Load profile
             profile_data = self.config_service.load_profile(profile)
 
-            # TODO: Implement OpenTofu deployment
-            # This is a stub; actual implementation would call tofu apply
+            # Construct workspace name from profile FQDN components
+            vm_prefix = profile_data.get("deployment", {}).get("vm_name_prefix", profile)
+            vm_domain = profile_data.get("deployment", {}).get("vm_name_domain", "local")
+            workspace_name = f"{vm_prefix}-{index}.{vm_domain}"
+
+            # Initialize OpenTofu workspace and apply configuration
+            wrapper = TofuWrapper(workspace=workspace_name)
+            wrapper.workspace_new(workspace_name)
+
+            if not wrapper.apply():
+                console.print("[red]✗ Deploy failed[/red]")
+                return False
 
             console.print("[green]✓ Deploy succeeded[/green]")
             track_time(start, f"deploy {profile} {index}")
