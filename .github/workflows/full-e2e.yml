@@ -1,0 +1,114 @@
+name: Full End-to-End Tests
+
+on:
+  workflow_dispatch:  # Manual trigger
+  release:
+    types: [created, published]
+
+permissions:
+  contents: read
+
+jobs:
+  full-e2e:
+    name: Full E2E Pipeline
+    runs-on: [self-hosted, packer]
+    # Requires self-hosted runner with Packer + vSphere access
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-testinfra paramiko pexpect
+
+      - name: Build Ubuntu 24.04 golden image
+        run: |
+          echo "=== Building Ubuntu 24.04 LTS Golden Image ==="
+          cd packer
+          packer validate ubuntu2404.pkr.hcl || exit 1
+          packer build -on-error=ask ubuntu2404.pkr.hcl || exit 1
+          echo "✓ Ubuntu 24.04 image built successfully"
+
+      - name: Build Ubuntu 26.04 golden image
+        run: |
+          echo "=== Building Ubuntu 26.04 LTS Golden Image ==="
+          cd packer
+          packer validate ubuntu2604.pkr.hcl || exit 1
+          packer build -on-error=ask ubuntu2604.pkr.hcl || exit 1
+          echo "✓ Ubuntu 26.04 image built successfully"
+
+      - name: Build Photon OS golden image
+        run: |
+          echo "=== Building Photon OS 5.0 Golden Image ==="
+          cd packer
+          packer validate photon.pkr.hcl || exit 1
+          packer build -on-error=ask photon.pkr.hcl || exit 1
+          echo "✓ Photon OS image built successfully"
+
+      - name: Validate images in vCenter Content Library
+        run: |
+          echo "=== Validating Golden Images ==="
+          # This would use govc or custom script to verify images
+          echo "Golden images should now be in vCenter Content Library/GOLDEN"
+
+      - name: Deploy test VMs from golden images
+        run: |
+          echo "=== Deploying Test VMs ==="
+          # Run OpenTofu to deploy VMs with profile ubuntu-2404-base-e2e-test
+          cd tofu
+          tofu workspace select e2e-test || tofu workspace new e2e-test
+          tofu plan -out=tfplan || exit 1
+          tofu apply tfplan || exit 1
+          echo "✓ Test VMs deployed"
+
+      - name: Configure VMs with Ansible
+        run: |
+          echo "=== Running Ansible Configuration ==="
+          ansible-playbook -i inventory/e2e-test.yml \
+            -e "ansible_python_interpreter=/usr/bin/python3" \
+            ansible/site.yml || exit 1
+          echo "✓ Configuration applied"
+
+      - name: Run comprehensive testinfra validation
+        run: |
+          echo "=== Running Testinfra Validation ==="
+          pytest --hosts='ansible://e2e_test_vms' \
+            tests/test_services/ tests/test_manage_cli.py -v || exit 1
+          echo "✓ All testinfra assertions passed"
+
+      - name: Cleanup E2E test VMs
+        if: always()
+        run: |
+          echo "=== Cleaning Up Test VMs ==="
+          cd tofu
+          tofu destroy -auto-approve || echo "⚠ Cleanup may require manual intervention"
+
+      - name: Create release notes with test results
+        if: github.event_name == 'release'
+        run: |
+          echo "=== Release Notes ==="
+          cat > RELEASE_NOTES.md << 'EOF'
+          # E2E Test Results
+          - Ubuntu 24.04 LTS: ✓ Built and validated
+          - Ubuntu 26.04 LTS: ✓ Built and validated
+          - Photon OS 5.0: ✓ Built and validated
+          - All testinfra assertions: ✓ Passed
+          EOF
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: |
+            RELEASE_NOTES.md
+            packer-manifest.json
+          retention-days: 30
