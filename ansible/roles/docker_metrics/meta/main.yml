@@ -3,14 +3,7 @@ galaxy_info:
   author: HomeLabGitOps
   description: Configure Docker daemon for TLS and metrics exposure
   license: MIT
-  platforms:
-    - name: Ubuntu
-      versions:
-        - "24.04"
-        - "26.04"
-    - name: VMware Photon OS
-      versions:
-        - "5.0"
+  min_ansible_version: "2.9"
 
 dependencies:
   - role: docker

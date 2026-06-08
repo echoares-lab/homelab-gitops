@@ -1,15 +1,16 @@
 ---
 - name: Check if Alloy should be skipped
   ansible.builtin.set_fact:
-    skip_alloy: true
-  when: skip_alloy | bool
+    alloy_skip: true
+  when: alloy_skip | bool
 
 - name: Skip Alloy installation
   ansible.builtin.debug:
     msg: "Alloy monitoring disabled for this node"
-  when: skip_alloy | bool
+  when: alloy_skip | bool
 
 - name: Install Alloy
+  when: not alloy_skip | bool
   block:
     - name: Add Alloy package repository (Ubuntu)
       ansible.builtin.apt_key:
@@ -32,8 +33,8 @@
 
     - name: Install Alloy (Photon)
       ansible.builtin.command: tdnf install -y alloy
-      register: photon_alloy_install
-      changed_when: "'Nothing to do' not in photon_alloy_install.stdout"
+      register: alloy_photon_install
+      changed_when: "'Nothing to do' not in alloy_photon_install.stdout"
       when: ansible_facts['distribution'] == 'VMware Photon OS'
 
     - name: Deploy Alloy config
@@ -50,5 +51,3 @@
         name: alloy
         enabled: true
         state: started
-
-  when: not skip_alloy | bool

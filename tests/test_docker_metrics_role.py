@@ -31,14 +31,14 @@ def test_docker_metrics_defaults_enabled(docker_metrics_defaults):
 
 def test_docker_metrics_tls_port(docker_metrics_defaults):
     """Docker metrics should specify TLS port."""
-    assert "docker_tls_port" in docker_metrics_defaults
-    assert docker_metrics_defaults["docker_tls_port"] == 2376
+    assert "docker_metrics_tls_port" in docker_metrics_defaults
+    assert docker_metrics_defaults["docker_metrics_tls_port"] == 2376
 
 
 def test_docker_metrics_cert_path(docker_metrics_defaults):
     """Docker metrics should specify cert directory path."""
-    assert "docker_cert_path" in docker_metrics_defaults
-    assert docker_metrics_defaults["docker_cert_path"] == "/etc/docker/certs.d"
+    assert "docker_metrics_cert_path" in docker_metrics_defaults
+    assert docker_metrics_defaults["docker_metrics_cert_path"] == "/etc/docker/certs.d"
 
 
 def test_docker_metrics_tasks_exist():

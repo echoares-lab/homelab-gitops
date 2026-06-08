@@ -38,9 +38,9 @@ def test_alloy_defaults_has_scrape_interval(alloy_defaults):
 
 
 def test_alloy_defaults_skip_alloy_flag(alloy_defaults):
-    """Alloy defaults should have skip_alloy flag for opt-out."""
-    assert "skip_alloy" in alloy_defaults
-    assert alloy_defaults["skip_alloy"] is False
+    """Alloy defaults should have alloy_skip flag for opt-out."""
+    assert "alloy_skip" in alloy_defaults
+    assert alloy_defaults["alloy_skip"] is False
 
 
 def test_alloy_config_has_prometheus_scrape(alloy_config_template):
