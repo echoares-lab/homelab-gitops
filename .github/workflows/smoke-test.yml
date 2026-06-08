@@ -36,7 +36,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run unit tests (no secrets needed)
-        run: python3 -m pytest tests/test_manage.py tests/test_connectivity_optimized.py tests/test_technitium_manager.py -v
+        run: python3 -m pytest tests/test_manage_cli.py tests/test_connectivity_optimized.py tests/test_technitium_manager.py -v
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
