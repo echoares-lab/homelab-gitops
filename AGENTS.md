@@ -42,3 +42,32 @@ To prevent regressions in the orchestrator's logic or hardware mapping, agents m
 *   Adding new lifecycle phases or generator helpers.
 
 If a change breaks the current matrix, the agent MUST update `scripts/matrix_test.py` to reflect the new expected behavior.
+
+## 5. CI & Testing Modifications
+When modifying CI workflows, test configurations, or test dependencies, agents must follow a structured validation process to prevent silent failures and infrastructure drift.
+
+### 5.1 Key Steps for Safe CI Changes
+
+1. **Dependency Verification:** Before using a package or tool in CI, verify it is already present in `requirements.txt` or add it. All CI dependencies must be pinned to a specific version and documented in the requirements file.
+
+2. **Configuration Validation:** Run `python3 scripts/validate-ci-config.py` to detect conflicts between CI workflow files, test configurations, and environment variables. This catches duplicate settings and inconsistent values before deployment.
+
+3. **Local Test Execution:** Always run the full test suite locally using the exact same arguments and environment as CI. This includes pytest flags, coverage thresholds, and any conditional test filtering.
+
+4. **File Reference Validation:** If CI workflows reference test files, configuration files, or scripts, verify they actually exist in the repository before committing. Use `ls -la` or `find` to confirm paths are correct.
+
+5. **Documentation:** Update `docs/TESTING.md` if changing testing standards, coverage thresholds, test organization, or CI behavior. Ensure the documentation reflects the actual CI implementation.
+
+### 5.2 Red Flags in CI Changes
+
+Watch for these patterns that indicate problematic CI modifications:
+
+*   ❌ **Duplicate configuration:** Same setting appears in two or more files (e.g., coverage threshold in both `pyproject.toml` and `.github/workflows/ci.yml`).
+*   ❌ **Unrecognized arguments in CI logs:** Test commands fail with "unrecognized argument" or similar errors, indicating mismatched tool versions or incorrect flag usage.
+*   ❌ **Missing dependencies from requirements.txt:** CI workflow installs packages that aren't in `requirements.txt`, creating non-reproducible builds.
+*   ❌ **Test file references that don't exist:** CI workflow references test files or paths that have been removed or renamed, causing silent skips or failures.
+*   ❌ **Inconsistent values:** Threshold messages don't match actual checks (e.g., CI logs say "80% coverage required" but pyproject.toml defines 85%).
+
+### 5.3 Reference to Testing Policy
+
+See `docs/TESTING.md` for the complete testing policy, coverage requirements, and approved test frameworks. Any changes to test organization or CI standards must be synchronized with that documentation.
