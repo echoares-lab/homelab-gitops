@@ -65,7 +65,7 @@ jobs:
       - name: Validate CI configuration
         run: |
           echo "=== CI Configuration Validation ==="
-          python3 scripts/validate-ci-config.py || (echo "❌ CI config errors found" && exit 1)
+          python3 scripts/validate_ci_config.py || (echo "❌ CI config errors found" && exit 1)
 
       - name: Run unit tests with coverage
         run: |
