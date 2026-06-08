@@ -68,6 +68,8 @@ jobs:
           python3 scripts/validate_ci_config.py || (echo "❌ CI config errors found" && exit 1)
 
       - name: Run unit tests with coverage
+        env:
+          PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops/src
         run: |
           echo "=== Unit Tests with Coverage ==="
           pytest tests/unit/ -v \
