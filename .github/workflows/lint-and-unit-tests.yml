@@ -66,9 +66,11 @@ jobs:
         run: |
           echo "=== Unit Tests with Coverage ==="
           pytest tests/test_services/ tests/test_manage_cli.py -v \
-            --cov=services --cov=manage.py \
+            --cov=services \
+            --cov=manage.py \
+            --cov-report=term-missing \
             --cov-report=json \
-            --cov-report=term-missing
+            --cov-report=html:htmlcov
 
       - name: Check coverage threshold (85%)
         run: |
@@ -111,4 +113,4 @@ jobs:
           echo "✓ Python linting (PEP 8): Completed"
           echo "✓ Shell linting: Completed"
           echo "✓ Unit tests: Completed"
-          echo "✓ Coverage check: 90% minimum enforced"
+          echo "✓ Coverage check: 85% minimum enforced"
