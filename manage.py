@@ -19,6 +19,16 @@ from services.infrastructure import InfrastructureService
 from services.orchestrate import OrchestrateService
 from services.dns import DNSService
 
+try:
+    from opnsense.modules.firewall import FirewallClient
+    from opnsense.modules.network import NetworkClient
+    from opnsense.exceptions import OPNsenseError
+except ImportError:
+    # OPNsense module not installed; define placeholders
+    FirewallClient = None
+    NetworkClient = None
+    OPNsenseError = None
+
 # Initialize Typer app and Rich console
 app = typer.Typer(
     help="Unified HomeLab GitOps Orchestrator",
@@ -33,6 +43,68 @@ _config = ConfigService()
 _infrastructure = InfrastructureService()
 _orchestrate = OrchestrateService(_infrastructure, _config)
 _dns = DNSService()
+
+
+def opnsense_prepare(profile_config: dict, console: Console) -> bool:
+    """Pre-deploy: Setup OPNsense for new host
+
+    Creates VLANs and firewall rules from profile config.
+    Returns True on success, False on error.
+    """
+    if 'opnsense' not in profile_config:
+        # No OPNsense config in profile, skip
+        return True
+
+    if OPNsenseError is None:
+        console.print("[yellow]⊘ OPNsense module not installed, skipping[/yellow]")
+        return True
+
+    opnsense_cfg = profile_config['opnsense']
+
+    try:
+        fw = FirewallClient(
+            api_key=os.getenv('OPNSENSE_KEY'),
+            api_secret=os.getenv('OPNSENSE_SECRET'),
+            url=os.getenv('OPNSENSE_URL')
+        )
+
+        net = NetworkClient(
+            api_key=os.getenv('OPNSENSE_KEY'),
+            api_secret=os.getenv('OPNSENSE_SECRET'),
+            url=os.getenv('OPNSENSE_URL')
+        )
+
+        console.print("[bold cyan]Preparing OPNsense...[/bold cyan]")
+
+        # Create VLAN if configured
+        if 'vlan' in opnsense_cfg:
+            vlan_cfg = opnsense_cfg['vlan']
+            console.print(f"Creating VLAN {vlan_cfg['id']}... ", end="")
+            net.create_vlan(
+                interface=vlan_cfg['interface'],
+                vlan_id=vlan_cfg['id'],
+                description=vlan_cfg['name'],
+                enabled=vlan_cfg.get('enabled', True)
+            )
+            console.print("[green]✓[/green]")
+
+        # Create firewall rules if configured
+        if 'firewall_rules' in opnsense_cfg:
+            for rule in opnsense_cfg['firewall_rules']:
+                console.print(f"Creating rule '{rule['name']}'... ", end="")
+                fw.create_firewall_rule(**rule)
+                console.print("[green]✓[/green]")
+
+        console.print("[bold green]OPNsense preparation complete[/bold green]")
+        return True
+
+    except OPNsenseError as e:
+        console.print(f"[red]✗ OPNsense error: {e}[/red]")
+        return False
+    except Exception as e:
+        console.print(f"[red]✗ Unexpected error: {e}[/red]")
+        return False
+
 
 # --- ORCHESTRATION COMMANDS ---
 
@@ -61,6 +133,10 @@ def deploy(
     mac: Optional[str] = typer.Option(None, help="MAC address for DHCP reservation")
 ):
     """Provision VM via OpenTofu."""
+    profile_config = _config.load_profile(profile)
+    if not opnsense_prepare(profile_config, console):
+        console.print("[red]OPNsense preparation failed, aborting deploy[/red]")
+        raise typer.Exit(1)
     if _orchestrate.deploy(profile, index, host=host, mac=mac):
         console.print("[green]✓ Deploy completed[/green]")
     else:
@@ -213,6 +289,59 @@ def dns_create(name: str, ip: str):
     if _dns.create_record(name, ip):
         console.print(f"[green]✓ Created DNS record {name}[/green]")
     else:
+        raise typer.Exit(1)
+
+# --- OPNSENSE COMMANDS ---
+
+@app.command()
+def opnsense(
+    action: str = typer.Argument(..., help="Action: list-rules, create-rule, list-vlans, create-vlan"),
+):
+    """Manage OPNsense firewall rules and VLANs"""
+
+    if OPNsenseError is None:
+        console.print("[red]Error: OPNsense module not installed[/red]")
+        raise typer.Exit(1)
+
+    try:
+        fw = FirewallClient(
+            api_key=os.getenv('OPNSENSE_KEY'),
+            api_secret=os.getenv('OPNSENSE_SECRET'),
+            url=os.getenv('OPNSENSE_URL')
+        )
+
+        net = NetworkClient(
+            api_key=os.getenv('OPNSENSE_KEY'),
+            api_secret=os.getenv('OPNSENSE_SECRET'),
+            url=os.getenv('OPNSENSE_URL')
+        )
+
+        if action == "list-rules":
+            rules = fw.list_firewall_rules()
+            table = Table(title="Firewall Rules")
+            table.add_column("ID", style="cyan")
+            table.add_column("Name", style="green")
+            table.add_column("Action", style="yellow")
+            for rule in rules:
+                table.add_row(rule.get('uuid', ''), rule.get('name', ''), rule.get('action', ''))
+            console.print(table)
+
+        elif action == "list-vlans":
+            vlans = net.list_vlans()
+            table = Table(title="VLANs")
+            table.add_column("ID", style="cyan")
+            table.add_column("VLAN ID", style="green")
+            table.add_column("Description", style="yellow")
+            for vlan in vlans:
+                table.add_row(vlan.get('uuid', ''), str(vlan.get('vlan_id', '')), vlan.get('description', ''))
+            console.print(table)
+
+        else:
+            console.print("[red]Invalid action[/red]")
+            raise typer.Exit(1)
+
+    except OPNsenseError as e:
+        console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
 # --- MAIN ---
