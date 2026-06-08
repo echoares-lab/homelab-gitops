@@ -14,103 +14,39 @@ provider "vsphere" {
   allow_unverified_ssl = true
 }
 
-data "vsphere_datacenter" "dc" {
-  name = var.datacenter
-}
+# Call the VM module for provisioning
+module "vm" {
+  source = "./modules/vm"
 
-data "vsphere_compute_cluster" "cluster" {
-  name          = var.cluster
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-
-data "vsphere_host" "host" {
-  name          = var.host
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-
-data "vsphere_datastore" "datastore" {
-  name          = var.datastore
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-
-data "vsphere_network" "network" {
-  name          = var.network
-  datacenter_id = data.vsphere_datacenter.dc.id
-}
-
-data "vsphere_content_library" "library" {
-  name = var.library_name
-}
-
-data "vsphere_content_library_item" "template" {
-  name       = var.template_name
-  library_id = data.vsphere_content_library.library.id
-  type       = "ovf"
-}
-
-data "vsphere_tag_category" "category" {
-  name = "Provisioning"
-}
-
-data "vsphere_tag" "tags" {
-  for_each    = toset(split(",", var.vm_tags))
-  name        = each.value
-  category_id = data.vsphere_tag_category.category.id
-}
-
-resource "vsphere_virtual_machine" "vm" {
-  name             = var.vm_name
-  resource_pool_id = data.vsphere_host.host.resource_pool_id
-  host_system_id   = data.vsphere_host.host.id
-  datastore_id     = data.vsphere_datastore.datastore.id
-
-  num_cpus = var.vm_cpu
-  memory   = var.vm_ram_gb * 1024
-  guest_id = var.guest_id
-
-  network_interface {
-    network_id   = data.vsphere_network.network.id
-    use_static_mac = var.mac_address != "" ? true : false
-    mac_address    = var.mac_address != "" ? var.mac_address : null
-  }
-
-  disk {
-    label            = "disk0"
-    size             = var.disk_size_gb
-    thin_provisioned = true
-  }
-
-  clone {
-    template_uuid = data.vsphere_content_library_item.template.id
-
-    dynamic "customize" {
-      for_each = var.ipv4_address != "" || var.vm_name != "" ? [1] : []
-      content {
-        linux_options {
-          host_name = split(".", var.vm_name)[0]
-          domain    = length(split(".", var.vm_name)) > 1 ? join(".", slice(split(".", var.vm_name), 1, length(split(".", var.vm_name)))) : "local"
-        }
-
-        network_interface {
-          ipv4_address = var.ipv4_address != "" ? var.ipv4_address : null
-          ipv4_netmask = var.ipv4_address != "" ? var.ipv4_netmask : null
-        }
-
-        ipv4_gateway    = var.ipv4_address != "" ? var.ipv4_gateway : null
-        dns_server_list = var.ipv4_address != "" ? var.dns_servers : null
-      }
-    }
-  }
-
-  tags = [for t in data.vsphere_tag.tags : t.id]
-
-  lifecycle {
-    ignore_changes = [
-      clone[0].template_uuid,
-    ]
-  }
+  profile_name     = var.profile_name
+  cpu              = var.vm_cpu
+  memory           = var.vm_ram_gb * 1024
+  disk             = var.disk_size_gb
+  datacenter       = var.datacenter
+  cluster          = var.cluster
+  datastore        = var.datastore
+  vcenter_server   = var.vcenter_server
+  vcenter_user     = var.vcenter_user
+  vcenter_password = var.vcenter_password
+  template_name    = var.template_name
+  network          = var.network
+  ipv4_address     = var.ipv4_address
+  ipv4_netmask     = var.ipv4_netmask
+  ipv4_gateway     = var.ipv4_gateway
+  dns_servers      = var.dns_servers
+  guest_id         = var.guest_id
+  library_name     = var.library_name
+  mac_address      = var.mac_address
+  vm_tags          = var.vm_tags
+  host             = var.host
 }
 
 output "vm_ip" {
-  value = vsphere_virtual_machine.vm.default_ip_address
+  value       = module.vm.vm_ip
+  description = "VM IP address"
+}
+
+output "vm_id" {
+  value       = module.vm.vm_id
+  description = "VM identifier"
 }
