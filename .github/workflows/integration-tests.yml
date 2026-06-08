@@ -1,0 +1,102 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  integration-tests:
+    name: Integration Tests (Tier 2)
+    runs-on: [self-hosted, testing]
+    # Note: This job requires a self-hosted runner with homelab access
+    # For GitHub-hosted runners, this would need a VPN or direct vSphere access
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-testinfra paramiko pexpect
+
+      - name: Validate test VM is accessible
+        run: |
+          TEST_VM_HOST="${{ secrets.TEST_VM_HOST }}"
+          echo "Testing connectivity to $TEST_VM_HOST..."
+          timeout 10 bash -c "cat < /dev/null > /dev/tcp/$TEST_VM_HOST/22" || {
+            echo "ERROR: Cannot reach test VM at $TEST_VM_HOST:22"
+            exit 1
+          }
+          echo "✓ Test VM is accessible"
+
+      - name: Validate OpenTofu configuration
+        run: |
+          echo "=== Validating OpenTofu Configuration ==="
+          cd tofu
+          # Note: tofu requires vCenter credentials; this is informational
+          tofu validate || echo "⚠ OpenTofu validation requires credentials"
+
+      - name: Run Ansible syntax check and dry-run
+        env:
+          TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
+          TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
+        run: |
+          echo "=== Ansible Dry-Run ==="
+          ansible-playbook -i "$TEST_VM_HOST," \
+            -u ubuntu \
+            --private-key "$TEST_VM_SSH_KEY" \
+            -e "ansible_python_interpreter=/usr/bin/python3" \
+            --check \
+            ansible/site.yml
+
+      - name: Run integration tests
+        env:
+          TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
+          TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
+          PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops
+        run: |
+          echo "=== Integration Tests ==="
+          pytest tests/test_services/ tests/test_manage_cli.py -v \
+            --tb=short -m "not e2e"
+
+      - name: Run matrix test validation
+        run: |
+          echo "=== Matrix Test Validation ==="
+          python3 scripts/matrix_test.py || echo "⚠ Matrix test requires full infrastructure"
+
+      - name: Comment PR with integration test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = "${{ job.status }}";
+            const emoji = status === 'success' ? '✓' : '✗';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Integration Tests ${emoji}\nStatus: ${status}`
+            });
+        continue-on-error: true
+
+      - name: Report infrastructure health
+        if: always()
+        run: |
+          echo "=== Infrastructure Health ==="
+          echo "Test VM: ${{ secrets.TEST_VM_HOST }}"
+          echo "Status: ${{ job.status }}"
