@@ -85,3 +85,9 @@
       export PATH=$PATH:{{ go_install_dir }}/go/bin
       export GOPATH=$HOME/go
     mode: "0644"
+
+- name: Create symlink for Go binary
+  ansible.builtin.file:
+    src: "{{ go_install_dir }}/go/bin/go"
+    dest: /usr/local/bin/go
+    state: link

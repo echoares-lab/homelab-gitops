@@ -19,6 +19,7 @@ Ensure the orchestration host has the following:
 *   **Ansible** (`>= 2.14`) with `vSphere Automation SDK`
 *   **Pytest & Testinfra**
 *   **govc** (installed in `build/`)
+*   **1Password CLI** with `OP_SERVICE_ACCOUNT_TOKEN` for runtime secret resolution
 
 ---
 
@@ -51,6 +52,12 @@ Removes a VM using a **single identifier** (Name, IP, or MAC).
 *   **Example:** `python3 manage.py destroy 10.10.10.50`
 *   **Safety:** Always requires an interactive `(y/N)` confirmation before proceeding.
 
+### `status`
+Prints a read-only Rich table of managed OpenTofu workspaces and matching vCenter VMs.
+*   **Example:** `python3 manage.py status`
+*   **Alias:** `python3 manage.py st`
+*   **Use case:** Quickly spot missing VMs, missing IPs, power state, host placement, profile tags, and workspace drift before making changes.
+
 ---
 
 ## 3. Generator Helpers
@@ -69,11 +76,12 @@ Wizards to automate the "Logic -> Play -> Blueprint" GitOps chain.
 ## 4. Configuration System
 
 ### Consolidated Secrets
-All credentials and defaults are stored in an encrypted Ansible Vault file at `config/vault.yml`.
-*   **Template:** Use `config/vault.yml.example` to set up a new environment. Copy it to `config/vault.yml`.
-*   **Vault Password:** Create a file at `config/.vault_pass` containing your password.
-*   **Encryption:** Encrypt the file using `ansible-vault encrypt config/vault.yml --vault-password-file config/.vault_pass`.
-*   **Security:** `vault.yml` CAN be securely committed to Git if fully encrypted. `.vault_pass` MUST NOT be committed and is ignored by Git.
+Runtime secrets are resolved through 1Password using `config/secrets.env`.
+*   **Setup:** Run `bash scripts/op-vault-setup.sh` to create or update the Homelab-GitOps vault items.
+*   **Validation:** Run `bash scripts/op-setup.sh` to verify the 1Password CLI, vault access, required items, and `config/secrets.env` references.
+*   **Runtime:** Export `OP_SERVICE_ACCOUNT_TOKEN`, then run `python3 manage.py <command>`. Commands that need secrets automatically re-exec through `op run --env-file=config/secrets.env`.
+*   **Security:** `config/secrets.env` contains only `op://` references and is safe to commit. Real secret values remain in 1Password.
+*   **Legacy:** `config/vault.yml.example` remains as a migration reference only; Ansible Vault is not the primary runtime path.
 
 ---
 
@@ -107,4 +115,4 @@ See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed i
 
 ### Ansible "Unreachable"
 *   **Cause:** Incorrect SSH key or path.
-*   **Fix:** Check `ssh_private_key_path` in `config/vault.yml`. The pipeline uses ED25519 by default.
+*   **Fix:** Check the `SSH_PRIVATE_KEY_PATH` and SSH admin fields in the Homelab-GitOps 1Password vault. The pipeline uses ED25519 by default.

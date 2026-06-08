@@ -25,10 +25,15 @@ TEST_GW = "10.10.10.1"
 
 EXPECTED_ALIASES = {
     "bu": "build", "li": "lint", "dep": "deploy", "cfg": "config",
-    "ts": "test", "rm": "destroy", "a": "all",
+    "ts": "test", "rm": "destroy", "st": "status", "a": "all",
     "mkprofile": "create-profile", "ep": "edit-profile",
     "mkrole": "create-role", "mkplay": "create-play",
 }
+
+CANONICAL_COMMANDS = [
+    "build", "lint", "deploy", "config", "test", "destroy", "status", "all",
+    "create-profile", "edit-profile", "create-role", "create-play",
+]
 
 KNOWN_PROFILES = [
     "ubuntu-2404-base",
@@ -36,6 +41,7 @@ KNOWN_PROFILES = [
     "ubuntu-2404-github-runner",
     "ubuntu-2404-homelab-dev",
     "ubuntu-2404-combined-dev",
+    "ubuntu-2404-git-test",
 ]
 
 PROFILE_TAG_TO_PLAYBOOK = {
@@ -43,6 +49,7 @@ PROFILE_TAG_TO_PLAYBOOK = {
     "cf_dev":       "cloudflare-dev.yml",
     "homelab_dev":  "homelab-dev.yml",
     "combined_dev": "combined-dev.yml",
+    "git_test":     "git-test-runner.yml",
 }
 
 REQUIRED_PROFILE_KEYS = [
@@ -215,7 +222,7 @@ def test_generators():
     child.expect("Disk Size")
     child.sendline("20")
     child.expect("Extra Tags")
-    child.sendline("matrix_test")
+    child.sendline("docker")
     child.expect(pexpect.EOF)
 
     if not os.path.exists(f"config/profiles/{TEST_PROFILE}.yml"):
@@ -343,6 +350,41 @@ def test_playbook_routing():
     log("Playbook routing test PASSED.")
 
 
+# ── Metadata drift tests ─────────────────────────────────────────────────────
+
+def _load_metadata():
+    with open("config/metadata.yml") as f:
+        return yaml.safe_load(f) or {}
+
+
+def test_command_metadata_coverage():
+    log("Testing command metadata coverage...")
+    metadata = _load_metadata()
+    commands = metadata.get("commands", {})
+    missing = [cmd for cmd in CANONICAL_COMMANDS if not commands.get(cmd)]
+    if missing:
+        fail(f"Missing command metadata: {missing}")
+    log("Command metadata coverage PASSED.")
+
+
+def test_profile_tag_metadata_coverage():
+    log("Testing profile tag metadata coverage...")
+    metadata = _load_metadata()
+    known_tags = metadata.get("tags", {})
+    errors = []
+    for fname in os.listdir("config/profiles"):
+        if not fname.endswith(".yml"):
+            continue
+        with open(os.path.join("config/profiles", fname)) as f:
+            data = yaml.safe_load(f) or {}
+        for tag in data.get("deployment", {}).get("tags", []) or []:
+            if not known_tags.get(tag):
+                errors.append(f"{fname}: tag '{tag}' has no metadata")
+    if errors:
+        fail("\n  ".join(errors))
+    log("Profile tag metadata coverage PASSED.")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -360,6 +402,8 @@ def main():
         _run_test("all_profiles_pos_specs",  test_all_profiles_positive_specs)
         _run_test("playbook_files_exist",    test_playbook_files_exist)
         _run_test("playbook_routing",        test_playbook_routing)
+        _run_test("command_metadata",        test_command_metadata_coverage)
+        _run_test("profile_tag_metadata",    test_profile_tag_metadata_coverage)
     finally:
         if os.path.exists(f"config/profiles/{TEST_PROFILE}.yml"):
             os.remove(f"config/profiles/{TEST_PROFILE}.yml")

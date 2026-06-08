@@ -43,6 +43,7 @@ PLAYBOOK_MAP = {
     "cf_dev":       ("cloudflare-dev.yml",    []),
     "homelab_dev":  ("homelab-dev.yml",       []),
     "combined_dev": ("combined-dev.yml",      ["github_pat"]),
+    "git_test":     ("git-test-runner.yml",   ["runner_token"]),
 }
 
 BUILD_TARGETS = {
@@ -100,6 +101,7 @@ def _should_bootstrap_secrets(argv: List[str]) -> bool:
     command = argv[1]
     commands_without_secrets = {
         "lint", "li",
+        "status", "st",
         "create-profile", "mkprofile",
         "edit-profile", "ep",
         "create-role", "mkrole",
@@ -254,20 +256,142 @@ def _cleanup_stale_vm(vm_name: str, target_host: str):
     subprocess.run([govc_bin, "vm.destroy", vm_path], env=env)
     console.print(f"[green]Stale VM removed.[/green]")
 
-def run_cmd(cmd, cwd=None, capture=False):
+def run_cmd(cmd, cwd=None, capture=False, env=None):
     """Executes a shell command via subprocess safely."""
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
-    res = subprocess.run(cmd, shell=False, cwd=cwd, text=True, capture_output=capture)
+    try:
+        res = subprocess.run(cmd, shell=False, cwd=cwd, text=True, capture_output=capture, env=env)
+    except FileNotFoundError as exc:
+        if capture:
+            return subprocess.CompletedProcess(cmd, 127, "", str(exc))
+        console.print(f"[bold red]Error:[/bold red] Command not found: {cmd[0]}")
+        sys.exit(127)
     if res.returncode != 0 and not capture:
         sys.exit(res.returncode)
     return res
+
+def _parse_workspaces(output: str) -> List[str]:
+    """Normalize `tofu workspace list` output into managed workspace names."""
+    workspaces = []
+    for line in output.splitlines():
+        name = line.replace("*", "").strip()
+        if name and name != "default":
+            workspaces.append(name)
+    return workspaces
+
+def _load_profile_index() -> dict:
+    """Return VM-name and prefix lookup data from profile YAML files."""
+    profiles_dir = "config/profiles"
+    index = {"by_vm_name": {}, "by_prefix": {}}
+    if not os.path.isdir(profiles_dir):
+        return index
+
+    for fname in os.listdir(profiles_dir):
+        if not fname.endswith(".yml"):
+            continue
+        profile_name = fname[:-4]
+        path = os.path.join(profiles_dir, fname)
+        try:
+            with open(path, "r") as f:
+                data = yaml.safe_load(f) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+
+        deployment = data.get("deployment", {}) or {}
+        prefix = deployment.get("vm_name_prefix", "")
+        domain = deployment.get("vm_name_domain", "")
+        tags = deployment.get("tags", []) or []
+        profile_data = {"profile": profile_name, "tags": tags}
+        if prefix:
+            index["by_prefix"][prefix] = profile_data
+        if prefix and domain:
+            index["by_vm_name"][f"{prefix}.{domain}"] = profile_data
+    return index
+
+def _profile_for_vm(vm_name: str, profile_index: dict) -> dict:
+    if vm_name in profile_index["by_vm_name"]:
+        return profile_index["by_vm_name"][vm_name]
+    short_name = vm_name.split(".", 1)[0]
+    for prefix, profile_data in profile_index["by_prefix"].items():
+        if short_name == prefix or short_name.startswith(f"{prefix}-"):
+            return profile_data
+    return {"profile": "", "tags": []}
+
+def _vm_path_from_name(vm_name: str) -> str:
+    datacenter = os.environ.get("VCENTER_DATACENTER", "")
+    return f"/{datacenter}/vm/{vm_name}" if datacenter else vm_name
+
+def _get_vm_status(vm_name: str) -> dict:
+    """Best-effort vCenter lookup for one VM; status remains useful if govc is unavailable."""
+    govc_bin = shutil.which("govc") or "./build/govc"
+    res = run_cmd([govc_bin, "vm.info", _vm_path_from_name(vm_name)], capture=True, env=_govc_env())
+    if res.returncode != 0 or not res.stdout.strip():
+        return {"exists": False, "power": "not found", "host": "", "ip": "", "notes": "workspace without VM"}
+
+    info = {"exists": True, "power": "unknown", "host": "", "ip": "", "notes": "ok"}
+    for line in res.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Power state:"):
+            info["power"] = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("Host:"):
+            info["host"] = stripped.split(":", 1)[1].strip()
+        elif stripped.startswith("IP address:"):
+            info["ip"] = stripped.split(":", 1)[1].strip()
+    if not info["ip"]:
+        info["notes"] = "missing IP"
+    return info
+
+def collect_fleet_status() -> List[dict]:
+    res = run_cmd(["tofu", "workspace", "list"], cwd="tofu", capture=True)
+    workspaces = _parse_workspaces(res.stdout if res.returncode == 0 else "")
+    if res.returncode != 0:
+        return []
+    profile_index = _load_profile_index()
+    rows = []
+    for workspace in workspaces:
+        vm_info = _get_vm_status(workspace)
+        profile_info = _profile_for_vm(workspace, profile_index)
+        rows.append({
+            "workspace": workspace,
+            "profile": profile_info.get("profile", ""),
+            "tags": profile_info.get("tags", []),
+            **vm_info,
+        })
+    return rows
+
+def _print_fleet_status(rows: List[dict]):
+    table = Table(title="HomeLab Fleet Status", header_style="bold cyan")
+    table.add_column("Workspace / VM", style="cyan", no_wrap=True)
+    table.add_column("Power", style="green")
+    table.add_column("IP")
+    table.add_column("Host")
+    table.add_column("Profile")
+    table.add_column("Tags")
+    table.add_column("State")
+
+    if not rows:
+        console.print("[yellow]No managed Tofu workspaces found.[/yellow]")
+        return
+
+    for row in rows:
+        tags = ", ".join(row.get("tags", []))
+        table.add_row(
+            row.get("workspace", ""),
+            row.get("power", "unknown"),
+            row.get("ip", ""),
+            row.get("host", ""),
+            row.get("profile", ""),
+            tags,
+            row.get("notes", "unknown"),
+        )
+    console.print(table)
 
 def identify_vm(target: str):
     """Discovers a VM Name/Workspace using an IP, MAC, or Partial Name."""
     with console.status(f"[bold blue]Identifying VM for '{target}'..."):
         # 1. Direct Workspace Match
-        res = run_cmd("tofu workspace list", cwd="tofu", capture=True)
+        res = run_cmd(["tofu", "workspace", "list"], cwd="tofu", capture=True)
         for line in res.stdout.splitlines():
             ws = line.replace('*', '').strip()
             if ws == target:
@@ -276,13 +400,12 @@ def identify_vm(target: str):
         # 2. Query vCenter by IP
         if re.match(r"^([0-9]{1,3}\.){3}[0-9]{1,3}$", target):
             govc_bin = shutil.which("govc") or "./build/govc"
-            govc_cmd = f"{govc_bin} find . -type m -guest.ipAddress '{target}'"
-            res = run_cmd(govc_cmd, capture=True)
+            res = run_cmd([govc_bin, "find", ".", "-type", "m", "-guest.ipAddress", target], capture=True, env=_govc_env())
             if res.returncode == 0 and res.stdout.strip():
                 return os.path.basename(res.stdout.strip().splitlines()[0])
 
         # 3. Partial Workspace Match
-        res = run_cmd("tofu workspace list", cwd="tofu", capture=True)
+        res = run_cmd(["tofu", "workspace", "list"], cwd="tofu", capture=True)
         for line in res.stdout.splitlines():
             ws = line.replace('*', '').strip()
             if target in ws:
@@ -301,6 +424,25 @@ def get_vm_ip():
             return match.group(1)
     console.print("[bold red]Error:[/bold red] Could not extract IP from inventory.ini")
     sys.exit(1)
+
+def fetch_github_runner_token(pat: str, org: str = "echoares-lab") -> Optional[str]:
+    """Uses a GitHub PAT to fetch a fresh runner registration token for the org."""
+    url = f"https://api.github.com/orgs/{org}/actions/runners/registration-token"
+    cmd = [
+        "curl", "-s", "-X", "POST",
+        "-H", "Accept: application/vnd.github+json",
+        "-H", f"Authorization: Bearer {pat}",
+        "-H", "X-GitHub-Api-Version: 2022-11-28",
+        url
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0:
+        try:
+            data = json.loads(res.stdout)
+            return data.get("token")
+        except json.JSONDecodeError:
+            return None
+    return None
 
 def load_profile_to_env(profile: str, id: str, host: str, mac: str, ip: str, hostname: str, netmask: str, gateway: str, dns: str):
     """Maps YAML profile data and CLI overrides to OpenTofu environment variables."""
@@ -413,8 +555,8 @@ def build(
     for packer_var, env_var in env_map.items():
         os.environ[f"PKR_VAR_{packer_var}"] = os.environ.get(env_var, "")
 
-    run_cmd(f"packer init {packer_file}")
-    run_cmd(f"packer build {packer_file}")
+    run_cmd(["packer", "init", packer_file])
+    run_cmd(["packer", "build", packer_file])
     track_time(start, "Packer Build")
 
 @app.command(name="bu")
@@ -437,7 +579,7 @@ def lint(
     console.print(Panel(f"Configuration Linting for {profile} targeting {host}", style="blue"))
     os.environ["RUNTIME_PROFILE"] = profile
     os.environ["VCENTER_HOST_OVERRIDE"] = host
-    run_cmd("python3 scripts/lint_config.py")
+    run_cmd(["python3", "scripts/lint_config.py"])
     track_time(start, "Linting")
 
 @app.command()
@@ -496,15 +638,15 @@ def deploy(
 
     _cleanup_stale_vm(vm_name, host)
 
-    run_cmd("tofu init", cwd="tofu")
-    if run_cmd(f"tofu workspace select '{vm_name}'", cwd="tofu", capture=True).returncode != 0:
-        run_cmd(f"tofu workspace new '{vm_name}'", cwd="tofu")
+    run_cmd(["tofu", "init"], cwd="tofu")
+    if run_cmd(["tofu", "workspace", "select", vm_name], cwd="tofu", capture=True).returncode != 0:
+        run_cmd(["tofu", "workspace", "new", vm_name], cwd="tofu")
 
-    run_cmd("tofu apply -auto-approve", cwd="tofu")
-    vm_ip = run_cmd("tofu output -raw vm_ip", cwd="tofu", capture=True).stdout.strip()
+    run_cmd(["tofu", "apply", "-auto-approve"], cwd="tofu")
+    vm_ip = run_cmd(["tofu", "output", "-raw", "vm_ip"], cwd="tofu", capture=True).stdout.strip()
     console.print(f"[bold green]VM Deployed at {vm_ip}[/bold green]")
     
-    run_cmd(f"python3 ../scripts/test_connectivity.py '{vm_ip}'", cwd="tofu")
+    run_cmd(["python3", "../scripts/test_connectivity.py", vm_ip], cwd="tofu")
     with open("ansible/inventory.ini", "w") as f:
         f.write(f"node ansible_host={vm_ip} ansible_user={os.environ.get('SSH_ADMIN_USERNAME', 'ansible')}\n")
     track_time(start, "Deployment")
@@ -544,10 +686,33 @@ def config(
     # Warn if any required extra vars for this playbook are missing
     ev_dict_check = {}
     if extra_vars:
-        for pair in extra_vars.split():
+        for pair in shlex.split(extra_vars):
             if "=" in pair:
                 k, v = pair.split("=", 1)
                 ev_dict_check[k.strip()] = v.strip()
+    
+    # --- Automated Runner Token Retrieval (Non-interactive) ---
+    if "runner_token" in required_vars and "runner_token" not in ev_dict_check:
+        pat = os.environ.get("GITHUB_PAT")
+        if not pat and os.environ.get("OP_SERVICE_ACCOUNT_TOKEN"):
+             # Try 1Password fallback
+             try:
+                res = subprocess.run(
+                    ["op", "read", "op://Homelab-GitOps/GitHub/github_pat"],
+                    capture_output=True, text=True
+                )
+                if res.returncode == 0 and res.stdout.strip():
+                    pat = res.stdout.strip()
+             except FileNotFoundError:
+                 pass
+        
+        if pat:
+            with console.status("[bold blue]Automating runner token retrieval..."):
+                tok = fetch_github_runner_token(pat)
+                if tok:
+                    ev_dict_check["runner_token"] = tok
+                    console.print("[green]OK:[/green] Automatically fetched fresh runner registration token.")
+    
     for rv in required_vars:
         if rv not in ev_dict_check:
             console.print(f"[yellow]Warning:[/yellow] playbook [cyan]{playbook}[/cyan] typically requires [bold]-e {rv}=...[/bold]")
@@ -579,16 +744,16 @@ def config(
         temp_inv_path = tf.name
         tf.close()
         inventory_arg = temp_inv_path
-        limit_arg = f"-l {hostname}"
+        limit_arg = hostname
         console.print(f"[yellow]Limit:[/yellow] explicit host ({hostname})")
     elif id:
         vm_name, _ = load_profile_to_env(profile, id, "", "", "", "", "24", "", "10.10.10.2")
-        limit_arg = f"-l {vm_name}"
+        limit_arg = vm_name
         console.print(f"[yellow]Limit:[/yellow] instance ({vm_name})")
     else:
         if profile_tags:
             primary_tag = profile_tags[0]
-            limit_arg = f"-l tag_{primary_tag}"
+            limit_arg = f"tag_{primary_tag}"
             console.print(f"[yellow]Limit:[/yellow] tag group (tag_{primary_tag})")
         if not limit_arg:
             console.print("[yellow]Limit:[/yellow] none (all hosts)")
@@ -605,20 +770,21 @@ def config(
         ev_dict["ansible_ssh_pass"] = ssh_pass
     if pubkey:
         ev_dict["ansible_admin_pubkey"] = pubkey
-    if extra_vars:
-        for pair in extra_vars.split():
-            if "=" in pair:
-                k, v = pair.split("=", 1)
-                ev_dict[k.strip()] = v.strip()
-
+    
+    # Merge back the checked/automated vars
+    ev_dict.update(ev_dict_check)
+    
     ev_json = json.dumps(ev_dict)
 
-    ansible_cmd = (
-        f"ansible-playbook -i {inventory_arg} {playbook} {limit_arg} "
-        f"--private-key '{ssh_key}' "
-        f"--extra-vars '{ev_json}' "
-        f"--ssh-extra-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
-    )
+    ansible_cmd = ["ansible-playbook", "-i", inventory_arg, playbook]
+    if limit_arg:
+        ansible_cmd.extend(["-l", limit_arg])
+    if ssh_key:
+        ansible_cmd.extend(["--private-key", ssh_key])
+    ansible_cmd.extend([
+        "--extra-vars", ev_json,
+        "--ssh-extra-args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+    ])
     try:
         run_cmd(ansible_cmd, cwd="ansible")
     finally:
@@ -639,11 +805,15 @@ def test(
     os.environ["RUNTIME_PROFILE"] = profile
     if mac: os.environ["EXPECTED_MAC"] = mac
     ssh_key = os.environ.get("SSH_PRIVATE_KEY_PATH", "")
-    pytest_cmd = (
-        f"pytest --hosts='ansible@{vm_ip}' --ssh-config='/dev/null' "
-        f"--ssh-extra-args='-o StrictHostKeyChecking=no -o IdentityFile={ssh_key}' "
-        f"--sudo tests/test_common.py tests/test_os.py"
-    )
+    pytest_cmd = [
+        "pytest",
+        f"--hosts=ansible@{vm_ip}",
+        "--ssh-config=/dev/null",
+        f"--ssh-extra-args=-o StrictHostKeyChecking=no -o IdentityFile={ssh_key}",
+        "--sudo",
+        "tests/test_common.py",
+        "tests/test_os.py",
+    ]
     run_cmd(pytest_cmd)
     track_time(start, "E2E Testing")
 
@@ -676,22 +846,28 @@ def destroy(
             return
 
     console.print(f"[red]Destroying Workspace:[/red] {resolved_name}")
-    run_cmd(f"tofu workspace select '{resolved_name}'", cwd="tofu")
+    run_cmd(["tofu", "workspace", "select", resolved_name], cwd="tofu")
     
-    destroy_cmd = (
-        f"tofu destroy -auto-approve -refresh=false "
-        f"-var=\"vcenter_server={os.environ.get('VCENTER_SERVER')}\" "
-        f"-var=\"vcenter_user={os.environ.get('VCENTER_USERNAME')}\" "
-        f"-var=\"vcenter_password={os.environ.get('VCENTER_PASSWORD')}\" "
-        f"-var=\"datacenter=x\" -var=\"cluster=x\" -var=\"host=x\" "
-        f"-var=\"datastore=x\" -var=\"network=x\" -var=\"vm_name={resolved_name}\" "
-        f"-var=\"vm_cpu=1\" -var=\"vm_ram_gb=1\" -var=\"guest_id=x\" "
-        f"-var=\"library_name=x\" -var=\"template_name=x\" -var=\"vm_tags=x\""
-    )
+    destroy_cmd = [
+        "tofu", "destroy", "-auto-approve", "-refresh=false",
+        f"-var=vcenter_server={os.environ.get('VCENTER_SERVER')}",
+        f"-var=vcenter_user={os.environ.get('VCENTER_USERNAME')}",
+        f"-var=vcenter_password={os.environ.get('VCENTER_PASSWORD')}",
+        "-var=datacenter=x", "-var=cluster=x", "-var=host=x",
+        "-var=datastore=x", "-var=network=x", f"-var=vm_name={resolved_name}",
+        "-var=vm_cpu=1", "-var=vm_ram_gb=1", "-var=guest_id=x",
+        "-var=library_name=x", "-var=template_name=x", "-var=vm_tags=x",
+    ]
     run_cmd(destroy_cmd, cwd="tofu")
-    run_cmd("tofu workspace select default", cwd="tofu")
-    run_cmd(f"tofu workspace delete '{resolved_name}'", cwd="tofu")
+    run_cmd(["tofu", "workspace", "select", "default"], cwd="tofu")
+    run_cmd(["tofu", "workspace", "delete", resolved_name], cwd="tofu")
     track_time(start, "Destruction")
+
+@app.command()
+def status():
+    """[blue]Observe:[/blue] Show managed VM, workspace, and drift status."""
+    console.print(Panel("Fleet Status Dashboard", style="blue"))
+    _print_fleet_status(collect_fleet_status())
 
 @app.command()
 def all(
@@ -704,15 +880,31 @@ def all(
     netmask: Annotated[str, typer.Option(help="Netmask")] = "24",
     gateway: Annotated[str, typer.Option(help="Gateway")] = "",
     dns: Annotated[str, typer.Option(help="DNS")] = "10.10.10.2",
-    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False
+    keep: Annotated[bool, typer.Option("--keep", "-k", help="Skip destruction")] = False,
+    extra_vars: Annotated[str, typer.Option(
+        "--extra-vars", "-e",
+        help="Additional Ansible vars (e.g. 'runner_token=abc' or 'github_pat=xyz')"
+    )] = "",
 ):
     """[blue]Synthesis:[/blue] Execute the full pipeline (Lint -> Deploy -> Config -> Test -> Destroy)."""
     total_start = time.time()
     
     # Internal CLI invocation to reuse logic
-    lint(profile, host)
-    deploy(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
-    config(profile, id)
+    lint(profile=profile, id=id, host=host)
+    deploy(
+        profile=profile,
+        id=id,
+        host=host,
+        mac=mac,
+        ip=ip,
+        hostname=hostname,
+        netmask=netmask,
+        gateway=gateway,
+        dns=dns,
+    )
+    # Use ip as hostname if provided, to ensure Ansible targets the right IP immediately
+    target_host = hostname if hostname else (ip if ip else "")
+    config(profile=profile, id=id, hostname=target_host, extra_vars=extra_vars)
     test(profile, mac)
     if not keep:
         vm_name, _ = load_profile_to_env(profile, id, host, mac, ip, hostname, netmask, gateway, dns)
@@ -725,22 +917,22 @@ def all(
 @app.command()
 def create_profile():
     """[blue]Generator:[/blue] Scaffold a new YAML configuration profile."""
-    run_cmd("python3 scripts/profile_manager.py create")
+    run_cmd(["python3", "scripts/profile_manager.py", "create"])
 
 @app.command()
 def edit_profile():
     """[blue]Generator:[/blue] Update an existing profile."""
-    run_cmd("python3 scripts/profile_manager.py edit")
+    run_cmd(["python3", "scripts/profile_manager.py", "edit"])
 
 @app.command()
 def create_role():
     """[blue]Generator:[/blue] Scaffold a new Ansible role."""
-    run_cmd("python3 scripts/role_manager.py")
+    run_cmd(["python3", "scripts/role_manager.py"])
 
 @app.command()
 def create_play():
     """[blue]Generator:[/blue] Create a new targeting bucket in site.yml."""
-    run_cmd("python3 scripts/play_manager.py")
+    run_cmd(["python3", "scripts/play_manager.py"])
 
 # --- ALIASES ---
 # Short-form commands for every core and generator operation.
@@ -751,6 +943,7 @@ app.command(name="dep",       help="Alias for [cyan]deploy[/cyan]"        )(depl
 app.command(name="cfg",       help="Alias for [cyan]config[/cyan]"        )(config)
 app.command(name="ts",        help="Alias for [cyan]test[/cyan]"          )(test)
 app.command(name="rm",        help="Alias for [cyan]destroy[/cyan]"       )(destroy)
+app.command(name="st",        help="Alias for [cyan]status[/cyan]"        )(status)
 app.command(name="a",         help="Alias for [cyan]all[/cyan]"           )(all)
 app.command(name="mkprofile", help="Alias for [cyan]create-profile[/cyan]")(create_profile)
 app.command(name="ep",        help="Alias for [cyan]edit-profile[/cyan]"  )(edit_profile)
@@ -811,6 +1004,7 @@ def interactive_mode():
         "config":         "cfg",
         "test":           "ts",
         "destroy":        "rm",
+        "status":         "st",
         "all":            "a",
         "create-profile": "mkprofile",
         "edit-profile":   "ep",
@@ -824,6 +1018,7 @@ def interactive_mode():
         "config":         "apply Ansible roles (playbook auto-selected by profile tag)",
         "test":           "pytest-testinfra smoke tests against the VM",
         "destroy":        "remove VM + isolated Tofu state",
+        "status":         "read-only fleet/workspace dashboard",
         "all":            "full pipeline: lint → deploy → config → test → destroy",
         "create-profile": "scaffold a new YAML VM profile",
         "edit-profile":   "edit an existing profile interactively",
@@ -831,7 +1026,7 @@ def interactive_mode():
         "create-play":    "add a targeting play to site.yml",
     }
 
-    core_cmds = ["build", "lint", "deploy", "config", "test", "destroy", "all"]
+    core_cmds = ["build", "lint", "deploy", "config", "test", "destroy", "status", "all"]
     gen_cmds  = ["create-profile", "edit-profile", "create-role", "create-play"]
 
     cmd_table = Table(show_header=True, header_style="bold cyan", box=None)
@@ -876,6 +1071,10 @@ def interactive_mode():
         i_id = Prompt.ask("VM identifier")
         if i_id:
             destroy(identifier=i_id)
+        sys.exit(0)
+
+    if i_command == "status":
+        status()
         sys.exit(0)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1035,28 +1234,9 @@ def interactive_mode():
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     ev_parts: list = []
 
-    if "runner_token" in i_required_vars:
-        console.print(
-            "\n[bold yellow]Runner token required[/bold yellow]\n"
-            "  [dim]1. Go to:[/dim] github.com/organizations/echoares-lab/settings/actions/runners/new\n"
-            "  [dim]2. Click 'New self-hosted runner' → copy the token from the config command.[/dim]\n"
-            "  [dim]3. Token expires 1 hour after generation — run this promptly.[/dim]\n"
-            "  [dim]Vault key if you want to pre-store it: [cyan]runner_token[/cyan][/dim]"
-        )
-        tok = Prompt.ask("  Runner registration token", password=True)
-        if tok:
-            ev_parts.append(f"runner_token={tok}")
-
-    if "github_pat" in i_required_vars:
-        console.print(
-            "\n[bold yellow]GitHub PAT required[/bold yellow]\n"
-            "  [dim]1. Go to:[/dim] github.com/settings/tokens → 'Generate new token (classic)'\n"
-            "  [dim]2. Required scopes: [cyan]repo[/cyan], [cyan]read:org[/cyan][/dim]\n"
-            "  [dim]3. The PAT is used once to authenticate gh CLI and clone repos.[/dim]\n"
-            "  [dim]Tip: store it in 1Password → Homelab-GitOps/GitHub/github_pat[/dim]"
-        )
-        # Try to resolve from 1Password automatically
-        auto_pat = ""
+    # Attempt to resolve GitHub PAT from 1Password automatically if needed
+    auto_pat = ""
+    if "github_pat" in i_required_vars or "runner_token" in i_required_vars:
         if os.environ.get("OP_SERVICE_ACCOUNT_TOKEN"):
             try:
                 res = subprocess.run(
@@ -1068,12 +1248,42 @@ def interactive_mode():
                     console.print("  [green]GitHub PAT loaded from 1Password automatically.[/green]")
             except FileNotFoundError:
                 pass
+
+    if "runner_token" in i_required_vars:
+        # Try to automate token retrieval if we have a PAT
+        tok = None
+        if auto_pat:
+            with console.status("[bold blue]Fetching fresh runner registration token from GitHub..."):
+                tok = fetch_github_runner_token(auto_pat)
+            if tok:
+                console.print("  [green]Runner registration token fetched successfully via PAT.[/green]")
+        
+        if not tok:
+            console.print(
+                "\n[bold yellow]Runner token required[/bold yellow]\n"
+                "  [dim]1. Go to:[/dim] github.com/organizations/echoares-lab/settings/actions/runners/new\n"
+                "  [dim]2. Click 'New self-hosted runner' → copy the token from the config command.[/dim]\n"
+                "  [dim]3. Token expires 1 hour after generation — run this promptly.[/dim]\n"
+                "  [dim]Vault key if you want to pre-store it: [cyan]runner_token[/cyan][/dim]"
+            )
+            tok = Prompt.ask("  Runner registration token", password=True)
+        
+        if tok:
+            ev_parts.append(f"runner_token={tok}")
+
+    if "github_pat" in i_required_vars:
+        if not auto_pat:
+            console.print(
+                "\n[bold yellow]GitHub PAT required[/bold yellow]\n"
+                "  [dim]1. Go to:[/dim] github.com/settings/tokens → 'Generate new token (classic)'\n"
+                "  [dim]2. Required scopes: [cyan]repo[/cyan], [cyan]read:org[/cyan][/dim]\n"
+                "  [dim]3. The PAT is used once to authenticate gh CLI and clone repos.[/dim]\n"
+                "  [dim]Tip: store it in 1Password → Homelab-GitOps/GitHub/github_pat[/dim]"
+            )
+            auto_pat = Prompt.ask("  GitHub Personal Access Token", password=True)
+        
         if auto_pat:
             ev_parts.append(f"github_pat={auto_pat}")
-        else:
-            pat = Prompt.ask("  GitHub Personal Access Token", password=True)
-            if pat:
-                ev_parts.append(f"github_pat={pat}")
 
     if ev_parts:
         overrides["extra_vars"] = " ".join(ev_parts)

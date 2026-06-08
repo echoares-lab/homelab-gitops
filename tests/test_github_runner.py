@@ -12,7 +12,7 @@ import pytest
 
 def _is_runner_profile():
     profile = os.environ.get("RUNTIME_PROFILE", "").lower()
-    return "runner" in profile or "cf-runner" in profile
+    return "runner" in profile or "cf-runner" in profile or "git-test" in profile
 
 
 def _skip_if_not_runner():
@@ -103,6 +103,18 @@ def test_build_essential_installed(host):
 def test_jq_installed(host):
     _skip_if_not_runner()
     assert host.package("jq").is_installed
+
+def test_direnv_installed(host):
+    _skip_if_not_runner()
+    assert host.package("direnv").is_installed
+
+def test_psmisc_installed(host):
+    _skip_if_not_runner()
+    assert host.package("psmisc").is_installed
+
+def test_python_venv_installed(host):
+    _skip_if_not_runner()
+    assert host.package("python3-venv").is_installed
 
 # ── Writable cache dirs ───────────────────────────────────────────────────────
 

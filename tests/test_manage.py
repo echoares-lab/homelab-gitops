@@ -2,7 +2,17 @@ import os
 import pytest
 import yaml
 from unittest.mock import patch, MagicMock
-from manage import identify_vm, resolve_playbook, PLAYBOOK_MAP, BUILD_TARGETS, app, _should_bootstrap_secrets
+from manage import (
+    identify_vm,
+    resolve_playbook,
+    PLAYBOOK_MAP,
+    BUILD_TARGETS,
+    app,
+    _should_bootstrap_secrets,
+    _parse_workspaces,
+    collect_fleet_status,
+    metadata,
+)
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
@@ -15,17 +25,18 @@ def test_identify_vm_direct_match(mock_run_cmd, mock_status):
     result = identify_vm("test-vm")
 
     assert result == "test-vm"
-    mock_run_cmd.assert_called_once_with("tofu workspace list", cwd="tofu", capture=True)
+    mock_run_cmd.assert_called_once_with(["tofu", "workspace", "list"], cwd="tofu", capture=True)
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
 def test_identify_vm_ip_match(mock_run_cmd, mock_status):
-    def side_effect(cmd, cwd=None, capture=False):
+    def side_effect(cmd, cwd=None, capture=False, env=None):
+        cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
         res = MagicMock()
-        if "workspace list" in cmd:
+        if "workspace list" in cmd_text:
             res.stdout = "  default\n* other-vm"
             res.returncode = 0
-        elif "govc find" in cmd:
+        elif "find" in cmd_text:
             res.stdout = "/Datacenter/vm/test-vm-folder/ip-match-vm"
             res.returncode = 0
         return res
@@ -36,17 +47,17 @@ def test_identify_vm_ip_match(mock_run_cmd, mock_status):
 
     assert result == "ip-match-vm"
     assert mock_run_cmd.call_count == 2
-    mock_run_cmd.assert_any_call("tofu workspace list", cwd="tofu", capture=True)
+    mock_run_cmd.assert_any_call(["tofu", "workspace", "list"], cwd="tofu", capture=True)
     # govc path varies by machine (shutil.which vs ./build/govc fallback);
     # assert on the IP and type flag, not the binary path.
     govc_call_args = [str(call) for call in mock_run_cmd.call_args_list]
-    assert any("192.168.1.50" in c and "govc find" in c for c in govc_call_args), \
+    assert any("192.168.1.50" in c and "find" in c for c in govc_call_args), \
         f"Expected a govc find call with the IP address; calls were: {govc_call_args}"
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
 def test_identify_vm_partial_match(mock_run_cmd, mock_status):
-    def side_effect(cmd, cwd=None, capture=False):
+    def side_effect(cmd, cwd=None, capture=False, env=None):
         res = MagicMock()
         res.stdout = "  default\n* test-vm-123\n  other-vm"
         res.returncode = 0
@@ -58,12 +69,12 @@ def test_identify_vm_partial_match(mock_run_cmd, mock_status):
 
     assert result == "test-vm-123"
     assert mock_run_cmd.call_count == 2
-    mock_run_cmd.assert_any_call("tofu workspace list", cwd="tofu", capture=True)
+    mock_run_cmd.assert_any_call(["tofu", "workspace", "list"], cwd="tofu", capture=True)
 
 @patch("manage.console.status")
 @patch("manage.run_cmd")
 def test_identify_vm_no_match(mock_run_cmd, mock_status):
-    def side_effect(cmd, cwd=None, capture=False):
+    def side_effect(cmd, cwd=None, capture=False, env=None):
         res = MagicMock()
         res.stdout = "  default\n* other-vm"
         res.returncode = 0
@@ -148,6 +159,8 @@ def test_build_targets_include_expected():
     (["manage.py", "deploy", "--help"], False),
     (["manage.py", "lint", "photon-docker"], False),
     (["manage.py", "li", "photon-docker"], False),
+    (["manage.py", "status"], False),
+    (["manage.py", "st"], False),
     (["manage.py", "create-profile"], False),
     (["manage.py", "mkrole"], False),
     (["manage.py", "deploy", "photon-docker", "01"], True),
@@ -177,6 +190,7 @@ def _registered_command_names():
     ("cfg",       "config"),
     ("ts",        "test"),
     ("rm",        "destroy"),
+    ("st",        "status"),
     ("a",         "all"),
     ("mkprofile", "create-profile"),
     ("ep",        "edit-profile"),
@@ -191,9 +205,14 @@ def test_alias_registered(alias, canonical):
 def test_canonical_commands_still_registered():
     """Aliases must not replace the canonical command names."""
     names = _registered_command_names()
-    for canonical in ["build", "lint", "deploy", "config", "test", "destroy", "all",
+    for canonical in ["build", "lint", "deploy", "config", "test", "destroy", "status", "all",
                       "create-profile", "edit-profile", "create-role", "create-play"]:
         assert canonical in names, f"Canonical command '{canonical}' missing from app"
+
+def test_command_metadata_covers_registered_canonical_commands():
+    for canonical in ["build", "lint", "deploy", "config", "test", "destroy", "status", "all",
+                      "create-profile", "edit-profile", "create-role", "create-play"]:
+        assert metadata["commands"].get(canonical), f"Missing metadata for command '{canonical}'"
 
 
 # ── Profile YAML integrity ────────────────────────────────────────────────────
@@ -246,3 +265,39 @@ def test_profile_specs_are_positive(profile_path):
         assert isinstance(val, int) and val > 0, (
             f"{os.path.basename(profile_path)}: vm_specs.{field} must be a positive int, got {val!r}"
         )
+
+@pytest.mark.parametrize("profile_path", _all_profiles())
+def test_profile_tags_have_metadata(profile_path):
+    with open(profile_path) as f:
+        data = yaml.safe_load(f)
+    missing = [
+        tag for tag in data.get("deployment", {}).get("tags", [])
+        if not metadata["tags"].get(tag)
+    ]
+    assert not missing, f"{os.path.basename(profile_path)} tags missing metadata: {missing}"
+
+
+def test_parse_workspaces_ignores_default_and_active_marker():
+    assert _parse_workspaces("  default\n* vm-01\n  vm-02\n") == ["vm-01", "vm-02"]
+
+
+@patch("manage.run_cmd")
+def test_collect_fleet_status_reports_workspace_without_vm(mock_run_cmd):
+    def side_effect(cmd, cwd=None, capture=False, env=None):
+        res = MagicMock()
+        cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
+        if "workspace list" in cmd_text:
+            res.stdout = "  default\n* ubuntu-01.mgmt.plexplease.com\n"
+            res.returncode = 0
+        else:
+            res.stdout = ""
+            res.returncode = 1
+        return res
+
+    mock_run_cmd.side_effect = side_effect
+
+    rows = collect_fleet_status()
+
+    assert rows[0]["workspace"] == "ubuntu-01.mgmt.plexplease.com"
+    assert rows[0]["exists"] is False
+    assert rows[0]["notes"] == "workspace without VM"

@@ -1,46 +1,27 @@
 ---
-- name: Install Docker CE
+- name: Install Docker (Photon OS)
   ansible.builtin.command: tdnf install -y docker
-  register: docker_install
-  changed_when: "'Nothing to do' not in docker_install.stdout"
+  register: docker_install_photon
+  changed_when: "'Nothing to do' not in docker_install_photon.stdout"
+  when: ansible_facts['distribution'] == 'VMware Photon OS'
 
-- name: Install Docker Compose
+- name: Install Docker (Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: present
+    update_cache: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Install Docker Compose (Photon OS)
   ansible.builtin.command: tdnf install -y docker-compose
-  register: compose_install
-  changed_when: "'Nothing to do' not in compose_install.stdout"
+  register: compose_install_photon
+  changed_when: "'Nothing to do' not in compose_install_photon.stdout"
+  when: ansible_facts['distribution'] == 'VMware Photon OS'
 
 - name: Enable and start Docker service
   ansible.builtin.systemd:
     name: docker
     enabled: true
     state: started
-
-- name: Create test directory for compose
-  ansible.builtin.file:
-    path: /opt/test-stack
-    state: directory
-    mode: '0755'
-
-- name: Create test docker-compose.yml
-  ansible.builtin.copy:
-    content: |
-      services:
-        web:
-          image: nginx:alpine
-          ports:
-            - "80:80"
-    dest: /opt/test-stack/docker-compose.yml
-
-- name: Start test stack via docker-compose
-  ansible.builtin.command: docker-compose -f /opt/test-stack/docker-compose.yml up -d
-  register: compose_up
-  changed_when: "'Started' in compose_up.stdout or 'Created' in compose_up.stdout"
-
-- name: Verify Nginx is reachable locally
-  ansible.builtin.uri:
-    url: http://localhost
-    return_content: false
-  register: nginx_check
-  until: nginx_check.status == 200
-  retries: 5
-  delay: 2
