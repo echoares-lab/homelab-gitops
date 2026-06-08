@@ -62,6 +62,11 @@ jobs:
           echo "=== Shell Linting ==="
           shellcheck scripts/*.sh || true
 
+      - name: Validate CI configuration
+        run: |
+          echo "=== CI Configuration Validation ==="
+          python3 scripts/validate-ci-config.py || (echo "❌ CI config errors found" && exit 1)
+
       - name: Run unit tests with coverage
         run: |
           echo "=== Unit Tests with Coverage ==="
