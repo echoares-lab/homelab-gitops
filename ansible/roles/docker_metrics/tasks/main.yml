@@ -1,0 +1,65 @@
+---
+- name: Create Docker certs directory
+  ansible.builtin.file:
+    path: "{{ docker_cert_path }}"
+    state: directory
+    mode: "0700"
+
+- name: Distribute CA certificate
+  ansible.builtin.copy:
+    src: ca.crt
+    dest: "{{ docker_cert_path }}/ca.crt"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Docker daemon
+
+- name: Distribute server certificate
+  ansible.builtin.copy:
+    src: server.crt
+    dest: "{{ docker_cert_path }}/server.crt"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Docker daemon
+
+- name: Distribute server key
+  ansible.builtin.copy:
+    src: server.key
+    dest: "{{ docker_cert_path }}/server.key"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart Docker daemon
+
+- name: Read current Docker daemon config
+  ansible.builtin.slurp:
+    src: "{{ docker_daemon_config_file }}"
+    register: docker_config_b64
+  ignore_errors: true
+
+- name: Parse Docker daemon config
+  ansible.builtin.set_fact:
+    docker_config: "{{ (docker_config_b64.content | b64decode | from_json) if docker_config_b64.stat is defined else {} }}"
+
+- name: Update Docker daemon config for TLS and metrics
+  ansible.builtin.copy:
+    content: |
+      {
+        "tlscert": "{{ docker_cert_path }}/server.crt",
+        "tlskey": "{{ docker_cert_path }}/server.key",
+        "tlscacert": "{{ docker_cert_path }}/ca.crt",
+        "tls": true,
+        "hosts": [
+          "unix:///var/run/docker.sock",
+          "tcp://0.0.0.0:{{ docker_tls_port }}"
+        ],
+        "metrics-addr": "0.0.0.0:9323",
+        "experimental": true
+      }
+    dest: "{{ docker_daemon_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Docker daemon
+  when: docker_metrics_enabled | bool
