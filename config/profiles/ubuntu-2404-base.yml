@@ -21,3 +21,41 @@ deployment:
     - "ubuntu-2404"
   vm_name_prefix: "ubuntu"
   vm_name_domain: "mgmt.plexplease.com"
+
+opnsense:
+  vlan:
+    interface: em0
+    id: 100
+    name: "web-tier"
+    enabled: true
+
+  firewall_rules:
+    - name: "Allow SSH from mgmt"
+      src_net: "10.0.0.0/24"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 22
+      action: "pass"
+      enabled: true
+      log: true
+      description: "SSH from management subnet"
+
+    - name: "Allow HTTPS inbound"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 443
+      action: "pass"
+      enabled: true
+      log: false
+      description: "HTTPS traffic"
+
+    - name: "Allow HTTP inbound"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 80
+      action: "pass"
+      enabled: true
+      log: false
+      description: "HTTP traffic"

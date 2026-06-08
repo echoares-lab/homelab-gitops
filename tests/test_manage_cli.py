@@ -168,8 +168,10 @@ class TestDeployCommand:
     @pytest.mark.unit
     def test_deploy_command_all_options(self):
         """Test deploy command with all options."""
-        with patch("manage._orchestrate.deploy") as mock_deploy:
+        with patch("manage._orchestrate.deploy") as mock_deploy, \
+             patch("manage.opnsense_prepare") as mock_opnsense:
             mock_deploy.return_value = True
+            mock_opnsense.return_value = True
             result = runner.invoke(app, [
                 "deploy",
                 "ubuntu-2404-base",
@@ -188,8 +190,10 @@ class TestDeployCommand:
     @pytest.mark.unit
     def test_deploy_alias_dep(self):
         """Test 'dep' alias for deploy."""
-        with patch("manage._orchestrate.deploy") as mock_deploy:
+        with patch("manage._orchestrate.deploy") as mock_deploy, \
+             patch("manage.opnsense_prepare") as mock_opnsense:
             mock_deploy.return_value = True
+            mock_opnsense.return_value = True
             result = runner.invoke(app, ["dep"])
             assert result.exit_code == 0
             mock_deploy.assert_called_once()
