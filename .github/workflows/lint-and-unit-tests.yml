@@ -54,8 +54,8 @@ jobs:
       - name: Run Python linting (PEP 8)
         run: |
           echo "=== Python Linting (flake8) ==="
-          flake8 manage.py scripts/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 manage.py scripts/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          flake8 manage.py scripts/ src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 manage.py scripts/ src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Run shell linting
         run: |
@@ -70,8 +70,9 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           echo "=== Unit Tests with Coverage ==="
-          pytest tests/test_services/ tests/test_manage_cli.py -v \
+          pytest tests/unit/ -v \
             --cov=services \
+            --cov=src/opnsense \
             --cov=manage.py \
             --cov-report=term-missing \
             --cov-report=json \
