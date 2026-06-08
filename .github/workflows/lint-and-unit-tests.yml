@@ -72,7 +72,7 @@ jobs:
           PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops/src
         run: |
           echo "=== Unit Tests with Coverage ==="
-          pytest tests/unit/ -v \
+          pytest tests/test_services/ tests/unit/ -v \
             --cov=services \
             --cov=src/opnsense \
             --cov=manage.py \
