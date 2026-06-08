@@ -1,12 +1,13 @@
 """Low-level REST client for OPNsense API"""
 
-import base64
+import json
 import requests
 from opnsense.exceptions import (
     BadRequest,
     Unauthorized,
     ServerError,
     TimeoutError as OPNTimeoutError,
+    OPNsenseError,
 )
 
 class RestClient:
@@ -39,6 +40,10 @@ class RestClient:
             )
         except requests.exceptions.Timeout:
             raise OPNTimeoutError(f"Request timed out after {self.timeout}s")
+        except requests.exceptions.ConnectionError as e:
+            raise OPNsenseError(f"Connection error: {e}")
+        except requests.exceptions.RequestException as e:
+            raise OPNsenseError(f"Request failed: {e}")
 
         return self._handle_response(response)
 
@@ -55,18 +60,23 @@ class RestClient:
             )
         except requests.exceptions.Timeout:
             raise OPNTimeoutError(f"Request timed out after {self.timeout}s")
+        except requests.exceptions.ConnectionError as e:
+            raise OPNsenseError(f"Connection error: {e}")
+        except requests.exceptions.RequestException as e:
+            raise OPNsenseError(f"Request failed: {e}")
 
         return self._handle_response(response)
 
     def _handle_response(self, response: requests.Response) -> dict:
         """Handle HTTP response, raise exceptions for errors"""
-        if response.status_code == 400:
-            raise BadRequest(f"400 Bad Request: {response.text}")
-        elif response.status_code == 401:
+        if response.status_code == 401:
             raise Unauthorized(f"401 Unauthorized: Invalid API credentials")
         elif response.status_code >= 500:
             raise ServerError(f"{response.status_code} Server Error: {response.text}")
         elif response.status_code >= 400:
             raise BadRequest(f"{response.status_code} Error: {response.text}")
 
-        return response.json()
+        try:
+            return response.json()
+        except (json.JSONDecodeError, ValueError) as e:
+            raise BadRequest(f"Invalid JSON response: {e}")
