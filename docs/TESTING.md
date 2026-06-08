@@ -217,6 +217,60 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
 
 ---
 
+## Optional: Pre-Commit Hooks
+
+Local validation before pushing can catch common issues early. Pre-commit hooks run automatically before each commit and are entirely optional.
+
+### Installation
+
+```bash
+# Install pre-commit framework
+pip install pre-commit
+
+# Install the git hooks
+pre-commit install
+```
+
+### What Gets Validated
+
+The `.pre-commit-config.yaml` file configures these checks:
+
+| Hook | Purpose | Triggers On |
+|------|---------|-------------|
+| `check-yaml` | YAML syntax validation (with unsafe mode) | `.github/workflows/*.yml` files |
+| `validate-ci-config` | CI configuration consistency check | CI workflow files, pytest.ini, requirements*.txt, pyproject.toml |
+| `validate-test-references` | Verifies test directory structure exists | `.github/workflows/*.yml` files |
+
+### Manual Execution
+
+Run all hooks on all files without committing:
+
+```bash
+# Check all staged files
+pre-commit run
+
+# Check all files (useful after cloning)
+pre-commit run --all-files
+```
+
+### Bypassing Hooks (If Needed)
+
+If a hook blocks a legitimate commit:
+
+```bash
+# Skip all hooks for this commit only
+git commit --no-verify
+
+# Or disable hooks temporarily
+pre-commit uninstall
+# ... make your commit ...
+pre-commit install
+```
+
+Note: Skipping hooks should be rare. If hooks consistently fail on valid changes, consider updating the hook configuration in `.pre-commit-config.yaml`.
+
+---
+
 ## CI Validation Checklist (7 Items)
 
 Use this checklist before every push to CI-related files (workflows, requirements.txt, pytest.ini, conftest.py):

@@ -1,0 +1,24 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]
+
+  - repo: local
+    hooks:
+      - id: validate-ci-config
+        name: Validate CI Configuration
+        entry: python3 scripts/validate_ci_config.py
+        language: system
+        stages: [commit]
+        pass_filenames: false
+        files: '\.github/workflows/.*\.yml|pytest\.ini|requirements.*\.txt|pyproject\.toml'
+
+      - id: validate-test-references
+        name: Validate Test File References
+        entry: bash -c 'test -d tests/test_services && test -f tests/test_manage_cli.py'
+        language: system
+        stages: [commit]
+        pass_filenames: false
+        files: '\.github/workflows/.*\.yml'
