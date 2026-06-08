@@ -12,10 +12,9 @@ except ImportError:
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-skip testinfra tests (those using the 'host' fixture) when no
-    --hosts is provided. Without an explicit target they default to localhost,
-    which will always fail for VM-specific assertions (ansible user, SSH
-    hardening, etc.).
+    """Auto-skip tests based on conditions:
+    1. testinfra tests without --hosts
+    2. integration tests without TEST_VM_HOST
 
     To run testinfra tests against a real VM:
         pytest --hosts='ansible@<ip>' \\
@@ -30,6 +29,13 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "host" in getattr(item, "fixturenames", []):
                 item.add_marker(skip)
+
+    # Skip integration tests if TEST_VM_HOST not set
+    if not os.environ.get("TEST_VM_HOST"):
+        skip_integration = pytest.mark.skip(reason="TEST_VM_HOST not set")
+        for item in items:
+            if "integration" in item.keywords:
+                item.add_marker(skip_integration)
 
 
 class RichReporter:
@@ -151,14 +157,3 @@ def test_vm_ssh_key():
     """
     return os.environ.get("TEST_VM_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519"))
 
-def pytest_collection_modifyitems_integration(config, items):
-    """
-    Auto-skip integration tests if test VM is not available.
-    Tests marked with @pytest.mark.integration are skipped unless
-    TEST_VM_HOST environment variable is set.
-    """
-    if not os.environ.get("TEST_VM_HOST"):
-        skip_integration = pytest.mark.skip(reason="TEST_VM_HOST not set")
-        for item in items:
-            if "integration" in item.keywords:
-                item.add_marker(skip_integration)
