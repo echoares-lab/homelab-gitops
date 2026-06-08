@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: HomeLabGitOps
+  description: Deploy Grafana Alloy monitoring agent
+  license: MIT
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "24.04"
+        - "26.04"
+    - name: VMware Photon OS
+      versions:
+        - "5.0"
+
+dependencies: []

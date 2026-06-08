@@ -1,0 +1,54 @@
+---
+- name: Check if Alloy should be skipped
+  ansible.builtin.set_fact:
+    skip_alloy: true
+  when: skip_alloy | bool
+
+- name: Skip Alloy installation
+  ansible.builtin.debug:
+    msg: "Alloy monitoring disabled for this node"
+  when: skip_alloy | bool
+
+- name: Install Alloy
+  block:
+    - name: Add Alloy package repository (Ubuntu)
+      ansible.builtin.apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Add Alloy APT repository (Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Install Alloy package (Ubuntu)
+      ansible.builtin.apt:
+        name: alloy
+        state: present
+        update_cache: true
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    - name: Install Alloy (Photon)
+      ansible.builtin.command: tdnf install -y alloy
+      register: photon_alloy_install
+      changed_when: "'Nothing to do' not in photon_alloy_install.stdout"
+      when: ansible_facts['distribution'] == 'VMware Photon OS'
+
+    - name: Deploy Alloy config
+      ansible.builtin.template:
+        src: alloy-config.river
+        dest: "{{ alloy_config_file }}"
+        owner: "{{ alloy_user }}"
+        group: "{{ alloy_group }}"
+        mode: "0644"
+      notify: Restart Alloy service
+
+    - name: Enable and start Alloy service
+      ansible.builtin.systemd:
+        name: alloy
+        enabled: true
+        state: started
+
+  when: not skip_alloy | bool
