@@ -116,3 +116,76 @@ See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed i
 ### Ansible "Unreachable"
 *   **Cause:** Incorrect SSH key or path.
 *   **Fix:** Check the `SSH_PRIVATE_KEY_PATH` and SSH admin fields in the Homelab-GitOps 1Password vault. The pipeline uses ED25519 by default.
+
+---
+
+## 9. Observability Setup
+
+### Monitoring Agents (Alloy)
+
+All nodes receive a Grafana Alloy agent by default to collect metrics and logs.
+
+**Skip Alloy for a profile:**
+```yaml
+tags:
+  - ubuntu
+  - github_runner
+skip_alloy: true  # Opt-out for ephemeral runners
+```
+
+**Central metrics/logs destination:** `10.10.10.30`
+- Prometheus metrics: `http://10.10.10.30:9090`
+- Loki logs: `http://10.10.10.30:3100`
+- Grafana UI: `http://10.10.10.30:3000`
+
+**Agent configuration:** Modify `ansible/roles/alloy/defaults/main.yml` to change:
+- `alloy_scrape_interval` — how often to scrape metrics
+- `alloy_central_prometheus_url` / `alloy_central_loki_url` — where to send data
+- Per-profile: `alloy_extra_scrape_targets` to add custom exporters
+
+### Docker Metrics & TLS
+
+Docker hosts receive the `docker_metrics` role (applied after `docker` role).
+
+**What it does:**
+- Distributes OPNsense CA certificates to `/etc/docker/certs.d/`
+- Configures Docker daemon with TLS socket on port 2376
+- Exposes Docker metrics endpoint on port 9323
+- Allows dockerhand and uptime-kuma to securely manage/monitor Docker
+
+**TLS Certificate Setup:**
+
+1. Generate/obtain certs from OPNsense CA for each Docker node:
+   - Subject: `docker-web-01.mgmt.plexplease.com` (node FQDN)
+   - Include: `ca.crt`, `server.crt`, `server.key`
+
+2. Place certs in `ansible/roles/docker_metrics/files/`:
+   ```bash
+   cp /path/to/opnsense/ca.crt ansible/roles/docker_metrics/files/
+   cp /path/to/opnsense/server-docker-web-01.crt ansible/roles/docker_metrics/files/server.crt
+   cp /path/to/opnsense/server-docker-web-01.key ansible/roles/docker_metrics/files/server.key
+   ```
+
+3. Run site.yml — role distributes certs and configures Docker daemon.
+
+4. Verify TLS socket is accessible:
+   ```bash
+   # From 10.10.10.30 or any node with Docker client certs:
+   docker -H tcp://docker-web-01.mgmt.plexplease.com:2376 \
+     --tlscacert=/path/to/ca.crt \
+     --tlscert=/path/to/client.crt \
+     --tlskey=/path/to/client.key \
+     ps
+   ```
+
+**Renewal:** When OPNsense certs expire, re-generate and place in `files/`, then re-run site.yml.
+
+### Remote Tools
+
+**dockerhand** — Runs on 10.10.10.30, connects to Docker nodes via TLS
+- Configuration: See dockerhand docs for adding Docker hosts
+- Point to: `tcp://NODE_FQDN:2376` with CA/client certs
+
+**uptime-kuma** — Runs on 10.10.10.30, probes services
+- Configure TCP checks to `NODE:2376` with TLS enabled
+- Optional: Use Prometheus integration to scrape custom metrics
