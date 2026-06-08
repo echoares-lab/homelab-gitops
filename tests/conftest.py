@@ -129,3 +129,36 @@ def pytest_configure(config):
     )
     if _RICH:
         config.pluginmanager.register(RichReporter(), "rich_reporter")
+
+
+# Test VM targeting for integration tests
+import os
+
+@pytest.fixture(scope="session")
+def test_vm_host():
+    """
+    Returns the test VM hostname/IP for integration tests.
+    Loaded from environment variable TEST_VM_HOST.
+    If not set, integration tests are skipped.
+    """
+    return os.environ.get("TEST_VM_HOST", None)
+
+@pytest.fixture(scope="session")
+def test_vm_ssh_key():
+    """
+    Returns the SSH key path for test VM authentication.
+    Defaults to ~/.ssh/id_ed25519 if TEST_VM_SSH_KEY not set.
+    """
+    return os.environ.get("TEST_VM_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519"))
+
+def pytest_collection_modifyitems_integration(config, items):
+    """
+    Auto-skip integration tests if test VM is not available.
+    Tests marked with @pytest.mark.integration are skipped unless
+    TEST_VM_HOST environment variable is set.
+    """
+    if not os.environ.get("TEST_VM_HOST"):
+        skip_integration = pytest.mark.skip(reason="TEST_VM_HOST not set")
+        for item in items:
+            if "integration" in item.keywords:
+                item.add_marker(skip_integration)
