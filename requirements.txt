@@ -2,6 +2,8 @@ typer
 rich
 pyyaml
 typing_extensions
+pytest
+pytest-cov
 pytest-testinfra
 pexpect
 paramiko
