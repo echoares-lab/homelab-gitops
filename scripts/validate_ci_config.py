@@ -177,6 +177,128 @@ class CIValidator:
         self.successes.append(f"{check_name}: All thresholds consistent")
         return True
 
+    def check_pythonpath_for_imports(self) -> bool:
+        """
+        Check 5: Ensure PYTHONPATH is set in workflows for src imports.
+
+        Returns:
+            bool: True if PYTHONPATH configured where needed, False otherwise.
+        """
+        check_name = "PYTHONPATH Configuration"
+        workflow_files = list((self.repo_root / ".github" / "workflows").glob("*.yml"))
+
+        # Check if any src/ modules exist
+        src_dir = self.repo_root / "src"
+        has_src_modules = src_dir.exists() and any(src_dir.glob("**/*.py"))
+
+        if not has_src_modules:
+            self.successes.append(f"{check_name}: No src/ modules found")
+            return True
+
+        # If src modules exist, check that pytest runs have PYTHONPATH
+        missing_pythonpath = []
+        for workflow_file in workflow_files:
+            content = workflow_file.read_text()
+            if "pytest" in content and "src/" in content:
+                if "PYTHONPATH" not in content:
+                    missing_pythonpath.append(workflow_file.name)
+
+        if missing_pythonpath:
+            self.errors.append(
+                f"{check_name}: src/ modules exist but PYTHONPATH not set in: "
+                f"{', '.join(missing_pythonpath)}. Add env: PYTHONPATH to pytest steps."
+            )
+            return False
+
+        self.successes.append(f"{check_name}: PYTHONPATH configured correctly")
+        return True
+
+    def check_script_paths_exist(self) -> bool:
+        """
+        Check 6: Verify that scripts referenced in workflows actually exist.
+
+        Returns:
+            bool: True if all script references exist, False otherwise.
+        """
+        check_name = "Script Path Validity"
+        workflow_files = list((self.repo_root / ".github" / "workflows").glob("*.yml"))
+        missing_scripts = []
+
+        # Pattern to match script references: scripts/script-name.py or scripts/script_name.py
+        script_pattern = r"scripts/[a-z_-]+\.py"
+
+        for workflow_file in workflow_files:
+            content = workflow_file.read_text()
+            referenced_scripts = re.findall(script_pattern, content)
+
+            for script_ref in referenced_scripts:
+                script_path = self.repo_root / script_ref
+                if not script_path.exists():
+                    missing_scripts.append((workflow_file.name, script_ref))
+
+        if missing_scripts:
+            missing_str = "; ".join(
+                [f"{wf}: {script}" for wf, script in missing_scripts]
+            )
+            self.errors.append(
+                f"{check_name}: Referenced scripts do not exist: {missing_str}"
+            )
+            return False
+
+        self.successes.append(f"{check_name}: All script references valid")
+        return True
+
+    def check_import_availability(self) -> bool:
+        """
+        Check 7: Verify critical imports are in requirements.txt.
+
+        Returns:
+            bool: True if all imports needed by code are declared, False otherwise.
+        """
+        check_name = "Import Availability"
+        requirements_file = self.repo_root / "requirements.txt"
+
+        if not requirements_file.exists():
+            self.warnings.append(f"{check_name}: requirements.txt not found")
+            return True
+
+        content = requirements_file.read_text().lower()
+
+        # Check for imports used in Python files
+        python_files = list(self.repo_root.glob("src/**/*.py")) + \
+                      list(self.repo_root.glob("manage.py"))
+
+        required_imports = {
+            "requests": "OPNsense REST client",
+            "typer": "CLI framework",
+            "rich": "Output formatting",
+        }
+
+        missing_imports = []
+        for import_name, purpose in required_imports.items():
+            # Check if code uses this import
+            code_uses_import = False
+            for py_file in python_files:
+                try:
+                    if import_name in py_file.read_text():
+                        code_uses_import = True
+                        break
+                except:
+                    pass
+
+            if code_uses_import and import_name not in content:
+                missing_imports.append(f"{import_name} ({purpose})")
+
+        if missing_imports:
+            self.errors.append(
+                f"{check_name}: Code uses imports not in requirements.txt: "
+                f"{', '.join(missing_imports)}"
+            )
+            return False
+
+        self.successes.append(f"{check_name}: All required imports declared")
+        return True
+
     def validate_all(self) -> bool:
         """
         Run all validation checks.
@@ -188,6 +310,9 @@ class CIValidator:
         self.check_dependencies_declared()
         self.check_test_file_references()
         self.check_coverage_threshold_consistency()
+        self.check_pythonpath_for_imports()
+        self.check_script_paths_exist()
+        self.check_import_availability()
 
         return len(self.errors) == 0
 
