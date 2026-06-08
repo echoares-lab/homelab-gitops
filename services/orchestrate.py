@@ -8,6 +8,7 @@ from services.config import ConfigService
 from services.utils import track_time, validate_mac
 from services.wrappers.packer_wrapper import PackerWrapper
 from services.wrappers.tofu_wrapper import TofuWrapper
+from services.wrappers.ansible_wrapper import AnsibleWrapper
 
 console = Console()
 
@@ -158,12 +159,17 @@ class OrchestrateService:
             # Load profile and resolve playbook
             playbook, extra_vars = self.config_service.resolve_playbook(profile)
 
-            # TODO: Implement Ansible execution
-            # This is a stub; actual implementation would call infrastructure.run_ansible_playbook()
+            # Execute Ansible playbook
+            wrapper = AnsibleWrapper()
+            result = wrapper.run_playbook(playbook, extra_vars=extra_vars)
 
-            console.print("[green]✓ Config succeeded[/green]")
+            if result:
+                console.print("[green]✓ Config succeeded[/green]")
+            else:
+                console.print("[red]✗ Config failed[/red]")
+
             track_time(start, f"config {profile} {index}")
-            return True
+            return result
 
         except Exception as e:
             console.print(f"[red]✗ Config failed: {e}[/red]")

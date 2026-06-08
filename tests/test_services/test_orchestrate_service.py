@@ -125,6 +125,148 @@ class TestOrchestrateServiceLint:
 
         assert result is False
 
+class TestOrchestrateServiceConfig:
+    """Test OrchestrateService.config()."""
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_calls_ansible_wrapper_run_playbook(self, mock_ansible_class):
+        """Test that config instantiates AnsibleWrapper and calls run_playbook()."""
+        # Create mocks
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to return playbook and extra_vars
+        mock_config.resolve_playbook.return_value = ("ansible/site.yml", {"role": "docker"})
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_playbook.return_value = True
+        mock_ansible_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("ubuntu-2404-base", "01")
+
+        # Verify AnsibleWrapper was instantiated
+        mock_ansible_class.assert_called_once()
+
+        # Verify run_playbook was called with correct arguments
+        mock_wrapper.run_playbook.assert_called_once_with(
+            "ansible/site.yml",
+            extra_vars={"role": "docker"}
+        )
+
+        # Verify result is True
+        assert result is True
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_returns_false_on_playbook_failure(self, mock_ansible_class):
+        """Test that config returns False when run_playbook() fails."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to return playbook and extra_vars
+        mock_config.resolve_playbook.return_value = ("ansible/site.yml", {"role": "docker"})
+
+        # Configure mock wrapper to return False
+        mock_wrapper = Mock()
+        mock_wrapper.run_playbook.return_value = False
+        mock_ansible_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("ubuntu-2404-base", "01")
+
+        assert result is False
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_handles_wrapper_exception(self, mock_ansible_class):
+        """Test that config returns False when AnsibleWrapper raises exception."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to return playbook and extra_vars
+        mock_config.resolve_playbook.return_value = ("ansible/site.yml", {"role": "docker"})
+
+        # Configure mock wrapper to raise exception
+        mock_ansible_class.side_effect = RuntimeError("Ansible not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("ubuntu-2404-base", "01")
+
+        assert result is False
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_resolves_playbook_from_profile(self, mock_ansible_class):
+        """Test that config calls resolve_playbook with profile name."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to return playbook and extra_vars
+        mock_config.resolve_playbook.return_value = ("ansible/site.yml", {})
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_playbook.return_value = True
+        mock_ansible_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("photon-docker", "02")
+
+        # Verify resolve_playbook was called with profile name
+        mock_config.resolve_playbook.assert_called_once_with("photon-docker")
+
+        assert result is True
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_passes_extra_vars_to_playbook(self, mock_ansible_class):
+        """Test that config passes extra_vars from resolve_playbook to run_playbook."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock with complex extra_vars
+        extra_vars = {
+            "role": "docker",
+            "version": "25.0",
+            "enable_ipv6": "true"
+        }
+        mock_config.resolve_playbook.return_value = ("ansible/site.yml", extra_vars)
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_playbook.return_value = True
+        mock_ansible_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("ubuntu-2404-docker", "01")
+
+        # Verify extra_vars were passed correctly
+        mock_wrapper.run_playbook.assert_called_once_with(
+            "ansible/site.yml",
+            extra_vars=extra_vars
+        )
+
+        assert result is True
+
+    @patch("services.orchestrate.AnsibleWrapper")
+    @pytest.mark.unit
+    def test_config_handles_exception_from_resolve_playbook(self, mock_ansible_class):
+        """Test that config returns False if resolve_playbook raises exception."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to raise exception
+        mock_config.resolve_playbook.side_effect = FileNotFoundError("Playbook not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.config("nonexistent-profile", "01")
+
+        assert result is False
+
+
 class TestOrchestrateServiceDeploy:
     """Test OrchestrateService.deploy()."""
 
@@ -289,9 +431,10 @@ class TestOrchestrateServiceStatus:
 class TestOrchestrateServiceAll:
     """Test OrchestrateService.all() (complete pipeline)."""
 
+    @patch("services.orchestrate.AnsibleWrapper")
     @patch("services.orchestrate.TofuWrapper")
     @pytest.mark.unit
-    def test_all_runs_complete_pipeline(self, mock_tofu_class):
+    def test_all_runs_complete_pipeline(self, mock_tofu_class, mock_ansible_class):
         """Test that all() runs lint → deploy → config → test."""
         mock_infra = Mock()
         mock_config = Mock()
@@ -311,10 +454,15 @@ class TestOrchestrateServiceAll:
         mock_infra.ensure_tags_exist.return_value = True
 
         # Configure mock TofuWrapper
-        mock_wrapper = Mock()
-        mock_wrapper.apply.return_value = True
-        mock_wrapper.workspace_new.return_value = True
-        mock_tofu_class.return_value = mock_wrapper
+        mock_tofu_wrapper = Mock()
+        mock_tofu_wrapper.apply.return_value = True
+        mock_tofu_wrapper.workspace_new.return_value = True
+        mock_tofu_class.return_value = mock_tofu_wrapper
+
+        # Configure mock AnsibleWrapper
+        mock_ansible_wrapper = Mock()
+        mock_ansible_wrapper.run_playbook.return_value = True
+        mock_ansible_class.return_value = mock_ansible_wrapper
 
         service = OrchestrateService(mock_infra, mock_config)
         result = service.all("ubuntu-2404-base", "01", "esxi-01")
@@ -330,7 +478,9 @@ class TestOrchestrateServiceAll:
 
         # deploy step calls TofuWrapper
         assert mock_tofu_class.called
-        assert mock_wrapper.apply.called
+        assert mock_tofu_wrapper.apply.called
 
-        # config step calls this
+        # config step calls AnsibleWrapper and resolve_playbook
         assert mock_config.resolve_playbook.called
+        assert mock_ansible_class.called
+        assert mock_ansible_wrapper.run_playbook.called
