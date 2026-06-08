@@ -1,13 +1,11 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import requests
 from opnsense.client import RestClient
 from opnsense.exceptions import (
-    AuthenticationError,
     BadRequest,
     Unauthorized,
     ServerError,
-    ConfigError,
 )
 
 def test_rest_client_init_with_valid_credentials():

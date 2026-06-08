@@ -1,4 +1,3 @@
-import pytest
 from opnsense.exceptions import (
     OPNsenseError,
     AuthenticationError,

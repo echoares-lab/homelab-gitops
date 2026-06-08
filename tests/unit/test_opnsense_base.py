@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from opnsense.base import BaseClient
 
 def test_base_client_init():

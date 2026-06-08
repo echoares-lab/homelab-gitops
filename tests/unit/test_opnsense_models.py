@@ -1,4 +1,3 @@
-import pytest
 from opnsense.models import FirewallRule, VLAN, Interface
 
 def test_firewall_rule_creation():
