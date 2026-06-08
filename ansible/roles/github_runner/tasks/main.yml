@@ -116,7 +116,10 @@
     chdir: "{{ runner_root }}"
   register: svc_install
   changed_when: "'already installed' not in svc_install.stdout"
-  failed_when: svc_install.rc != 0 and 'already installed' not in svc_install.stderr
+  failed_when: 
+    - svc_install.rc != 0 
+    - "'already installed' not in svc_install.stderr"
+    - "'exists' not in svc_install.stderr"
 
 - name: Start and enable runner service
   ansible.builtin.command:

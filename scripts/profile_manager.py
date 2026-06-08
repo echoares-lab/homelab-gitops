@@ -4,6 +4,7 @@ import sys
 import re
 
 PROFILE_DIR = "config/profiles"
+METADATA_FILE = "config/metadata.yml"
 STANDARDS_GUIDANCE = """
 --- PROFILE NAMING STANDARDS ---
 1. Use lowercase alphanumeric characters and hyphens ONLY.
@@ -17,6 +18,24 @@ def validate_profile_name(name):
         print(f"Error: Invalid name '{name}'. Profiles must be lowercase and use hyphens only.")
         return False
     return True
+
+def ensure_tag_metadata(tags):
+    if not os.path.exists(METADATA_FILE):
+        metadata = {"commands": {}, "tags": {}, "roles": {}}
+    else:
+        with open(METADATA_FILE, "r") as f:
+            metadata = yaml.safe_load(f) or {"commands": {}, "tags": {}, "roles": {}}
+
+    metadata.setdefault("tags", {})
+    changed = False
+    for tag in tags:
+        if tag and tag not in metadata["tags"]:
+            metadata["tags"][tag] = f"Custom profile tag for {tag} configuration."
+            changed = True
+
+    if changed:
+        with open(METADATA_FILE, "w") as f:
+            yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
 
 def create_profile():
     print(STANDARDS_GUIDANCE)
@@ -49,6 +68,7 @@ def create_profile():
     extra_tags = input(f"Extra Tags (comma separated) [none]: ").strip()
     if extra_tags:
         tags.extend([t.strip() for t in extra_tags.split(",")])
+    ensure_tag_metadata(tags)
 
     # Construct Profile
     profile = {
@@ -118,6 +138,7 @@ def edit_profile():
     new_tags = input(f"Tags [{current_tags}]: ")
     if new_tags:
         profile["deployment"]["tags"] = [t.strip() for t in new_tags.split(",")]
+        ensure_tag_metadata(profile["deployment"]["tags"])
 
     with open(file_path, 'w') as f:
         yaml.dump(profile, f, default_flow_style=False, sort_keys=False)

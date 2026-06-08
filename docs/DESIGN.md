@@ -18,6 +18,9 @@ graph TD
     E -->|SSH/Python3| F
     B -->|Phase 4: Testinfra| G[Verified Compliance]
     F -->|Validation| G
+    B -->|Read-only Status| H[Fleet Dashboard]
+    Workspace --> H
+    E --> H
 ```
 
 ---
@@ -51,3 +54,4 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 *   **Idempotency:** Every layer (Tofu, Ansible) is designed to be re-run safely. If the desired state is already reached, no changes are made.
 *   **Fail-Fast Validation:** Pre-deployment linting and post-deployment connectivity tests prevent wasting time on malformed configs or network issues.
 *   **Comprehensive Testing:** Final verification is performed by **Pytest-Testinfra**, ensuring the node is truly "Ready for Production" before the pipeline finishes.
+*   **Read-Only Fleet Visibility:** `python3 manage.py status` compares managed Tofu workspaces with vCenter VM facts so operators can see power state, IP, host placement, profile tags, and likely workspace drift before making lifecycle changes.

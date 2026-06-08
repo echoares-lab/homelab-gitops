@@ -1,0 +1,39 @@
+---
+# Provisions a self-hosted GitHub Actions runner for testing/CI.
+#
+# Required variables (pass via -e or vault):
+#   runner_token  - org registration token
+#                   Generate at: github.com/organizations/echoares-lab/settings/actions/runners/new
+#                   Token expires 1 hour after generation.
+#
+# Example:
+#   ansible-playbook ansible/git-test-runner.yml \
+#     -i ansible/inventory/vmware_vms.yml \
+#     -l tag_git_test \
+#     -e runner_token=<token>
+
+- name: Provision Git Test runner baseline
+  hosts: tag_git_test
+  become: true
+  gather_facts: true
+  roles:
+    - base
+    - security
+    - docker
+    - github_runner_base
+
+- name: Install and register GitHub Actions runner
+  hosts: tag_git_test
+  become: true
+  gather_facts: false
+  vars:
+    runner_extra_labels: "testing,ci"
+  roles:
+    - github_runner
+  post_tasks:
+    - name: Grant passwordless sudo to the github-runner user
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/github-runner"
+        content: "github-runner ALL=(ALL) NOPASSWD: ALL"
+        mode: "0440"
+        validate: "visudo -cf %s"

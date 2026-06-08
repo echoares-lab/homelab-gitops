@@ -22,6 +22,10 @@ runner_base_packages:
   - python3-pip
   - jq
   - make
+  - acl
+  - python3-venv
+  - direnv
+  - psmisc
 
 playwright_packages:
   - libnss3

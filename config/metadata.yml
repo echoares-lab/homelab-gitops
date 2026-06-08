@@ -8,6 +8,7 @@ commands:
   config: "Apply OS-level configuration and security hardening via Ansible."
   test: "Run automated validation tests to confirm node compliance."
   destroy: "Safely remove a VM and its associated Tofu state from vCenter."
+  status: "Show a read-only fleet dashboard for managed Tofu workspaces and vCenter VMs."
   all: "Execute the entire pipeline (Lint -> Deploy -> Config -> Test -> Destroy)."
   create-profile: "Interactive wizard to scaffold a new hardware blueprint."
   edit-profile: "Update resource specs (CPU, RAM, Disk) for an existing profile."
@@ -21,6 +22,11 @@ tags:
   photon: "VMware Photon OS 5.0 (minimal) configuration."
   docker: "Install and configure Docker Engine and Docker Compose."
   dns: "Configure Technitium DNS services."
+  cf_runner: "Provision an org-level GitHub Actions runner profile."
+  git_test: "Provision a GitHub Actions runner for testing and CI purposes."
+  cf_dev: "Provision a development workstation profile for Cloudflare Access automation tooling."
+  homelab_dev: "Provision a development workstation profile for HomeLab GitOps tooling."
+  combined_dev: "Provision a combined development workstation profile for both homelab and access automation workflows."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."

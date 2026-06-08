@@ -13,9 +13,22 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.0 - GitHub Runner for Testing & CI
+- Added `ubuntu-2404-git-test` profile for high-performance GitHub runners (20 cores, 20GB RAM, 400GB Disk).
+- Implemented `ansible/git-test-runner.yml` dedicated playbook for automated runner registration.
+- **Automated Runner Tokens:** Integrated GitHub API support into `manage.py` to automatically fetch registration tokens using a PAT (resolved via 1Password).
+- Hardened the `git-test` runner with passwordless sudo for the `github-runner` user to support CI/CD workloads.
+- Integrated `git_test` tag into `manage.py` orchestrator for automated playbook selection.
+
+### v3.3.0 - Fleet Observability & 1Password Runtime Alignment
+- Added the read-only `manage.py status` fleet dashboard for managed OpenTofu workspaces and vCenter VM state.
+- Hardened orchestrator command execution for Ansible, Tofu, Packer, Pytest, and helper invocations by preferring explicit argv lists.
+- Aligned documentation with the active 1Password `config/secrets.env` runtime path and marked Ansible Vault as legacy migration reference.
+- Deferred automated golden image refresh and first-class CAA runner/dev lifecycle work pending separate design and ownership.
+
 ### v3.2.0 - Security & Secrets Management
-- **Ansible Vault Integration:** Transitioned from plain-text `.env` infrastructure secrets to encrypted Ansible Vault files (`vault.yml`), allowing application-level secrets to be securely committed to the Git repository.
-- Refactored `manage.py` orchestrator to natively pipe decrypted secrets into runtime environments using `ansible-vault view`.
+- **1Password Runtime Integration:** Transitioned from local plaintext secrets to `config/secrets.env` references resolved through the Homelab-GitOps 1Password vault.
+- Refactored `manage.py` orchestrator to bootstrap secret-dependent commands through `op run` when `OP_SERVICE_ACCOUNT_TOKEN` is available.
 
 ### v3.1.0 - Usability & Lifecycle Enhancements
 - **Interactive Builder:** Added a guided CLI wizard (triggered by running `python3 manage.py` with no arguments).
