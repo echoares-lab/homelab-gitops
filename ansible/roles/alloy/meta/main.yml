@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: HomeLabGitOps
+  description: Deploy Grafana Alloy monitoring agent
+  license: MIT
+  min_ansible_version: "2.9"
+
+dependencies: []

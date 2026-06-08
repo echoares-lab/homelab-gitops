@@ -6,6 +6,10 @@ from rich.console import Console
 from services.infrastructure import InfrastructureService
 from services.config import ConfigService
 from services.utils import track_time, validate_mac
+from services.wrappers.packer_wrapper import PackerWrapper
+from services.wrappers.tofu_wrapper import TofuWrapper
+from services.wrappers.ansible_wrapper import AnsibleWrapper
+from services.wrappers.testinfra_wrapper import TestinfraWrapper
 
 console = Console()
 
@@ -40,11 +44,21 @@ class OrchestrateService:
         console.print(f"[bold blue]Building {target}...[/bold blue]")
         start = time.time()
 
-        # TODO: Implement Packer build logic
-        # This is a stub; actual implementation would call packer build
+        try:
+            wrapper = PackerWrapper()
+            result = wrapper.build(target)
 
-        track_time(start, f"build {target}")
-        return True
+            if result:
+                console.print("[green]✓ Build succeeded[/green]")
+            else:
+                console.print("[red]✗ Build failed[/red]")
+
+            track_time(start, f"build {target}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Build failed: {e}[/red]")
+            return False
 
     def lint(self, profile: str, index: str) -> bool:
         """
@@ -107,8 +121,18 @@ class OrchestrateService:
             # Load profile
             profile_data = self.config_service.load_profile(profile)
 
-            # TODO: Implement OpenTofu deployment
-            # This is a stub; actual implementation would call tofu apply
+            # Construct workspace name from profile FQDN components
+            vm_prefix = profile_data.get("deployment", {}).get("vm_name_prefix", profile)
+            vm_domain = profile_data.get("deployment", {}).get("vm_name_domain", "local")
+            workspace_name = f"{vm_prefix}-{index}.{vm_domain}"
+
+            # Initialize OpenTofu workspace and apply configuration
+            wrapper = TofuWrapper(workspace=workspace_name)
+            wrapper.workspace_new(workspace_name)
+
+            if not wrapper.apply():
+                console.print("[red]✗ Deploy failed[/red]")
+                return False
 
             console.print("[green]✓ Deploy succeeded[/green]")
             track_time(start, f"deploy {profile} {index}")
@@ -136,12 +160,17 @@ class OrchestrateService:
             # Load profile and resolve playbook
             playbook, extra_vars = self.config_service.resolve_playbook(profile)
 
-            # TODO: Implement Ansible execution
-            # This is a stub; actual implementation would call infrastructure.run_ansible_playbook()
+            # Execute Ansible playbook
+            wrapper = AnsibleWrapper()
+            result = wrapper.run_playbook(playbook, extra_vars=extra_vars)
 
-            console.print("[green]✓ Config succeeded[/green]")
+            if result:
+                console.print("[green]✓ Config succeeded[/green]")
+            else:
+                console.print("[red]✗ Config failed[/red]")
+
             track_time(start, f"config {profile} {index}")
-            return True
+            return result
 
         except Exception as e:
             console.print(f"[red]✗ Config failed: {e}[/red]")
@@ -161,12 +190,30 @@ class OrchestrateService:
         console.print(f"[bold blue]Testing {profile} {index}...[/bold blue]")
         start = time.time()
 
-        # TODO: Implement testinfra execution
-        # This is a stub; actual implementation would run pytest with --hosts
+        try:
+            # Load profile to construct VM FQDN
+            profile_data = self.config_service.load_profile(profile)
 
-        console.print("[green]✓ Tests passed[/green]")
-        track_time(start, f"test {profile} {index}")
-        return True
+            # Construct workspace name (FQDN) from profile
+            vm_prefix = profile_data.get("deployment", {}).get("vm_name_prefix", profile)
+            vm_domain = profile_data.get("deployment", {}).get("vm_name_domain", "local")
+            fqdn = f"{vm_prefix}-{index}.{vm_domain}"
+
+            # Run testinfra tests against the VM
+            wrapper = TestinfraWrapper()
+            result = wrapper.run_tests([f"ansible@{fqdn}"])
+
+            if result:
+                console.print("[green]✓ Tests passed[/green]")
+            else:
+                console.print("[red]✗ Tests failed[/red]")
+
+            track_time(start, f"test {profile} {index}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Test failed: {e}[/red]")
+            return False
 
     def destroy(self, identifier: str) -> bool:
         """
@@ -181,12 +228,22 @@ class OrchestrateService:
         console.print(f"[bold yellow]Destroying {identifier}...[/bold yellow]")
         start = time.time()
 
-        # TODO: Implement VM destruction
-        # This is a stub; actual implementation would call tofu destroy
+        try:
+            # Initialize TofuWrapper with the VM identifier as workspace name
+            wrapper = TofuWrapper(workspace=identifier)
+            result = wrapper.destroy()
 
-        console.print("[green]✓ Destroy succeeded[/green]")
-        track_time(start, f"destroy {identifier}")
-        return True
+            if result:
+                console.print("[green]✓ Destroy succeeded[/green]")
+            else:
+                console.print("[red]✗ Destroy failed[/red]")
+
+            track_time(start, f"destroy {identifier}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Destroy failed: {e}[/red]")
+            return False
 
     def status(self) -> List[Dict]:
         """

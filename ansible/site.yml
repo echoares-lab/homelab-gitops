@@ -2,6 +2,11 @@
   hosts: all
   gather_facts: true
   serial: 0
+- name: Deploy monitoring agents
+  hosts: tag_alloy
+  become: true
+  roles:
+    - alloy
 - name: Configure Ubuntu Hosts
   hosts: tag_ubuntu
   become: true
@@ -33,11 +38,12 @@
     ansible.builtin.systemd:
       name: sshd
       state: restarted
-- name: Configure Docker nodes
+- name: Configure Docker nodes with metrics and TLS
   hosts: tag_docker
   become: true
   roles:
-  - docker
+    - docker
+    - docker_metrics
 - name: primary_dns
   hosts: tag_dns
   become: true

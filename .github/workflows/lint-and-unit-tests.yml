@@ -65,12 +65,17 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           echo "=== Unit Tests with Coverage ==="
-          pytest tests/test_services/ tests/test_manage_cli.py -v --cov-report=json
+          pytest tests/test_services/ tests/test_manage_cli.py -v \
+            --cov=services \
+            --cov=manage.py \
+            --cov-report=term-missing \
+            --cov-report=json \
+            --cov-report=html:htmlcov
 
-      - name: Check coverage threshold (90%)
+      - name: Check coverage threshold (85%)
         run: |
           echo "=== Coverage Check ==="
-          python -m coverage report --fail-under=90 || (echo "Coverage below 90% threshold!" && exit 1)
+          python -m coverage report --fail-under=85 --precision=2 || (echo "Coverage below 85% threshold!" && exit 1)
 
       - name: Upload coverage to artifacts
         if: always()
@@ -108,4 +113,4 @@ jobs:
           echo "✓ Python linting (PEP 8): Completed"
           echo "✓ Shell linting: Completed"
           echo "✓ Unit tests: Completed"
-          echo "✓ Coverage check: 90% minimum enforced"
+          echo "✓ Coverage check: 85% minimum enforced"

@@ -1,0 +1,5 @@
+---
+docker_metrics_enabled: true
+docker_metrics_tls_port: 2376
+docker_metrics_cert_path: /etc/docker/certs.d
+docker_metrics_daemon_config_file: /etc/docker/daemon.json
