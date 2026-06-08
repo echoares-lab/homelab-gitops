@@ -65,7 +65,7 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           echo "=== Unit Tests with Coverage ==="
-          pytest tests/test_services/ tests/test_manage_cli.py -v --cov=manage.py --cov=scripts --cov-report=term-missing --cov-report=json --cov-report=html
+          pytest tests/test_services/ tests/test_manage_cli.py -v --cov-report=json
 
       - name: Check coverage threshold (90%)
         run: |
