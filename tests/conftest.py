@@ -123,5 +123,9 @@ class RichReporter:
 
 
 def pytest_configure(config):
+    # Register the slow marker for E2E tests
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (E2E, requires infrastructure; deselect with '-m \"not slow\"')"
+    )
     if _RICH:
         config.pluginmanager.register(RichReporter(), "rich_reporter")

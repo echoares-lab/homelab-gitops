@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homelab-gitops"
+version = "0.1.0"
+description = "Homelab GitOps infrastructure automation"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["homelab_gitops"]
+
+[tool.setuptools.package-dir]
+"" = "src"

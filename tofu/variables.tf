@@ -1,3 +1,8 @@
+variable "profile_name" {
+  type        = string
+  description = "Profile name for the VM"
+}
+
 variable "vcenter_server" {
   type = string
 }
