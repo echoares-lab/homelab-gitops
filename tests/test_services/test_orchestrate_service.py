@@ -406,6 +406,250 @@ class TestOrchestrateServiceDeploy:
         mock_tofu_class.assert_called_once_with(workspace="docker-03.infa.plexplease.com")
         assert result is True
 
+class TestOrchestrateServiceTest:
+    """Test OrchestrateService.test()."""
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_calls_testinfra_wrapper_run_tests(self, mock_testinfra_class):
+        """Test that test instantiates TestinfraWrapper and calls run_tests()."""
+        # Create mocks
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock profile with deployment info
+        mock_config.load_profile.return_value = {
+            "name": "ubuntu-2404-base",
+            "deployment": {
+                "vm_name_prefix": "ubuntu",
+                "vm_name_domain": "mgmt.plexplease.com"
+            }
+        }
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_tests.return_value = True
+        mock_testinfra_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("ubuntu-2404-base", "01")
+
+        # Verify TestinfraWrapper was instantiated
+        mock_testinfra_class.assert_called_once()
+
+        # Verify run_tests was called with correct hosts list
+        mock_wrapper.run_tests.assert_called_once_with(["ansible@ubuntu-01.mgmt.plexplease.com"])
+
+        # Verify result is True
+        assert result is True
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_returns_false_on_test_failure(self, mock_testinfra_class):
+        """Test that test returns False when run_tests() fails."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock profile
+        mock_config.load_profile.return_value = {
+            "name": "ubuntu-2404-base",
+            "deployment": {
+                "vm_name_prefix": "ubuntu",
+                "vm_name_domain": "mgmt.plexplease.com"
+            }
+        }
+
+        # Configure mock wrapper to return False
+        mock_wrapper = Mock()
+        mock_wrapper.run_tests.return_value = False
+        mock_testinfra_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("ubuntu-2404-base", "01")
+
+        assert result is False
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_handles_wrapper_exception(self, mock_testinfra_class):
+        """Test that test returns False when TestinfraWrapper raises exception."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock profile
+        mock_config.load_profile.return_value = {
+            "name": "ubuntu-2404-base",
+            "deployment": {
+                "vm_name_prefix": "ubuntu",
+                "vm_name_domain": "mgmt.plexplease.com"
+            }
+        }
+
+        # Configure mock wrapper to raise exception
+        mock_testinfra_class.side_effect = RuntimeError("pytest not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("ubuntu-2404-base", "01")
+
+        assert result is False
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_handles_profile_not_found(self, mock_testinfra_class):
+        """Test that test returns False if profile doesn't exist."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock to raise FileNotFoundError
+        mock_config.load_profile.side_effect = FileNotFoundError("Profile not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("nonexistent", "01")
+
+        assert result is False
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_constructs_correct_fqdn(self, mock_testinfra_class):
+        """Test that test constructs FQDN correctly from profile."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock profile with different deployment info
+        mock_config.load_profile.return_value = {
+            "name": "photon-docker",
+            "deployment": {
+                "vm_name_prefix": "docker",
+                "vm_name_domain": "infa.plexplease.com"
+            }
+        }
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_tests.return_value = True
+        mock_testinfra_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("photon-docker", "03")
+
+        # Verify correct FQDN was constructed and passed
+        mock_wrapper.run_tests.assert_called_once_with(["ansible@docker-03.infa.plexplease.com"])
+        assert result is True
+
+    @patch("services.orchestrate.TestinfraWrapper")
+    @pytest.mark.unit
+    def test_test_uses_default_domain_when_not_specified(self, mock_testinfra_class):
+        """Test that test uses 'local' domain when deployment info missing."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock profile without deployment info
+        mock_config.load_profile.return_value = {
+            "name": "minimal-profile",
+            "tags": []
+        }
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.run_tests.return_value = True
+        mock_testinfra_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.test("minimal-profile", "01")
+
+        # Verify default domain is used
+        mock_wrapper.run_tests.assert_called_once_with(["ansible@minimal-profile-01.local"])
+        assert result is True
+
+class TestOrchestrateServiceDestroy:
+    """Test OrchestrateService.destroy()."""
+
+    @patch("services.orchestrate.TofuWrapper")
+    @pytest.mark.unit
+    def test_destroy_calls_tofu_wrapper_destroy(self, mock_tofu_class):
+        """Test that destroy instantiates TofuWrapper and calls destroy()."""
+        # Create mocks
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.destroy.return_value = True
+        mock_tofu_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.destroy("ubuntu-01.mgmt.plexplease.com")
+
+        # Verify TofuWrapper was instantiated with correct workspace name
+        mock_tofu_class.assert_called_once_with(workspace="ubuntu-01.mgmt.plexplease.com")
+
+        # Verify destroy was called
+        mock_wrapper.destroy.assert_called_once()
+
+        # Verify result is True
+        assert result is True
+
+    @patch("services.orchestrate.TofuWrapper")
+    @pytest.mark.unit
+    def test_destroy_returns_false_on_destroy_failure(self, mock_tofu_class):
+        """Test that destroy returns False when TofuWrapper.destroy() fails."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper to return False
+        mock_wrapper = Mock()
+        mock_wrapper.destroy.return_value = False
+        mock_tofu_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.destroy("ubuntu-01.mgmt.plexplease.com")
+
+        assert result is False
+
+    @patch("services.orchestrate.TofuWrapper")
+    @pytest.mark.unit
+    def test_destroy_handles_wrapper_exception(self, mock_tofu_class):
+        """Test that destroy returns False when TofuWrapper raises exception."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper to raise exception
+        mock_tofu_class.side_effect = RuntimeError("OpenTofu not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.destroy("ubuntu-01.mgmt.plexplease.com")
+
+        assert result is False
+
+    @patch("services.orchestrate.TofuWrapper")
+    @pytest.mark.unit
+    def test_destroy_handles_different_identifiers(self, mock_tofu_class):
+        """Test that destroy works with different identifier formats."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.destroy.return_value = True
+        mock_tofu_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+
+        # Test with FQDN
+        result1 = service.destroy("docker-03.infa.plexplease.com")
+        assert result1 is True
+        assert mock_tofu_class.call_args_list[0][1]["workspace"] == "docker-03.infa.plexplease.com"
+
+        # Test with hostname
+        result2 = service.destroy("ubuntu-01")
+        assert result2 is True
+        assert mock_tofu_class.call_args_list[1][1]["workspace"] == "ubuntu-01"
+
+        # Test with IP address
+        result3 = service.destroy("10.10.10.50")
+        assert result3 is True
+        assert mock_tofu_class.call_args_list[2][1]["workspace"] == "10.10.10.50"
+
 class TestOrchestrateServiceStatus:
     """Test OrchestrateService.status()."""
 
@@ -431,10 +675,11 @@ class TestOrchestrateServiceStatus:
 class TestOrchestrateServiceAll:
     """Test OrchestrateService.all() (complete pipeline)."""
 
+    @patch("services.orchestrate.TestinfraWrapper")
     @patch("services.orchestrate.AnsibleWrapper")
     @patch("services.orchestrate.TofuWrapper")
     @pytest.mark.unit
-    def test_all_runs_complete_pipeline(self, mock_tofu_class, mock_ansible_class):
+    def test_all_runs_complete_pipeline(self, mock_tofu_class, mock_ansible_class, mock_testinfra_class):
         """Test that all() runs lint → deploy → config → test."""
         mock_infra = Mock()
         mock_config = Mock()
@@ -464,6 +709,11 @@ class TestOrchestrateServiceAll:
         mock_ansible_wrapper.run_playbook.return_value = True
         mock_ansible_class.return_value = mock_ansible_wrapper
 
+        # Configure mock TestinfraWrapper
+        mock_testinfra_wrapper = Mock()
+        mock_testinfra_wrapper.run_tests.return_value = True
+        mock_testinfra_class.return_value = mock_testinfra_wrapper
+
         service = OrchestrateService(mock_infra, mock_config)
         result = service.all("ubuntu-2404-base", "01", "esxi-01")
 
@@ -484,3 +734,7 @@ class TestOrchestrateServiceAll:
         assert mock_config.resolve_playbook.called
         assert mock_ansible_class.called
         assert mock_ansible_wrapper.run_playbook.called
+
+        # test step calls TestinfraWrapper
+        assert mock_testinfra_class.called
+        assert mock_testinfra_wrapper.run_tests.called

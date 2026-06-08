@@ -9,6 +9,7 @@ from services.utils import track_time, validate_mac
 from services.wrappers.packer_wrapper import PackerWrapper
 from services.wrappers.tofu_wrapper import TofuWrapper
 from services.wrappers.ansible_wrapper import AnsibleWrapper
+from services.wrappers.testinfra_wrapper import TestinfraWrapper
 
 console = Console()
 
@@ -189,12 +190,30 @@ class OrchestrateService:
         console.print(f"[bold blue]Testing {profile} {index}...[/bold blue]")
         start = time.time()
 
-        # TODO: Implement testinfra execution
-        # This is a stub; actual implementation would run pytest with --hosts
+        try:
+            # Load profile to construct VM FQDN
+            profile_data = self.config_service.load_profile(profile)
 
-        console.print("[green]✓ Tests passed[/green]")
-        track_time(start, f"test {profile} {index}")
-        return True
+            # Construct workspace name (FQDN) from profile
+            vm_prefix = profile_data.get("deployment", {}).get("vm_name_prefix", profile)
+            vm_domain = profile_data.get("deployment", {}).get("vm_name_domain", "local")
+            fqdn = f"{vm_prefix}-{index}.{vm_domain}"
+
+            # Run testinfra tests against the VM
+            wrapper = TestinfraWrapper()
+            result = wrapper.run_tests([f"ansible@{fqdn}"])
+
+            if result:
+                console.print("[green]✓ Tests passed[/green]")
+            else:
+                console.print("[red]✗ Tests failed[/red]")
+
+            track_time(start, f"test {profile} {index}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Test failed: {e}[/red]")
+            return False
 
     def destroy(self, identifier: str) -> bool:
         """
@@ -209,12 +228,22 @@ class OrchestrateService:
         console.print(f"[bold yellow]Destroying {identifier}...[/bold yellow]")
         start = time.time()
 
-        # TODO: Implement VM destruction
-        # This is a stub; actual implementation would call tofu destroy
+        try:
+            # Initialize TofuWrapper with the VM identifier as workspace name
+            wrapper = TofuWrapper(workspace=identifier)
+            result = wrapper.destroy()
 
-        console.print("[green]✓ Destroy succeeded[/green]")
-        track_time(start, f"destroy {identifier}")
-        return True
+            if result:
+                console.print("[green]✓ Destroy succeeded[/green]")
+            else:
+                console.print("[red]✗ Destroy failed[/red]")
+
+            track_time(start, f"destroy {identifier}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Destroy failed: {e}[/red]")
+            return False
 
     def status(self) -> List[Dict]:
         """
