@@ -21,6 +21,7 @@ tags:
   ubuntu-2604: "Ubuntu 26.04 LTS golden template (future)."
   photon: "VMware Photon OS 5.0 (minimal) configuration."
   docker: "Install and configure Docker Engine and Docker Compose."
+  alloy: "Deploy Grafana Alloy monitoring agent (metrics + logs)."
   dns: "Configure Technitium DNS services."
   cf_runner: "Provision an org-level GitHub Actions runner profile."
   git_test: "Provision a GitHub Actions runner for testing and CI purposes."
@@ -32,4 +33,5 @@ roles:
   base: "Core system utilities, hostname setup, and package updates."
   security: "SSH hardening (disable root/passwords) and UFW firewall setup."
   docker: "Container runtime installation and daemon optimization."
+  docker_metrics: "Configure Docker daemon for TLS socket and metrics exposure."
   dns_technitium: "Automated Technitium DNS stack deployment."
