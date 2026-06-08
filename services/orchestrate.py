@@ -6,6 +6,7 @@ from rich.console import Console
 from services.infrastructure import InfrastructureService
 from services.config import ConfigService
 from services.utils import track_time, validate_mac
+from services.wrappers.packer_wrapper import PackerWrapper
 
 console = Console()
 
@@ -40,11 +41,21 @@ class OrchestrateService:
         console.print(f"[bold blue]Building {target}...[/bold blue]")
         start = time.time()
 
-        # TODO: Implement Packer build logic
-        # This is a stub; actual implementation would call packer build
+        try:
+            wrapper = PackerWrapper()
+            result = wrapper.build(target)
 
-        track_time(start, f"build {target}")
-        return True
+            if result:
+                console.print("[green]✓ Build succeeded[/green]")
+            else:
+                console.print("[red]✗ Build failed[/red]")
+
+            track_time(start, f"build {target}")
+            return result
+
+        except Exception as e:
+            console.print(f"[red]✗ Build failed: {e}[/red]")
+            return False
 
     def lint(self, profile: str, index: str) -> bool:
         """

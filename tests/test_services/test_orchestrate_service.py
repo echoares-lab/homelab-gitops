@@ -1,8 +1,89 @@
 """Unit tests for OrchestrateService."""
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from services.orchestrate import OrchestrateService
+
+class TestOrchestrateServiceBuild:
+    """Test OrchestrateService.build()."""
+
+    @patch("services.orchestrate.PackerWrapper")
+    @pytest.mark.unit
+    def test_build_calls_packer_wrapper_build(self, mock_packer_class):
+        """Test that build instantiates PackerWrapper and calls build()."""
+        # Create mocks
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.build.return_value = True
+        mock_packer_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.build("ubuntu-2404")
+
+        # Verify PackerWrapper was instantiated
+        mock_packer_class.assert_called_once()
+
+        # Verify build was called with correct target
+        mock_wrapper.build.assert_called_once_with("ubuntu-2404")
+
+        # Verify result is True
+        assert result is True
+
+    @patch("services.orchestrate.PackerWrapper")
+    @pytest.mark.unit
+    def test_build_returns_false_on_wrapper_failure(self, mock_packer_class):
+        """Test that build returns False when PackerWrapper.build() fails."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper to return False
+        mock_wrapper = Mock()
+        mock_wrapper.build.return_value = False
+        mock_packer_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.build("ubuntu-2404")
+
+        assert result is False
+
+    @patch("services.orchestrate.PackerWrapper")
+    @pytest.mark.unit
+    def test_build_handles_wrapper_exception(self, mock_packer_class):
+        """Test that build returns False when PackerWrapper raises exception."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper to raise exception
+        mock_packer_class.side_effect = RuntimeError("Packer not found")
+
+        service = OrchestrateService(mock_infra, mock_config)
+        result = service.build("ubuntu-2404")
+
+        assert result is False
+
+    @patch("services.orchestrate.PackerWrapper")
+    @pytest.mark.unit
+    def test_build_handles_different_targets(self, mock_packer_class):
+        """Test that build works with different target names."""
+        mock_infra = Mock()
+        mock_config = Mock()
+
+        # Configure mock wrapper
+        mock_wrapper = Mock()
+        mock_wrapper.build.return_value = True
+        mock_packer_class.return_value = mock_wrapper
+
+        service = OrchestrateService(mock_infra, mock_config)
+
+        # Test with different targets
+        for target in ["ubuntu-2404", "ubuntu-2604", "photon-docker"]:
+            result = service.build(target)
+            assert result is True
+            # Verify correct target was passed
+            assert target in [call[0][0] for call in mock_wrapper.build.call_args_list]
 
 class TestOrchestrateServiceLint:
     """Test OrchestrateService.lint()."""
