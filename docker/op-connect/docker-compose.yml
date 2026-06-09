@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  op-connect-api:
+    image: 1password/connect-api:1.8.2
+    container_name: op-connect-api
+    restart: always
+    ports:
+      - "127.0.0.1:8200:8080"
+    environment:
+      OP_LOG_LEVEL: info
+      OP_LOG_FORMAT: json
+    volumes:
+      - /etc/op-connect/token:/etc/op-connect/token:ro
+      - /var/log/op-connect:/var/log/op-connect
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - op-connect
+    depends_on:
+      op-connect-sync:
+        condition: service_healthy
+
+  op-connect-sync:
+    image: 1password/connect-sync:1.8.2
+    container_name: op-connect-sync
+    restart: always
+    environment:
+      OP_LOG_LEVEL: info
+      OP_LOG_FORMAT: json
+    volumes:
+      - /etc/op-connect/token:/etc/op-connect/token:ro
+      - op-connect-data:/home/opuser/.op/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - op-connect
+
+networks:
+  op-connect:
+    driver: bridge
+
+volumes:
+  op-connect-data:
+    driver: local

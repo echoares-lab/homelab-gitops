@@ -20,6 +20,9 @@ Ensure the orchestration host has the following:
 *   **Pytest & Testinfra**
 *   **govc** (installed in `build/`)
 *   **1Password CLI** with `OP_SERVICE_ACCOUNT_TOKEN` for runtime secret resolution
+*   **curl** — HTTP client for API testing
+*   **jq** — JSON query tool for parsing responses
+*   **docker-compose** or **docker compose** — Container orchestration
 
 ---
 
@@ -189,3 +192,197 @@ Docker hosts receive the `docker_metrics` role (applied after `docker` role).
 **uptime-kuma** — Runs on 10.10.10.30, probes services
 - Configure TCP checks to `NODE:2376` with TLS enabled
 - Optional: Use Prometheus integration to scrape custom metrics
+
+## 10. 1Password Connect Server
+
+The 1Password Connect service provides a secure REST API for programmatic secret retrieval. It runs on the main Docker host (`10.10.10.30`) and is used by the orchestrator and Ansible playbooks to resolve secrets from 1Password.
+
+### Architecture
+
+The Connect stack consists of two containers:
+- **connect-api** — REST API endpoint (port 8200)
+- **connect-sync** — Vault synchronization with 1Password cloud
+- **connect-data** — Persistent volume for cached vault data
+
+### Setup Instructions
+
+**Step 1: Generate 1Password API Token (Manual)**
+
+In 1Password web vault (https://my.1password.com):
+1. Navigate to **Settings → Developer → API Tokens**
+2. Click **Create New Token**
+3. Select **1Password Connect** service account
+4. Copy the token (format: `ops_...`)
+5. Securely store this token — it will be used in Step 3
+
+**Step 2: Create directories and permissions**
+
+On the main Docker host (`10.10.10.30`):
+```bash
+sudo mkdir -p /etc/op-connect
+sudo mkdir -p /var/log/op-connect
+sudo chown root:root /etc/op-connect /var/log/op-connect
+sudo chmod 700 /etc/op-connect /var/log/op-connect
+```
+
+**Step 3: Store API token with restricted permissions**
+
+Paste the token from Step 1:
+```bash
+echo "ops_YOUR_TOKEN_HERE" | sudo tee /etc/op-connect/token > /dev/null
+sudo chmod 644 /etc/op-connect/token
+```
+
+Verify permissions are correct:
+```bash
+ls -la /etc/op-connect/token
+# Expected output: -rw-r--r-- 1 root root 50 Jun  8 12:00 /etc/op-connect/token
+```
+
+**Step 4: Deploy Connect containers**
+
+Copy `docker/op-connect/docker-compose.yml` from this repository to the Docker host:
+```bash
+scp docker/op-connect/docker-compose.yml root@10.10.10.30:/home/docker-host/op-connect/
+```
+
+Start the services:
+```bash
+cd /home/docker-host/op-connect
+docker-compose up -d
+```
+
+Verify containers are running:
+```bash
+docker ps | grep op-connect
+# Expected: op-connect-api and op-connect-sync running
+```
+
+**Step 5: Health check and API validation**
+
+Wait for both services to become healthy (30-60 seconds):
+```bash
+docker-compose logs -f
+# Expected: "Server running" or similar
+```
+
+Test the health endpoint:
+```bash
+curl -s http://10.10.10.30:8200/health | jq .
+# Expected: {"status":"ok"} or {"status":"running"}
+```
+
+Test API authentication with the token:
+```bash
+export OP_CONNECT_TOKEN=$(sudo cat /etc/op-connect/token)
+curl -s -H "Authorization: Bearer ${OP_CONNECT_TOKEN}" \
+  http://10.10.10.30:8200/v1/vaults | jq .
+# Expected: Empty array [] or list of vaults
+```
+
+**Step 6: Configure orchestrator access**
+
+Once Connect is running, update `config/secrets.env` to reference the Connect server:
+```env
+OP_CONNECT_HOST=http://10.10.10.30:8200
+OP_CONNECT_TOKEN=op://Homelab-GitOps/op-connect-token
+```
+
+Or, set environment variable before running orchestrator commands:
+```bash
+export OP_CONNECT_HOST=http://10.10.10.30:8200
+export OP_CONNECT_TOKEN=$(sudo cat /etc/op-connect/token)
+python3 manage.py config ubuntu-base 01
+```
+
+### Logging and Monitoring
+
+Logs are written to `/var/log/op-connect/` on the Docker host. View them:
+```bash
+docker logs op-connect-api
+docker logs op-connect-sync
+```
+
+For persistent troubleshooting, configure Docker to send logs to syslog:
+```bash
+docker logs op-connect-api | tail -50
+```
+
+### Token Rotation
+
+To rotate the 1Password API token:
+
+1. Generate a new token in 1Password web vault (Settings → Developer → API Tokens)
+
+2. Update the token file securely (without exposing token in shell history):
+   ```bash
+   read -rs OP_TOKEN < <(cat <<'EOF'
+   ops_NEW_TOKEN_HERE
+   EOF
+   )
+   echo "$OP_TOKEN" | sudo tee /etc/op-connect/token > /dev/null
+   unset OP_TOKEN
+   ```
+   
+   Or interactively (recommended for security):
+   ```bash
+   read -rs -p "Enter new 1Password Connect API token: " OP_TOKEN
+   echo "$OP_TOKEN" | sudo tee /etc/op-connect/token > /dev/null
+   unset OP_TOKEN
+   ```
+
+3. Restart the containers:
+   ```bash
+   cd /home/docker-host/op-connect
+   docker-compose restart op-connect-api op-connect-sync
+   ```
+
+4. Verify health:
+   ```bash
+   curl -s http://10.10.10.30:8200/health | jq .
+   ```
+
+5. **Revoke old token in 1Password**:
+   - Go to 1Password web vault: https://my.1password.com/
+   - Navigate to Settings → Developer → API Tokens
+   - Find the old token ID in the list
+   - Click "Revoke" next to the old token
+   - Verify the new token is marked as "Active"
+   - Note: Old token will become invalid immediately after revocation
+
+### Troubleshooting
+
+**Connection Refused (10.10.10.30:8200)**
+- Verify docker-compose is running: `docker-compose ps`
+- Check firewall: `sudo ufw status` or `sudo firewall-cmd --list-all`
+- Verify network: `docker network ls` and `docker inspect op-connect_op-connect`
+
+**Authentication Failed (Bearer token)**
+- Verify token format: `cat /etc/op-connect/token` should start with `ops_`
+- Check token has correct permissions in 1Password (must be "1Password Connect" service account)
+- Ensure token file is readable: `sudo cat /etc/op-connect/token`
+
+**Permission Denied or "Cannot read token"**
+- **Error:** Container exits immediately or logs show permission denied
+- **Check token file permissions:**
+  ```bash
+  ls -la /etc/op-connect/token
+  # Expected: -rw-r--r-- 1 root root (644 permissions, not 600)
+  ```
+- **Important:** Containers run as `opuser` (UID 9999), which requires read permissions
+- **Fix:**
+  ```bash
+  sudo chmod 644 /etc/op-connect/token
+  docker-compose restart op-connect-api op-connect-sync
+  ```
+- **Verify:** `docker logs op-connect-api` and `docker logs op-connect-sync` should show no permission errors
+
+**Sync container unhealthy**
+- Verify 1Password connectivity: `docker logs op-connect-sync | grep -i "error\|fail"`
+- Check token validity: validate in 1Password web vault
+- Restart sync container: `docker-compose restart op-connect-sync`
+
+**Persistent storage issues**
+- Verify volume exists: `docker volume ls | grep op-connect`
+- Check disk space: `df -h /var/lib/docker/volumes/`
+- Recreate volume if needed: `docker volume rm op-connect_op-connect-data && docker-compose up -d`
