@@ -35,7 +35,7 @@ class DHCPClient(BaseClient):
         })
 
     def enable_interface(self, interface: str) -> dict:
-        """Re-enable DHCP on a single interface (rollback)."""
+        """Re-enable DHCP on a single interface."""
         if not interface:
             raise ValidationError("Interface required")
         return self.post('/api/dhcpv4/settings/set', {

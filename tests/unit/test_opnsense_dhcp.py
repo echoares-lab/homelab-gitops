@@ -72,8 +72,8 @@ def test_disable_interface_sends_correct_payload(mock_post):
     result = client.disable_interface('lan')
 
     assert result == {'result': 'saved'}
-    call_kwargs = mock_post.call_args
-    assert call_kwargs is not None
+    posted_json = mock_post.call_args[1].get('json')
+    assert posted_json == {'dhcpd': {'lan': {'enable': '0'}}}
 
 
 @patch('opnsense.client.requests.post')
@@ -86,6 +86,8 @@ def test_enable_interface_sends_correct_payload(mock_post):
     result = client.enable_interface('lan')
 
     assert result == {'result': 'saved'}
+    posted_json = mock_post.call_args[1].get('json')
+    assert posted_json == {'dhcpd': {'lan': {'enable': '1'}}}
 
 
 def test_disable_interface_requires_interface():
