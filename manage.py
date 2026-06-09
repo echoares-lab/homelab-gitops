@@ -485,6 +485,61 @@ def dhcp_migrate() -> None:
         console.print("\nTo roll back: [cyan]python3 manage.py dhcp-rollback[/cyan]")
 
 
+@app.command(name="dhcp-rollback")
+def dhcp_rollback() -> None:
+    """Roll back DHCP migration: re-enable OPNsense, disable Technitium scopes."""
+    try:
+        from opnsense.modules.dhcp import DHCPClient as OPNDHCPClient
+        from technitium.modules.dhcp import TechnitiumDHCPClient
+    except ImportError as e:
+        console.print(f"[red]Error: required module not found: {e}[/red]")
+        raise typer.Exit(1)
+
+    migrated = _load_migration_state()
+    if not migrated:
+        console.print("[yellow]No migration state found. Nothing to roll back.[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"[bold]Found {len(migrated)} migrated scope(s) to roll back:[/bold]")
+    for m in migrated:
+        console.print(f"  {m['opnsense_interface']} ← {m['technitium_scope']}")
+
+    if not typer.confirm("\nProceed with rollback?"):
+        raise typer.Exit(0)
+
+    opn_dhcp = OPNDHCPClient(
+        api_key=os.getenv('OPNSENSE_KEY'),
+        api_secret=os.getenv('OPNSENSE_SECRET'),
+        url=os.getenv('OPNSENSE_URL', 'https://10.10.10.1/api'),
+    )
+    tech_dhcp = TechnitiumDHCPClient(
+        host=os.getenv('TECHNITIUM_HOST', 'http://10.10.10.2:5380'),
+        token=os.getenv('TECHNITIUM_TOKEN', ''),
+    )
+
+    failed = []
+    for m in migrated:
+        iface = m['opnsense_interface']
+        scope = m['technitium_scope']
+        try:
+            opn_dhcp.enable_interface(iface)
+            console.print(f"  [green]✓[/green] Re-enabled OPNsense DHCP on {iface}")
+
+            tech_dhcp.disable_scope(scope)
+            console.print(f"  [green]✓[/green] Disabled Technitium scope: {scope}")
+        except Exception as e:
+            console.print(f"  [red]✗ Failed to roll back {iface}: {e}[/red]")
+            failed.append(iface)
+
+    if not failed:
+        os.remove(_DHCP_STATE_FILE)
+        console.print("\n[green]Rollback complete. Migration state cleared.[/green]")
+    else:
+        console.print(f"\n[red]Rollback failed for {len(failed)} interface(s): {failed}[/red]")
+        console.print("[yellow]Migration state preserved for manual intervention.[/yellow]")
+        raise typer.Exit(1)
+
+
 # --- MAIN ---
 
 if __name__ == "__main__":
