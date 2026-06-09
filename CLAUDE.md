@@ -197,6 +197,87 @@ pytest tests/ -v -k "not (host in getattr"
 python3 scripts/matrix_test.py
 ```
 
+## Epic Workflow (Start to Finish)
+
+All features and epics follow this standardized workflow:
+
+### 1. Brainstorming & Design
+```bash
+# Use superpowers:brainstorming skill
+# - Explore project context
+# - Ask clarifying questions (one at a time)
+# - Propose 2-3 approaches
+# - Present design iteratively
+# - Save approved spec to: docs/superpowers/specs/YYYY-MM-DD-<name>-design.md
+```
+
+### 2. Write Implementation Plan
+```bash
+# Use superpowers:writing-plans skill
+# - Map file structure
+# - Break into bite-sized tasks (2-5 min each)
+# - Write complete steps with code, no placeholders
+# - Save plan to: docs/superpowers/plans/YYYY-MM-DD-<name>.md
+```
+
+### 3. Execute Implementation
+```bash
+# Choose execution method:
+# A) Subagent-Driven (recommended):
+#    - Fresh subagent per task
+#    - Each task: implement → self-review → spec compliance check → code quality check
+#    - Fix issues in review loops until approved
+#    - Use superpowers:subagent-driven-development
+#
+# B) Inline Execution:
+#    - Execute tasks sequentially in this session
+#    - Use superpowers:executing-plans
+```
+
+### 4. Finish & Merge
+```bash
+# Use superpowers:finishing-a-development-branch skill
+# - Verifies tests pass
+# - Detects worktree environment
+# - Presents merge options (1-4)
+# - Executes chosen option (e.g., create PR)
+# - Auto-merges PR when CI passes
+```
+
+### 5. Sync After Epic Completes
+```bash
+# IMPORTANT: After PR merges, sync your local main branch
+epic-done
+```
+
+Add this to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```bash
+epic-done() {
+  echo "🔄 Syncing local main after epic merge..."
+  git fetch origin
+  git checkout master 2>/dev/null || git checkout main 2>/dev/null
+  git pull origin master --ff-only || git pull origin main --ff-only
+  
+  if [ $? -eq 0 ]; then
+    echo "✅ Epic merged and local main synced"
+    echo "Latest commits:"
+    git log --oneline -3
+  else
+    echo "❌ Sync failed - resolve divergence manually"
+    return 1
+  fi
+}
+```
+
+Or as a one-liner alias:
+
+```bash
+alias epic-done='git fetch origin && git checkout master && git pull origin master --ff-only && echo "✅ Local main synced" && git log --oneline -3'
+```
+
+---
+
 ### Secrets Management
 
 Secrets are stored in 1Password vaults and accessed via 1Password Connect server (10.10.10.30:8200).
