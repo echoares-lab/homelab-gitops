@@ -43,3 +43,6 @@ packer/http/ubuntu2404/meta-data
 
 # 1Password mock binary (local dev only)
 build/govc.mock
+
+# DHCP migration state
+.dhcp-migration-state.json

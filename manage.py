@@ -8,8 +8,10 @@ All business logic is in services/; this file is pure CLI presentation.
 
 import sys
 import os
+import json
 import typer
 from typing import Optional
+from datetime import datetime
 from rich.console import Console
 from rich.table import Table
 
@@ -291,6 +293,23 @@ def dns_create(name: str, ip: str):
     else:
         raise typer.Exit(1)
 
+# --- DHCP MIGRATION HELPERS ---
+
+_DHCP_STATE_FILE = '.dhcp-migration-state.json'
+
+
+def _save_migration_state(migrated: list) -> None:
+    with open(_DHCP_STATE_FILE, 'w') as f:
+        json.dump({'migrated': migrated, 'timestamp': datetime.now().isoformat()}, f, indent=2)
+
+
+def _load_migration_state() -> list:
+    if not os.path.exists(_DHCP_STATE_FILE):
+        return []
+    with open(_DHCP_STATE_FILE) as f:
+        return json.load(f).get('migrated', [])
+
+
 # --- OPNSENSE COMMANDS ---
 
 @app.command()
@@ -343,6 +362,128 @@ def opnsense(
     except OPNsenseError as e:
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
+
+# --- DHCP MIGRATION COMMANDS ---
+
+@app.command(name="dhcp-migrate")
+def dhcp_migrate() -> None:
+    """Migrate DHCP from OPNsense to Technitium with interactive scope mapping."""
+    try:
+        from opnsense.modules.dhcp import DHCPClient as OPNDHCPClient
+        from technitium.modules.dhcp import TechnitiumDHCPClient
+    except ImportError as e:
+        console.print(f"[red]Error: required module not found: {e}[/red]")
+        raise typer.Exit(1)
+
+    opn_dhcp = OPNDHCPClient(
+        api_key=os.getenv('OPNSENSE_KEY'),
+        api_secret=os.getenv('OPNSENSE_SECRET'),
+        url=os.getenv('OPNSENSE_URL', 'https://10.10.10.1/api'),
+    )
+    tech_dhcp = TechnitiumDHCPClient(
+        host=os.getenv('TECHNITIUM_HOST', 'http://10.10.10.2:5380'),
+        token=os.getenv('TECHNITIUM_TOKEN', ''),
+    )
+
+    # Step 1: Discovery
+    console.rule("[bold cyan]Step 1 — Discovery[/bold cyan]")
+    try:
+        interfaces = opn_dhcp.list_enabled_interfaces()
+        scopes = tech_dhcp.list_scopes()
+    except Exception as e:
+        console.print(f"[red]Discovery failed: {e}[/red]")
+        raise typer.Exit(1)
+
+    iface_table = Table(title="OPNsense DHCP Interfaces (enabled)")
+    iface_table.add_column("Interface", style="cyan")
+    iface_table.add_column("Range From", style="green")
+    iface_table.add_column("Range To", style="green")
+    for iface in interfaces:
+        iface_table.add_row(iface['interface'], iface['range_from'], iface['range_to'])
+    console.print(iface_table)
+
+    scope_table = Table(title="Technitium DHCP Scopes")
+    scope_table.add_column("Name", style="cyan")
+    scope_table.add_column("Network", style="green")
+    scope_table.add_column("Enabled", style="yellow")
+    for scope in scopes:
+        scope_table.add_row(
+            scope.get('name', ''),
+            scope.get('networkAddress', ''),
+            str(scope.get('enabled', False)),
+        )
+    console.print(scope_table)
+
+    # Step 2: Mapping
+    console.rule("[bold cyan]Step 2 — Map Interfaces to Scopes[/bold cyan]")
+    scope_names = [s['name'] for s in scopes]
+    mapping = {}
+    for iface in interfaces:
+        console.print(f"Available scopes: {', '.join(scope_names)}")
+        choice = typer.prompt(
+            f"Map {iface['interface']} → scope name (or 'skip')",
+            default='skip',
+        )
+        if choice != 'skip':
+            if choice not in scope_names:
+                console.print(f"[red]Scope '{choice}' not in Technitium. Aborting.[/red]")
+                raise typer.Exit(1)
+            mapping[iface['interface']] = choice
+
+    if not mapping:
+        console.print("[yellow]No interfaces mapped. Nothing to migrate.[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"\nMapping: {len(mapping)} interface(s) to migrate.")
+    if not typer.confirm("Proceed with cutover?"):
+        raise typer.Exit(0)
+
+    # Step 3: Pre-flight
+    console.rule("[bold cyan]Step 3 — Pre-flight Check[/bold cyan]")
+    for iface, scope_name in mapping.items():
+        if not any(s['name'] == scope_name for s in scopes):
+            console.print(f"[red]✗ Scope '{scope_name}' not found in Technitium[/red]")
+            raise typer.Exit(1)
+        console.print(f"[green]✓[/green] {iface} → {scope_name} verified")
+
+    # Step 4: Cutover
+    console.rule("[bold cyan]Step 4 — Cutover[/bold cyan]")
+    migrated = []
+
+    for iface, scope_name in mapping.items():
+        if not typer.confirm(f"Migrate {iface} → {scope_name}?"):
+            console.print(f"  [yellow]Skipped {iface}[/yellow]")
+            continue
+
+        try:
+            opn_dhcp.disable_interface(iface)
+            console.print(f"  [green]✓[/green] Disabled OPNsense DHCP on {iface}")
+
+            tech_dhcp.enable_scope(scope_name)
+            console.print(f"  [green]✓[/green] Enabled Technitium scope: {scope_name}")
+
+            migrated.append({'opnsense_interface': iface, 'technitium_scope': scope_name})
+            _save_migration_state(migrated)
+
+        except Exception as e:
+            console.print(f"  [red]✗ Failed: {e}[/red]")
+            console.print("[yellow]Rolling back already-migrated scopes...[/yellow]")
+            for m in migrated:
+                try:
+                    opn_dhcp.enable_interface(m['opnsense_interface'])
+                    tech_dhcp.disable_scope(m['technitium_scope'])
+                    console.print(f"  [green]↩[/green] Rolled back {m['opnsense_interface']}")
+                except Exception as rb_err:
+                    console.print(f"  [red]Rollback failed for {m['opnsense_interface']}: {rb_err}[/red]")
+            raise typer.Exit(1)
+
+    # Summary
+    console.rule("[bold cyan]Summary[/bold cyan]")
+    console.print(f"[green]Migrated:[/green]  {len(migrated)}/{len(mapping)} scopes")
+    console.print(f"[yellow]Skipped:[/yellow]   {len(mapping) - len(migrated)} scopes")
+    if migrated:
+        console.print("\nTo roll back: [cyan]python3 manage.py dhcp-rollback[/cyan]")
+
 
 # --- MAIN ---
 
