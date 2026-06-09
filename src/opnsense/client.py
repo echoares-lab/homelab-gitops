@@ -13,7 +13,7 @@ from opnsense.exceptions import (
 class RestClient:
     """Wrapper around requests for OPNsense API calls"""
 
-    def __init__(self, api_key: str, api_secret: str, url: str, timeout: int = 10):
+    def __init__(self, api_key: str, api_secret: str, url: str, timeout: int = 10, verify: bool = False):
         if not api_key:
             raise ValueError("api_key is required")
         if not api_secret:
@@ -25,6 +25,7 @@ class RestClient:
         self.api_secret = api_secret
         self.url = url.rstrip('/')
         self.timeout = timeout
+        self.verify = verify
         self.auth = (api_key, api_secret)
 
     def get(self, endpoint: str, params: dict = None) -> dict:
@@ -36,7 +37,8 @@ class RestClient:
                 full_url,
                 auth=self.auth,
                 params=params,
-                timeout=self.timeout
+                timeout=self.timeout,
+                verify=self.verify,
             )
         except requests.exceptions.Timeout:
             raise OPNTimeoutError(f"Request timed out after {self.timeout}s")
@@ -56,7 +58,8 @@ class RestClient:
                 full_url,
                 auth=self.auth,
                 json=data,
-                timeout=self.timeout
+                timeout=self.timeout,
+                verify=self.verify,
             )
         except requests.exceptions.Timeout:
             raise OPNTimeoutError(f"Request timed out after {self.timeout}s")
