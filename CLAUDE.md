@@ -231,6 +231,27 @@ For more details, see:
 - `docs/DOCKER_SECRETS_INTEGRATION.md` — Docker usage
 - `docs/GITHUB_ACTIONS_SECRETS.md` — CI/CD usage
 
+## Emergency Procedures
+
+### Token Compromise
+
+1. Notify ops team immediately
+2. Do NOT commit exposed token
+3. Follow "Rotating Connect Token" in docs/SECRETS_RUNBOOK.md
+4. Audit access logs: `grep compromised /var/log/op-connect/access.log`
+
+### Service Down
+
+If 1Password Connect is unavailable:
+1. Check health: `curl https://{connect-hostname}:8200/health`
+2. Restart: `docker restart op-connect-api op-connect-sync`
+3. Verify: `curl https://{connect-hostname}:8200/health`
+4. If still down, check 1Password cloud status: https://status.1password.com
+
+### Secret Rotation
+
+See docs/SECRETS_RUNBOOK.md → "Rotating Connect Token" section
+
 ## Critical Files to Understand
 
 - **manage.py:** Core orchestrator; all CLI commands start here
