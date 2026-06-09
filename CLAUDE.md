@@ -198,12 +198,38 @@ python3 scripts/matrix_test.py
 ```
 
 ### Secrets Management
-Secrets are stored in 1Password and referenced in `config/secrets.env` using `op://` references. Setup:
-```bash
-bash scripts/op-vault-setup.sh       # Create/update 1Password vault
-export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
-python3 manage.py config ubuntu-base 01  # Automatically resolves secrets via `op run`
-```
+
+Secrets are stored in 1Password vaults and accessed via 1Password Connect server (10.10.10.30:8200).
+
+#### Setup
+
+1. Ensure `OP_CONNECT_TOKEN` environment variable is set:
+   ```bash
+   export OP_CONNECT_TOKEN=$(cat /etc/op-connect/token)
+   ```
+
+2. Run commands with `op run` wrapper:
+   ```bash
+   op run --server https://{connect-hostname}:8200 -- python3 manage.py config ubuntu-base 01
+   ```
+
+#### Vault Structure
+
+- Vault: `op://homelab-gitops/`
+  - `prod/` — Production secrets (vCenter, SSH, API keys)
+  - `dev/` — Development/test secrets
+  - `ci/` — CI/CD automation secrets
+
+#### 1Password Connect Server
+
+- **Location:** 10.10.10.30:8200
+- **Token:** `/etc/op-connect/token` (restricted: 0600)
+- **Access:** Central authentication broker for all projects
+
+For more details, see:
+- `docs/1PASSWORD_VAULTS.md` — Vault structure and roles
+- `docs/DOCKER_SECRETS_INTEGRATION.md` — Docker usage
+- `docs/GITHUB_ACTIONS_SECRETS.md` — CI/CD usage
 
 ## Critical Files to Understand
 
