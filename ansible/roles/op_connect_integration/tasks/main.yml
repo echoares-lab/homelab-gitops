@@ -1,0 +1,74 @@
+---
+# 1Password Connect Integration Role
+
+- name: Ensure op CLI is installed
+  ansible.builtin.apt:
+    name: 1password
+    state: present
+  register: op_connect_integration_install
+  changed_when: op_connect_integration_install.changed
+
+- name: Verify Connect server is reachable
+  ansible.builtin.uri:
+    url: "{{ op_connect_integration_server }}/health"
+    method: GET
+    status_code: 200
+  register: op_connect_integration_health
+  retries: 3
+  delay: 5
+  until: op_connect_integration_health.status == 200
+
+- name: Test Connect authentication
+  ansible.builtin.shell: |
+    set -o pipefail
+    TOKEN="{{ lookup('file', op_connect_integration_token_path) }}"
+    export OP_CONNECT_TOKEN="${TOKEN}"
+    curl -s -H "Authorization: Bearer ${OP_CONNECT_TOKEN}" \
+      {{ op_connect_integration_server }}/v1/vaults | jq empty
+  register: op_connect_integration_auth
+  changed_when: false
+  failed_when: op_connect_integration_auth.rc != 0
+
+- name: Set up op run environment
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    line: >-
+      OP_CONNECT_TOKEN={{
+      lookup('file', op_connect_integration_token_path) }}
+    state: present
+  become: true
+
+- name: Document op integration
+  ansible.builtin.copy:
+    content: |
+      # 1Password Connect Integration
+
+      To use secrets in Ansible:
+
+      ```bash
+      export OP_CONNECT_TOKEN=$(cat {{ op_connect_integration_token_path }})
+      op run --server {{ op_connect_integration_server }} -- <command>
+      ```
+
+      Or use in tasks:
+      ```yaml
+      - name: Get secret from vault
+        shell: |
+          op run --server {{ op_connect_integration_server }} -- \
+            op read op://homelab-gitops/prod/SECRET_NAME
+        environment: "{{ op_connect_integration_env }}"
+      ```
+    dest: /etc/op-connect/ANSIBLE_USAGE.txt
+    mode: "0644"
+  become: true
+
+- name: Print Connect status
+  ansible.builtin.debug:
+    msg: |
+      ✓ 1Password Connect Integration Ready
+
+      Server: {{ op_connect_integration_server }}
+      Token: {{ op_connect_integration_token_path }}
+
+      Usage: op run --server {{ op_connect_integration_server }} \
+        -- <command>
