@@ -2,6 +2,11 @@
   hosts: all
   gather_facts: true
   serial: 0
+- name: Configure 1Password Connect Integration
+  hosts: all
+  become: true
+  roles:
+    - op_connect_integration
 - name: Deploy monitoring agents
   hosts: tag_alloy
   become: true
