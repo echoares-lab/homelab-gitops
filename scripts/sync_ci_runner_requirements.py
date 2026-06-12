@@ -40,7 +40,7 @@ def expand_path(raw: str) -> Path:
     return Path(raw).expanduser().resolve()
 
 
-def load_registry() -> list[t]:
+def load_registry() -> list[dict]:
     data = yaml.safe_load(REGISTRY.read_text()) or {}
     repos: list[dict] = data.get("repos") or []
     out: list[dict] = []
