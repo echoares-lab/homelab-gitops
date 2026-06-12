@@ -33,3 +33,4 @@
   gather_facts: false
   roles:
     - github_runner
+    - github_runner_ci

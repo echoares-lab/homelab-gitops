@@ -1,0 +1,12 @@
+---
+ci_runner_generated_vars: "{{ role_path }}/../../generated/ci_runner/vars.yaml"
+ci_runner_apt_packages_file: "{{ role_path }}/../../generated/ci_runner/apt-packages.txt"
+ci_runner_pip_requirements_file: "{{ role_path }}/../../generated/ci_runner/pip-requirements.txt"
+
+ci_runner_cache_root: /var/cache/ai-gateway
+ci_runner_venv_seed_path: "{{ ci_runner_cache_root }}/venv-ci-seed"
+ci_runner_python_version: "3.12"
+ci_runner_python_bin: "python{{ ci_runner_python_version }}"
+
+ci_runner_user: "{{ runner_user | default('github-runner') }}"
+ci_runner_group: "{{ runner_linux_group | default('github-runner') }}"
