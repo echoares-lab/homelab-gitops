@@ -40,3 +40,26 @@ technitium_firewall_ports:
 technitium_optional_firewall_ports: []
 
 technitium_validate_icu: true
+
+# Technitium DNS Settings
+technitium_recursion: "AllowOnlyForPrivateNetworks"  # Deny, Allow, AllowOnlyForPrivateNetworks
+technitium_cache_prefetch_trigger: 20                # Seconds before TTL expiry to trigger prefetch. 0 to disable.
+technitium_cache_prefetch_eligibility: 60            # Minimum initial TTL to be eligible for prefetching.
+technitium_cache_prefetch_sample_eligibility_hits_per_hour: 1 # Anything hit once is "popular" and auto-prefetched
+technitium_serve_stale: true                         # Keep expired records in cache
+technitium_serve_stale_ttl: 259200                    # Keep stale records for 72 hours (3 days)
+technitium_heartbeat_qps: 250                        # Safe QPS budget for 100k VIP predictive engine
+technitium_save_cache: true                          # Persistent caching
+technitium_cache_maximum_entries: 1000000
+
+# Technitium Performance Tuning
+technitium_max_concurrent_resolutions_per_core: 2000 # Increased to 2,000 for 1M prefill
+technitium_resolver_concurrency: 4                   # Software cap confirmed at 4
+technitium_resolver_timeout: 2000                   # Default 1500ms
+technitium_resolver_max_stack_count: 30             # Capped at 30 by software/API
+
+# Technitium Rate Limiting (QPM)
+# Base limit for all other networks (3000 QPM = 50 QPS)
+technitium_qpm_limit_ipv4: '[{"prefix": 32, "udpLimit": 3000, "tcpLimit": 3000}, {"prefix": 24, "udpLimit": 6000, "tcpLimit": 6000}]'
+# Networks to bypass rate limiting entirely
+technitium_qpm_bypass_list: "127.0.0.1,10.10.10.0/24,10.10.20.0/24,10.10.30.0/24,10.10.70.0/24,10.10.80.0/24"

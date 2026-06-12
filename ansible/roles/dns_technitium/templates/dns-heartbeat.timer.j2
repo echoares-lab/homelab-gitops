@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Technitium DNS Cache Heartbeat every 45 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=45min
+RandomizedDelaySec=60
+Unit=dns-heartbeat.service
+
+[Install]
+WantedBy=timers.target

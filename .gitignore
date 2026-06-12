@@ -46,3 +46,8 @@ build/govc.mock
 
 # DHCP migration state
 .dhcp-migration-state.json
+config/.env.local
+config/technitium.token
+config/top_*.txt
+results/
+prefill*.log

@@ -173,3 +173,59 @@
   loop: "{{ technitium_firewall_ports + technitium_optional_firewall_ports }}"
   when: technitium_open_firewall and ansible_facts['distribution'] == 'Ubuntu'
   notify: Reload firewalld
+
+- name: Wait for Technitium API to be ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:5380/api/settings/get"
+    method: GET
+    status_code: 200
+  register: technitium_api_ready
+  until: technitium_api_ready.status == 200
+  retries: 10
+  delay: 5
+
+- name: Configure Technitium DNS Settings (Recursion & Prefetch)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:5380/api/settings/set?token={{ lookup('env', 'TECHNITIUM_TOKEN') | default('dummy_token', true) }}&recursion={{ technitium_recursion }}&cachePrefetchTrigger={{ technitium_cache_prefetch_trigger }}&cachePrefetchEligibility={{ technitium_cache_prefetch_eligibility }}&saveCache={{ technitium_save_cache | lower }}&cacheMaximumEntries={{ technitium_cache_maximum_entries }}&serveStale={{ technitium_serve_stale | lower }}&serveStaleTtl={{ technitium_serve_stale_ttl }}&cachePrefetchSampleEligibilityHitsPerHour={{ technitium_cache_prefetch_sample_eligibility_hits_per_hour }}&maxConcurrentResolutionsPerCore={{ technitium_max_concurrent_resolutions_per_core }}&resolverConcurrency={{ technitium_resolver_concurrency }}&resolverTimeout={{ technitium_resolver_timeout }}&resolverMaxStackCount={{ technitium_resolver_max_stack_count }}&qpmPrefixLimitsIPv4={{ technitium_qpm_limit_ipv4 | urlencode }}&qpmLimitBypassList={{ technitium_qpm_bypass_list | urlencode }}"
+    method: GET
+    status_code: 200
+  register: technitium_settings_update
+  changed_when: "technitium_settings_update.json.status == 'ok'"
+  failed_when: "technitium_settings_update.json.status != 'ok' and 'Invalid token' not in technitium_settings_update.json.errorMessage | default('')"
+
+- name: Install bindutils (for dig)
+  ansible.builtin.command: tdnf install -y bindutils
+  register: tdnf_bind
+  changed_when: "'Nothing to do' not in tdnf_bind.stdout"
+  when: ansible_facts['distribution'] == 'VMware Photon OS'
+
+- name: Deploy DNS Heartbeat script
+  ansible.builtin.copy:
+    src: dns_heartbeat.py
+    dest: "{{ technitium_app_dir }}/dns_heartbeat.py"
+    owner: "{{ technitium_service_user }}"
+    group: "{{ technitium_service_user }}"
+    mode: "0755"
+
+- name: Stop and disable DNS Heartbeat timer
+  ansible.builtin.systemd:
+    name: dns-heartbeat.timer
+    enabled: false
+    state: stopped
+  ignore_errors: true
+
+- name: Install DNS Heartbeat systemd service
+  ansible.builtin.template:
+    src: dns-heartbeat.service.j2
+    dest: /etc/systemd/system/dns-heartbeat.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start DNS Heartbeat service
+  ansible.builtin.systemd:
+    name: dns-heartbeat.service
+    enabled: true
+    state: started
+    daemon_reload: true
