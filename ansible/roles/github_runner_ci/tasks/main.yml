@@ -13,6 +13,30 @@
     msg: "Run 'make sync-ci-runners' from homelab-gitops root before apply-ci-runners."
   when: not ci_runner_vars_stat.stat.exists
 
+- name: Check if target Python is already installable from apt
+  ansible.builtin.command:
+    cmd: apt-cache policy {{ ci_runner_python_bin }}
+  register: ci_runner_python_apt_policy
+  changed_when: false
+  failed_when: false
+
+- name: Enable deadsnakes PPA when target Python is missing from apt
+  when: "'Candidate: (none)' in ci_runner_python_apt_policy.stdout"
+  block:
+    - name: Install software-properties-common for add-apt-repository
+      ansible.builtin.apt:
+        name: software-properties-common
+        state: present
+
+    - name: Add deadsnakes PPA
+      ansible.builtin.apt_repository:
+        repo: "{{ ci_runner_deadsnakes_ppa }}"
+        state: present
+
+    - name: Refresh apt cache after PPA
+      ansible.builtin.apt:
+        update_cache: true
+
 - name: Install repo-aggregated apt packages
   ansible.builtin.apt:
     name: "{{ ci_runner_apt_packages }}"
@@ -41,7 +65,7 @@
 - name: Grant passwordless sudo for CI pre-clean steps
   ansible.builtin.copy:
     dest: /etc/sudoers.d/github-runner
-    content: "{{ ci_runner_user }} ALL=(ALL) NOPASSWD: ALL"
+    content: "{{ ci_runner_user }} ALL=(ALL) NOPASSWD: ALL\n"
     mode: "0440"
     validate: "visudo -cf %s"
 
@@ -54,17 +78,25 @@
     mode: "0644"
 
 - name: Seed warm CI venv (survives workspace pre-clean)
-  become_user: "{{ ci_runner_user }}"
   block:
     - name: Create seed venv
       ansible.builtin.command:
         cmd: "{{ ci_runner_python_bin }} -m venv {{ ci_runner_venv_seed_path }}"
         creates: "{{ ci_runner_venv_seed_path }}/bin/python"
 
+    - name: Set seed venv ownership
+      ansible.builtin.file:
+        path: "{{ ci_runner_venv_seed_path }}"
+        owner: "{{ ci_runner_user }}"
+        group: "{{ ci_runner_group }}"
+        recurse: true
+
     - name: Upgrade pip in seed venv
-      ansible.builtin.command:
-        cmd: "{{ ci_runner_venv_seed_path }}/bin/pip install --upgrade pip"
-        creates: "{{ ci_runner_venv_seed_path }}/bin/pip"
+      ansible.builtin.pip:
+        virtualenv: "{{ ci_runner_venv_seed_path }}"
+        name: pip
+        state: latest
+        extra_args: --upgrade-strategy only-if-needed
 
     - name: Install aggregated pip requirements into seed venv
       ansible.builtin.pip:
