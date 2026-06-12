@@ -1,0 +1,9 @@
+curl
+direnv
+docker-buildx-plugin
+docker.io
+git
+psmisc
+python3-pip
+python3.12
+python3.12-venv

@@ -1,0 +1,15 @@
+---
+# Apply aggregated CI runner requirements to existing self-hosted runners.
+# Does not register the runner — use git-test-runner.yml / cloudflare-runner.yml for that.
+#
+#   make sync-ci-runners    # aggregate manifests from registered repos
+#   make apply-ci-runners   # this playbook
+#
+# Target hosts must be tagged in inventory (tag_git_test, tag_cf_runner, etc.)
+
+- name: Sync aggregated CI requirements onto runner hosts
+  hosts: tag_git_test,tag_cf_runner
+  become: true
+  gather_facts: true
+  roles:
+    - github_runner_ci

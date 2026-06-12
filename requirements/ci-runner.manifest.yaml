@@ -1,0 +1,11 @@
+schema_version: 1
+repo: homelab-gitops
+
+python:
+  version: "3.12"
+  venv_packages: ansible/roles/github_runner/files/requirements.txt
+
+apt_packages: []
+
+# Homelab integration tests use self-hosted runners with homelab-specific Python deps.
+# Add apt_packages here when a playbook needs extra system packages.
