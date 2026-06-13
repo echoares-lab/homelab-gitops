@@ -6,8 +6,6 @@
 #   make apply-ci-runners        # push to runner hosts (Ansible)
 
 repos:
-# After merge, point ai-gateway at the main clone:
-#   path: ~/repos/ai-gateway
   - name: ai-gateway
     path: ~/.cursor/worktrees/ai-gateway__SSH__dev_/wfd0
     enabled: true
