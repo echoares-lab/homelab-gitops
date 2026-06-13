@@ -1,3 +1,4 @@
+---
 vcenter:
   datacenter: HOMELAB
   cluster: Primary

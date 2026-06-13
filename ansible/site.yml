@@ -1,3 +1,4 @@
+---
 - name: Discover and Group Hosts
   hosts: all
   gather_facts: true

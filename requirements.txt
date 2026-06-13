@@ -5,3 +5,6 @@ typing_extensions
 pytest-testinfra
 pexpect
 paramiko
+acme
+cryptography
+josepy

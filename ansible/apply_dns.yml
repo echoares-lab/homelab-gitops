@@ -1,7 +1,8 @@
+---
 - name: apply_dns
-  hosts: tag_dns
-  become: true
-  roles:
-  - base
-  - security
-  - dns_technitium
+    hosts: tag_dns
+    become: true
+    roles:
+    - base
+    - security
+    - dns_technitium
