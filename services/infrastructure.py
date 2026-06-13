@@ -2,6 +2,8 @@
 
 import subprocess
 import shutil
+import os
+import json
 from typing import List, Dict, Optional
 from rich.console import Console
 from services.utils import run_cmd
@@ -110,8 +112,92 @@ class InfrastructureService:
         Returns:
             List of VM status dictionaries
         """
-        # Placeholder: would query vCenter and OpenTofu workspaces
-        return []
+        console.print("[dim]Querying OpenTofu workspaces...[/dim]")
+        # 1. Get workspaces
+        rc, out, err = run_cmd(["tofu", "-chdir=tofu/", "workspace", "list"], capture=True)
+        if rc != 0:
+            console.print(f"[red]Error listing workspaces: {err}[/red]")
+            return []
+
+        workspaces = []
+        for line in out.splitlines():
+            line = line.replace("*", "").strip()
+            if line and line != "default":
+                workspaces.append(line)
+
+        if not workspaces:
+            return []
+
+        # 2. Get VM info from vCenter
+        # Map VCENTER env vars to GOVC env vars for the command
+        govc_env = os.environ.copy()
+        govc_env["GOVC_URL"] = os.getenv("VCENTER_SERVER", "")
+        govc_env["GOVC_USERNAME"] = os.getenv("VCENTER_USERNAME", "")
+        govc_env["GOVC_PASSWORD"] = os.getenv("VCENTER_PASSWORD", "")
+        govc_env["GOVC_INSECURE"] = "1"
+
+        console.print(f"[dim]Querying vCenter for {len(workspaces)} VMs...[/dim]")
+        rows = []
+        for ws in workspaces:
+            # Workspace name is the VM name
+            vm_name = ws
+            
+            # Use govc to get power state and IP
+            # We use 'find' first to ensure it exists
+            rc, out, err = run_cmd(
+                [self.govc_path, "find", "/", "-type", "m", "-name", vm_name],
+                capture=True,
+                env=govc_env
+            )
+            
+            if rc != 0 or not out.strip():
+                rows.append({
+                    "name": vm_name,
+                    "power": "[red]Missing[/red]",
+                    "ip": "N/A",
+                    "tags": ["[dim]no-vcenter-obj[/dim]"]
+                })
+                continue
+
+            vm_path = out.strip()
+            
+            # Get detailed info
+            rc, out, err = run_cmd(
+                [self.govc_path, "vm.info", "-json", vm_path],
+                capture=True,
+                env=govc_env
+            )
+            
+            try:
+                info = json.loads(out)
+
+                vm_data = info.get("VirtualMachines", [{}])[0]
+                runtime = vm_data.get("Runtime", {})
+                guest = vm_data.get("Guest", {})
+                
+                # Get tags
+                rc, out, err = run_cmd(
+                    [self.govc_path, "tags.attached.ls", vm_path],
+                    capture=True,
+                    env=govc_env
+                )
+                tags = out.splitlines() if rc == 0 else []
+
+                rows.append({
+                    "name": vm_name,
+                    "power": runtime.get("PowerState", "Unknown"),
+                    "ip": guest.get("IpAddress", "Unknown"),
+                    "tags": tags
+                })
+            except (json.JSONDecodeError, IndexError):
+                rows.append({
+                    "name": vm_name,
+                    "power": "Unknown",
+                    "ip": "Unknown",
+                    "tags": []
+                })
+
+        return rows
 
     def run_ansible_playbook(
         self,

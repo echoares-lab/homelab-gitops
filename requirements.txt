@@ -8,3 +8,5 @@ pytest-testinfra
 pexpect
 paramiko
 requests
+pydantic>=2.12.0
+pyvmomi

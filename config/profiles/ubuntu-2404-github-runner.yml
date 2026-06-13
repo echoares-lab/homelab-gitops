@@ -22,3 +22,6 @@ deployment:
     - "cf_runner"
   vm_name_prefix: "cf-runner"
   vm_name_domain: "mgmt.plexplease.com"
+  managed_files:
+    - "requirements.txt"
+    - "pyproject.toml"

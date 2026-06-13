@@ -1,5 +1,6 @@
 """OrchestrateService: Full VM lifecycle orchestration."""
 
+import os
 import time
 from typing import Optional, List, Dict
 from rich.console import Console
@@ -126,11 +127,41 @@ class OrchestrateService:
             vm_domain = profile_data.get("deployment", {}).get("vm_name_domain", "local")
             workspace_name = f"{vm_prefix}-{index}.{vm_domain}"
 
+            # Prepare variables for OpenTofu
+            vcenter_cfg = profile_data.get("vcenter", {})
+            cl_cfg = profile_data.get("content_library", {})
+            specs = profile_data.get("vm_specs", {})
+            deployment = profile_data.get("deployment", {})
+
+            variables = {
+                "profile_name": profile,
+                "vcenter_server": vcenter_cfg.get("server") or os.getenv("VCENTER_SERVER"),
+                "vcenter_user": vcenter_cfg.get("username") or os.getenv("VCENTER_USERNAME"),
+                "vcenter_password": os.getenv("VCENTER_PASSWORD"),
+                "datacenter": vcenter_cfg.get("datacenter") or os.getenv("VCENTER_DATACENTER"),
+                "cluster": vcenter_cfg.get("cluster") or os.getenv("VCENTER_CLUSTER"),
+                "host": host or vcenter_cfg.get("host"),
+                "datastore": vcenter_cfg.get("datastore") or os.getenv("VCENTER_DATASTORE"),
+                "network": vcenter_cfg.get("network") or os.getenv("VCENTER_NETWORK"),
+                "vm_name": workspace_name,
+                "vm_cpu": specs.get("cpu"),
+                "vm_ram_gb": specs.get("ram_gb"),
+                "guest_id": specs.get("guest_id"),
+                "library_name": cl_cfg.get("name") or os.getenv("CONTENT_LIBRARY_NAME"),
+                "template_name": cl_cfg.get("template") or os.getenv("CONTENT_LIBRARY_ITEM_NAME"),
+                "vm_tags": ",".join(deployment.get("tags", [])),
+                "disk_size_gb": specs.get("disk_size_gb"),
+            }
+
+            if mac:
+                variables["mac_address"] = mac
+
             # Initialize OpenTofu workspace and apply configuration
             wrapper = TofuWrapper(workspace=workspace_name)
+            wrapper.init()
             wrapper.workspace_new(workspace_name)
 
-            if not wrapper.apply():
+            if not wrapper.apply(variables=variables):
                 console.print("[red]✗ Deploy failed[/red]")
                 return False
 

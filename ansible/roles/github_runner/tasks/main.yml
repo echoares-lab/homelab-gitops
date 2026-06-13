@@ -3,8 +3,7 @@
   ansible.builtin.assert:
     that:
       - runner_github_url | length > 0
-      - runner_token | length > 0
-    fail_msg: "runner_token must be set — generate at github.com/organizations/echoares-lab/settings/actions/runners/new (expires 1h)"
+    fail_msg: "runner_github_url must be set"
 
 - name: Create runner Linux group
   ansible.builtin.group:
@@ -59,6 +58,17 @@
     - "{{ runner_home }}/go/pkg"
     - "{{ runner_home }}/.npm"
 
+- name: Copy project files to runner home
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ runner_home }}/{{ item }}"
+    owner: "{{ runner_user }}"
+    group: "{{ runner_linux_group }}"
+    mode: "0644"
+  loop:
+    - requirements.txt
+    - pyproject.toml
+
 - name: Check installed runner version
   ansible.builtin.command: cat "{{ runner_root }}/bin/Runner.Listener.deps.json"
   register: runner_version_check
@@ -107,7 +117,9 @@
       --replace
     chdir: "{{ runner_root }}"
   become_user: "{{ runner_user }}"
-  when: not runner_configured.stat.exists
+  when: 
+    - not runner_configured.stat.exists
+    - runner_token | default('') | length > 0
   no_log: true
 
 - name: Install runner as systemd service
@@ -120,6 +132,7 @@
     - svc_install.rc != 0 
     - "'already installed' not in svc_install.stderr"
     - "'exists' not in svc_install.stderr"
+  when: runner_token | default('') | length > 0
 
 - name: Start and enable runner service
   ansible.builtin.command:
@@ -128,6 +141,7 @@
   register: svc_start
   changed_when: "'started' in svc_start.stdout"
   failed_when: svc_start.rc != 0 and 'already running' not in svc_start.stderr
+  when: runner_token | default('') | length > 0
 
 - name: Verify runner service is active
   ansible.builtin.command: ./svc.sh status

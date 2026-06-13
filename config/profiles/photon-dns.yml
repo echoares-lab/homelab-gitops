@@ -8,7 +8,7 @@ content_library:
   name: GOLDEN
   template: photon-5.0-golden
 vm_specs:
-  cpu: 4
+  cpu: 8
   ram_gb: 8
   guest_id: vmwarePhoton64Guest
   disk_size_gb: 50

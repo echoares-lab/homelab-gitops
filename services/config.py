@@ -99,12 +99,15 @@ class ConfigService:
         """
         profile = self.load_profile(profile_name)
         deployment = profile.get("deployment") or {}
+        # FIX: Ensure we check deployment.tags first, then root tags (legacy)
         tags = deployment.get("tags") or profile.get("tags", [])
 
         for tag in tags:
             if tag in PLAYBOOK_MAP:
-                playbook, extra_vars = PLAYBOOK_MAP[tag]
-                return playbook, {**dict(extra_vars), **self.profile_ansible_vars(profile)}
+                playbook, extra_vars_raw = PLAYBOOK_MAP[tag]
+                # If extra_vars_raw is a list, convert to dict (though it's usually empty [] now)
+                extra_vars = extra_vars_raw if isinstance(extra_vars_raw, dict) else {}
+                return playbook, {**extra_vars, **self.profile_ansible_vars(profile)}
 
         # If no tag matches, default to ansible/site.yml
         return "ansible/site.yml", self.profile_ansible_vars(profile)

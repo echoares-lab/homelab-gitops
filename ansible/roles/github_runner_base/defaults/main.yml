@@ -18,12 +18,12 @@ runner_base_packages:
   - sed
   - gawk
   - build-essential
-  - python3
+  - python3.12
+  - python3.12-venv
   - python3-pip
   - jq
   - make
   - acl
-  - python3-venv
   - direnv
   - psmisc
   - cloud-guest-utils

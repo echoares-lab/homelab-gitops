@@ -23,15 +23,20 @@ class TofuWrapper(BaseWrapper):
         self.chdir = chdir
         super().__init__()
 
-    def _build_apply_command(self) -> List[str]:
+    def _build_apply_command(self, variables: Optional[dict] = None) -> List[str]:
         """Build tofu apply command."""
-        return [
+        cmd = [
             "tofu",
             f"-chdir={self.chdir}",
             "apply",
-            "-var-file=environments/prod.tfvars",
             "-auto-approve"
         ]
+
+        if variables:
+            for key, value in variables.items():
+                cmd.extend(["-var", f"{key}={value}"])
+
+        return cmd
 
     def _build_destroy_command(self) -> List[str]:
         """Build tofu destroy command."""
@@ -42,14 +47,17 @@ class TofuWrapper(BaseWrapper):
             "-auto-approve"
         ]
 
-    def apply(self) -> bool:
+    def apply(self, variables: Optional[dict] = None) -> bool:
         """
         Run 'tofu apply' to provision VM.
+
+        Args:
+            variables: Optional dictionary of variables to pass to tofu
 
         Returns:
             True if apply succeeded, False otherwise
         """
-        cmd = self._build_apply_command()
+        cmd = self._build_apply_command(variables)
         result = self._run_command(cmd)
         return result.returncode == 0
 
@@ -64,10 +72,20 @@ class TofuWrapper(BaseWrapper):
         result = self._run_command(cmd)
         return result.returncode == 0
 
+    def init(self) -> bool:
+        """Run 'tofu init'."""
+        cmd = ["tofu", f"-chdir={self.chdir}", "init"]
+        result = self._run_command(cmd)
+        return result.returncode == 0
+
     def workspace_new(self, name: str) -> bool:
-        """Create a new OpenTofu workspace."""
+        """Create a new OpenTofu workspace. If it exists, select it."""
         cmd = ["tofu", f"-chdir={self.chdir}", "workspace", "new", name]
         result = self._run_command(cmd)
+        if result.returncode != 0:
+            # Try selecting it
+            cmd = ["tofu", f"-chdir={self.chdir}", "workspace", "select", name]
+            result = self._run_command(cmd)
         return result.returncode == 0
 
     def workspace_delete(self, name: str) -> bool:

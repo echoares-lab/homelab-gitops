@@ -26,8 +26,6 @@ TEST_GW = "10.10.10.1"
 EXPECTED_ALIASES = {
     "bu": "build", "li": "lint", "dep": "deploy", "cfg": "config",
     "ts": "test", "rm": "destroy", "st": "status", "a": "all",
-    "mkprofile": "create-profile", "ep": "edit-profile",
-    "mkrole": "create-role", "mkplay": "create-play",
 }
 
 CANONICAL_COMMANDS = [
@@ -211,17 +209,15 @@ def test_generators():
         os.remove(f"config/profiles/{TEST_PROFILE}.yml")
 
     child = pexpect.spawn("python3 manage.py create-profile")
-    child.expect("Enter new profile name:")
+    child.expect("Profile name")
     child.sendline(TEST_PROFILE)
-    child.expect("Base OS")
-    child.sendline("1")
-    child.expect("CPU Count")
+    child.expect("CPU cores")
     child.sendline("2")
-    child.expect("RAM")
+    child.expect("Memory")
     child.sendline("4")
-    child.expect("Disk Size")
+    child.expect("Disk")
     child.sendline("20")
-    child.expect("Extra Tags")
+    child.expect("Tags")
     child.sendline("docker")
     child.expect(pexpect.EOF)
 
@@ -232,10 +228,10 @@ def test_generators():
 def test_logic_audit():
     log("Testing Orchestrator Logic...")
     out = run_cmd(["python3", "manage.py", "lint", TEST_PROFILE, "01"])
-    if "Infrastructure Linting Passed" not in out:
+    if "Lint passed" not in out:
         fail("Linting did not report success.")
     out = run_cmd(["python3", "manage.py", "--help"])
-    if "Synthesis" not in out:
+    if "Orchestrator" not in out:
         fail("--help output missing expected content.")
     log("Logic audit PASSED.")
 

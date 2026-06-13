@@ -44,7 +44,7 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Ensure useful utilities are present (Photon)
-  ansible.builtin.command: tdnf install -y htop rsync unzip
+  ansible.builtin.command: tdnf install -y htop rsync
   register: tdnf_utils
   changed_when: "'Nothing to do' not in tdnf_utils.stdout and 'already installed' not in tdnf_utils.stdout"
   when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['distribution'] == 'VMware Photon OS'

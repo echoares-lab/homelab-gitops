@@ -70,3 +70,11 @@
   - base
   - security
   - dns_technitium
+
+- name: Deploy EnGenius Private Cloud
+  hosts: tag_engenius_epc
+  become: true
+  roles:
+  - base
+  - security
+  - engenius_epc
