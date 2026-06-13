@@ -17,7 +17,6 @@ jobs:
     name: Integration Tests (Tier 2)
     runs-on: [self-hosted, testing]
     # Note: This job requires a self-hosted runner with homelab access
-    # For GitHub-hosted runners, this would need a VPN or direct vSphere access
 
     steps:
       - name: Checkout code
@@ -31,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e .
           pip install pytest-testinfra paramiko pexpect
 
       - name: Validate test VM is accessible
@@ -49,15 +48,11 @@ jobs:
         if: secrets.TEST_VM_HOST == ''
         run: |
           echo "⚠ Skipping integration tests: TEST_VM_HOST secret not configured"
-          echo "To enable integration tests, configure these secrets in GitHub:"
-          echo "  - TEST_VM_HOST"
-          echo "  - TEST_VM_SSH_KEY"
 
       - name: Validate OpenTofu configuration
         run: |
           echo "=== Validating OpenTofu Configuration ==="
           cd tofu
-          # Note: tofu requires vCenter credentials; this is informational
           tofu validate || echo "⚠ OpenTofu validation requires credentials"
 
       - name: Run Ansible syntax check and dry-run
@@ -79,11 +74,10 @@ jobs:
         env:
           TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
           TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
-          PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
         run: |
           echo "=== Integration Tests ==="
-          pytest tests/test_services/ tests/test_manage_cli.py -v \
-            --tb=short -m "not e2e"
+          pytest tests/integration/ -v --tb=short -m "not e2e"
 
       - name: Run matrix test validation
         run: |
@@ -104,10 +98,3 @@ jobs:
               body: `## Integration Tests ${emoji}\nStatus: ${status}`
             });
         continue-on-error: true
-
-      - name: Report infrastructure health
-        if: always()
-        run: |
-          echo "=== Infrastructure Health ==="
-          echo "Test VM: ${{ secrets.TEST_VM_HOST }}"
-          echo "Status: ${{ job.status }}"
