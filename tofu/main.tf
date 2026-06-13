@@ -19,6 +19,7 @@ module "vm" {
   source = "./modules/vm"
 
   profile_name     = var.profile_name
+  vm_name          = var.vm_name
   cpu              = var.vm_cpu
   memory           = var.vm_ram_gb * 1024
   disk             = var.disk_size_gb

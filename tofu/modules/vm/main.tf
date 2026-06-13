@@ -7,10 +7,89 @@ terraform {
   }
 }
 
-# VM provisioning module
-# This module encapsulates vSphere VM provisioning logic
-# In a real implementation, this would contain the full vsphere_virtual_machine resource
-# and supporting data sources (datastore, network, template lookups, etc.)
-#
-# For now, this is a placeholder that demonstrates the modular structure.
-# The root module (../main.tf) will call this module with profile-specific variables.
+data "vsphere_datacenter" "dc" {
+  name = var.datacenter
+}
+
+data "vsphere_compute_cluster" "cluster" {
+  name          = var.cluster
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_datastore" "datastore" {
+  name          = var.datastore
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_network" "network" {
+  name          = var.network
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_content_library" "library" {
+  name = var.library_name
+}
+
+data "vsphere_content_library_item" "template" {
+  name       = var.template_name
+  library_id = data.vsphere_content_library.library.id
+  type       = "ovf"
+}
+
+resource "vsphere_virtual_machine" "vm" {
+  name             = var.vm_name
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus         = var.cpu
+  memory           = var.memory
+  guest_id         = var.guest_id
+  firmware         = "efi"
+  hardware_version = 21
+
+  scsi_type = "pvscsi"
+
+  network_interface {
+    network_id   = data.vsphere_network.network.id
+    adapter_type = "vmxnet3"
+    mac_address  = var.mac_address != "" ? var.mac_address : null
+  }
+
+  disk {
+    label            = "disk0"
+    size             = var.disk
+    thin_provisioned = true
+  }
+
+  cdrom {
+    client_device = true
+  }
+
+  clone {
+    template_uuid = data.vsphere_content_library_item.template.id
+
+    dynamic "customize" {
+      for_each = var.ipv4_address != "" ? [1] : []
+      content {
+        linux_options {
+          host_name = split(".", var.vm_name)[0]
+          domain    = length(split(".", var.vm_name)) > 1 ? join(".", slice(split(".", var.vm_name), 1, length(split(".", var.vm_name)))) : "local"
+        }
+
+        network_interface {
+          ipv4_address = var.ipv4_address
+          ipv4_netmask = var.ipv4_netmask
+        }
+
+        ipv4_gateway    = var.ipv4_gateway
+        dns_server_list = var.dns_servers
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      clone[0].template_uuid,
+    ]
+  }
+}

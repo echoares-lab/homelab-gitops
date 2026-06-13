@@ -86,6 +86,44 @@ class SecretsDriver(Driver):
                 raise
             raise ExecutionError(f"Secrets operation failed: {str(e)}")
 
+    def store_secret(self, item_name: str, value: str, vault: Optional[str] = None) -> None:
+        """Store a secret in 1Password.
+
+        Args:
+            item_name: Name of the item to create/update.
+            value: Secret value (stored in 'password' field by default).
+            vault: Vault to store in.
+        """
+        if not self.op_path:
+            raise ExecutionError("'op' CLI required for storing secrets")
+
+        vault = vault or self.default_vault
+
+        try:
+            # Check if item exists
+            result = subprocess.run(
+                [self.op_path, "item", "get", item_name, "--vault", vault, "--format", "json"],
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode == 0:
+                # Update existing item
+                subprocess.run(
+                    [self.op_path, "item", "edit", item_name, f"password={value}", "--vault", vault],
+                    check=True,
+                    capture_output=True
+                )
+            else:
+                # Create new item
+                subprocess.run(
+                    [self.op_path, "item", "create", "--category", "login", "--title", item_name, f"password={value}", "--vault", vault],
+                    check=True,
+                    capture_output=True
+                )
+        except subprocess.CalledProcessError as e:
+            raise ExecutionError(f"Failed to store secret in 1Password: {e.stderr}")
+
     def _get_secret(self, secret_ref: Optional[str], overrides: Optional[Dict[str, Any]] = None) -> str:
         """Fetch a single secret."""
         if not secret_ref:

@@ -21,6 +21,10 @@ graph TD
     B -->|Read-only Status| H[Fleet Dashboard]
     Workspace --> H
     E --> H
+    B -->|ACME DNS-01| I[Certificate Service]
+    I -->|TXT Record| J[Technitium DNS]
+    I -->|Key/Cert| K[1Password Vault]
+    K -->|Secrets Injection| F
 ```
 
 ---

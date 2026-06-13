@@ -61,6 +61,12 @@ Prints a read-only Rich table of managed OpenTofu workspaces and matching vCente
 *   **Alias:** `python3 manage.py st`
 *   **Use case:** Quickly spot missing VMs, missing IPs, power state, host placement, profile tags, and workspace drift before making changes.
 
+### `cert`
+Manages ACME certificates using DNS-01 challenges via Technitium.
+*   **Issue:** `python3 manage.py cert issue --domain "app.mgmt.plexplease.com" --email "admin@plexplease.com"`
+*   **Workflow:** Generates a local key, creates a TXT record in Technitium, validates via Let's Encrypt, and stores the resulting cert chain in 1Password.
+*   **Security:** Certificates are stored in 1Password as `cert-<domain>-chain` and `cert-<domain>-key`.
+
 ---
 
 ## 3. Generator Helpers
