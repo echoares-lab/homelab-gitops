@@ -1,8 +1,8 @@
 from typing import Dict, List, Any
-from .models import NodeProfile, Task, TaskResult, DeploymentState
-from .state_machine import StateMachine
-from .exceptions import InvalidStateTransition, DomainError
-from .validators import YAMLSchemaValidator
+from homelab_gitops.domain.models import NodeProfile, Task, TaskResult, DeploymentState
+from homelab_gitops.domain.state_machine import StateMachine
+from homelab_gitops.domain.exceptions import InvalidStateTransition, DomainError
+from homelab_gitops.domain.validators import YAMLSchemaValidator
 
 class Workflow:
     """Orchestrates the Build → Provision → Configure → Test pipeline."""

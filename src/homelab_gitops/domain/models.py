@@ -9,6 +9,7 @@ class NodeProfile:
     vcenter: Dict[str, Any]  # datacenter, cluster, datastore, network
     vm_specs: Dict[str, Any]  # cpu, memory, disk
     deployment: Dict[str, Any]  # tags, roles, playbooks
+    networking: Dict[str, Any] = field(default_factory=dict)  # vlan, firewall_rules
 
     def __post_init__(self):
         """Validate structure on creation."""
@@ -47,7 +48,7 @@ class TaskResult:
     """Result of task execution."""
     success: bool
     task_type: str
-    output: str
+    output: Any
     duration: float
     error: Optional[str] = None
     vm_ip: Optional[str] = None  # Returned from deploy task

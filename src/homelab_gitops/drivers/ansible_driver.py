@@ -3,8 +3,8 @@
 import subprocess
 import shutil
 import time
-from .base import Driver
-from .exceptions import PrerequisiteError, ExecutionError
+from homelab_gitops.drivers.base import Driver
+from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
 
 

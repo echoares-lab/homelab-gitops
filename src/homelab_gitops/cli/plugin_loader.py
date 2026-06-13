@@ -54,6 +54,7 @@ class PluginLoader:
                         "aliases": metadata.get("aliases", []),
                         "help": metadata.get("help", ""),
                         "callable": command_func,
+                        "metadata": metadata,
                     }
                 )
 

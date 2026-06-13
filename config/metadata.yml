@@ -1,76 +1,29 @@
----
 # HomeLab GitOps Metadata
 # Provides human-readable descriptions for interactive CLI prompts
 
 commands:
   build: "Create a fresh Golden OVF template using Packer."
-  lint: >-
-    Verify YAML schema and check if vCenter objects (Datacenter,
-    Host, Net) exist.
-  deploy: >-
-    Provision virtual hardware and isolate state via OpenTofu
-    workspaces.
-  config: >-
-    Apply OS-level configuration and security hardening via
-    Ansible.
-  test: >-
-    Run automated validation tests to confirm node compliance.
-  destroy: >-
-    Safely remove a VM and its associated Tofu state from
-    vCenter.
-  status: >-
-    Show a read-only fleet dashboard for managed Tofu workspaces
-    and vCenter VMs.
-  all: >-
-    Execute the entire pipeline (Lint -> Deploy -> Config ->
-    Test).
-  create-profile: >-
-    Interactive wizard to scaffold a new hardware blueprint.
-  edit-profile: >-
-    Update resource specs (CPU, RAM, Disk) for an existing
-    profile.
-  create-role: >-
-    Scaffold a new Ansible role directory structure.
-  create-play: >-
-    Create a new targeting 'bucket' in site.yml for specific
-    tags.
+  lint: "Verify YAML schema and check if vCenter objects (Datacenter, Host, Net) exist."
+  deploy: "Provision virtual hardware and isolate state via OpenTofu workspaces."
+  config: "Apply OS-level configuration and security hardening via Ansible."
+  test: "Run automated validation tests to confirm node compliance."
+  destroy: "Safely remove a VM and its associated Tofu state from vCenter."
+  all: "Execute the entire pipeline (Lint -> Deploy -> Config -> Test -> Destroy)."
+  create-profile: "Interactive wizard to scaffold a new hardware blueprint."
+  edit-profile: "Update resource specs (CPU, RAM, Disk) for an existing profile."
+  create-role: "Scaffold a new Ansible role directory structure."
+  create-play: "Create a new targeting 'bucket' in site.yml for specific tags."
 
 tags:
   ubuntu: "Standard Ubuntu LTS configuration."
-  ubuntu-2404: >-
-    Ubuntu 24.04 LTS (Noble Numbat) golden template.
-  ubuntu-2604: >-
-    Ubuntu 26.04 LTS golden template (future).
+  ubuntu-2404: "Ubuntu 24.04 LTS (Noble Numbat) golden template."
+  ubuntu-2604: "Ubuntu 26.04 LTS golden template (future)."
   photon: "VMware Photon OS 5.0 (minimal) configuration."
-  docker: >-
-    Install and configure Docker Engine and Docker Compose.
-  alloy: >-
-    Deploy Grafana Alloy monitoring agent (metrics + logs).
+  docker: "Install and configure Docker Engine and Docker Compose."
   dns: "Configure Technitium DNS services."
-  cf_runner: >-
-    Provision an org-level GitHub Actions runner profile.
-  git_test: >-
-    Provision a GitHub Actions runner for testing and CI
-    purposes.
-  cf_dev: >-
-    Provision a development workstation profile for Cloudflare
-    Access automation tooling.
-  homelab_dev: >-
-    Provision a development workstation profile for HomeLab GitOps
-    tooling.
-  combined_dev: >-
-    Provision a combined development workstation profile for both
-    homelab and access automation workflows.
-  engenius_epc: "Provision EnGenius Private Cloud (EPC) node."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."
   security: "SSH hardening (disable root/passwords) and UFW firewall setup."
   docker: "Container runtime installation and daemon optimization."
-  docker_metrics: "Configure Docker daemon for TLS socket and metrics exposure."
   dns_technitium: "Automated Technitium DNS stack deployment."
-  github_runner_base: "Prepare GitHub runner hosts with build dependencies and expand root storage to the provisioned virtual disk size."
-  github_runner: "Install and register the GitHub Actions runner service."
-  github_runner_ci: "Apply aggregated multi-repository CI dependencies and seed caches on runner hosts."
-  log_retention: "Apply profile-owned logrotate policies and bounded journald retention across managed hosts."
-  engenius_epc: "Install and configure EnGenius Private Cloud (EPC) via official deployment script."

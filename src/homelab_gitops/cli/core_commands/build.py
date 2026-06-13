@@ -1,7 +1,7 @@
 """Build command - prepare base images."""
 
 import typer
-from ..utils import print_success, print_error, print_info
+from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 
 def build_command(

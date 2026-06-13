@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from typing import List
-from .models import NodeProfile
+from homelab_gitops.domain.models import NodeProfile
 
 
 @dataclass

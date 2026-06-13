@@ -1,0 +1,102 @@
+vcenter:
+  datacenter: "HOMELAB"
+  cluster: "Primary"
+  host: "esxi-01.mgmt.plexplease.com"
+  datastore: "ds-nfs-prod"
+  network: "VM Network"
+
+content_library:
+  name: "GOLDEN"
+  template: "ubuntu-24.04-lts-golden"
+
+vm_specs:
+  cpu: 4
+  ram_gb: 8
+  guest_id: "ubuntu64Guest"
+  disk_size_gb: 50
+
+deployment:
+  tags:
+    - "ubuntu"
+    - "ubuntu-2404"
+    - "engenius_epc"
+  vm_name_prefix: "epc"
+  vm_name_domain: "mgmt.plexplease.com"
+
+opnsense:
+  vlan:
+    interface: em0
+    id: 100
+    name: "web-tier"
+    enabled: true
+
+  firewall_rules:
+    - name: "Allow SSH from mgmt"
+      src_net: "10.0.0.0/24"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 22
+      action: "pass"
+      enabled: true
+      log: true
+      description: "SSH from management subnet"
+
+    - name: "Allow HTTPS inbound"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 443
+      action: "pass"
+      enabled: true
+      log: false
+      description: "HTTPS traffic"
+
+    - name: "Allow HTTP inbound"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 80
+      action: "pass"
+      enabled: true
+      log: false
+      description: "HTTP traffic"
+
+    - name: "Allow EPC 8080"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 8080
+      action: "pass"
+      enabled: true
+      log: false
+      description: "EPC 8080"
+
+    - name: "Allow EPC 18120"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "tcp"
+      port: 18120
+      action: "pass"
+      enabled: true
+      log: false
+      description: "EPC 18120"
+
+    - name: "Allow RADIUS"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "udp"
+      port: 1812
+      action: "pass"
+      enabled: true
+      log: false
+      description: "RADIUS"
+
+    - name: "Allow RADIUS Acct"
+      src_net: "0.0.0.0/0"
+      dst_net: "0.0.0.0/0"
+      protocol: "udp"
+      port: 1813
+      action: "pass"
+      enabled: true
+      log: false
+      description: "RADIUS Accounting"

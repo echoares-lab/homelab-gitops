@@ -13,12 +13,15 @@ dependencies = [
     "pyyaml",
     "typing_extensions",
     "requests",
-    "pydantic>=2.12.0",
-    "pyvmomi"
+    "pydantic>=2.0.0",
+    "pyvmomi",
+    "pytest-testinfra",
+    "pexpect",
+    "paramiko"
 ]
 
 [tool.setuptools]
-packages = ["homelab_gitops", "opnsense", "technitium"]
+packages = ["homelab_gitops"]
 
 [tool.setuptools.package-dir]
 "" = "src"
