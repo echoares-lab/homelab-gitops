@@ -17,7 +17,9 @@ dependencies = [
     "pyvmomi",
     "pytest-testinfra",
     "pexpect",
-    "paramiko"
+    "paramiko",
+    "acme",
+    "cryptography"
 ]
 
 [tool.setuptools]
