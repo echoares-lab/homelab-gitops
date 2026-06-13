@@ -61,6 +61,7 @@ tags:
   combined_dev: >-
     Provision a combined development workstation profile for both
     homelab and access automation workflows.
+  engenius_epc: "Provision EnGenius Private Cloud (EPC) node."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."
@@ -72,3 +73,4 @@ roles:
   github_runner: "Install and register the GitHub Actions runner service."
   github_runner_ci: "Apply aggregated multi-repository CI dependencies and seed caches on runner hosts."
   log_retention: "Apply profile-owned logrotate policies and bounded journald retention across managed hosts."
+  engenius_epc: "Install and configure EnGenius Private Cloud (EPC) via official deployment script."
