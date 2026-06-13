@@ -7,6 +7,7 @@ from typing import Optional
 from homelab_gitops.domain.models import NodeProfile
 from homelab_gitops.domain.workflows import Workflow
 from homelab_gitops.drivers.tofu_driver import TofuDriver
+from homelab_gitops.drivers.ansible_driver import AnsibleDriver
 from homelab_gitops.domain.exceptions import DomainError
 from homelab_gitops.cli.utils import print_success, print_error, print_info
 
@@ -15,6 +16,7 @@ def deploy_command(
     profile: str,
     index: Optional[str] = typer.Argument(None, help="Instance index (01, 02, etc.)"),
     host: Optional[str] = typer.Option(None, help="Target ESXi host"),
+    config: bool = typer.Option(True, help="Automatically run configuration after deployment"),
 ):
     """Provision virtual hardware via OpenTofu.
 
@@ -36,16 +38,21 @@ def deploy_command(
         # Setup drivers
         drivers = {
             "deploy": TofuDriver(),
+            "config": AnsibleDriver(),
         }
 
         # Create workflow
         workflow = Workflow(profile_obj, drivers=drivers)
 
-        # Execute deploy stage
-        print_info(f"Deploying {profile} {index or ''} ...")
-        state = workflow.execute(["deploy"])
+        # Execute stages
+        stages = ["deploy"]
+        if config:
+            stages.append("config")
 
-        print_success(f"Deployed {profile} at {state.vm_ip}")
+        print_info(f"Executing workflow: {' -> '.join(stages)} for {profile} {index or ''} ...")
+        state = workflow.execute(stages)
+
+        print_success(f"Workflow completed for {profile} at {state.vm_ip}")
 
     except FileNotFoundError as e:
         print_error(str(e))

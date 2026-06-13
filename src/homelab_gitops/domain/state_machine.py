@@ -6,7 +6,8 @@ class StateMachine:
     """Enforces valid state transitions for node lifecycle."""
 
     TRANSITIONS = {
-        "planned": ["deployed"],
+        "planned": ["built", "deployed"],
+        "built": ["deployed", "destroyed"],
         "deployed": ["configured", "destroyed"],
         "configured": ["tested", "destroyed"],
         "tested": ["updated", "destroyed"],

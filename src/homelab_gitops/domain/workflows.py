@@ -46,9 +46,9 @@ class Workflow:
         stage_to_state = {
             "build": "built",
             "deploy": "deployed",
-            "provision": "deployed",  # Alias
+            "provision": "deployed",
             "config": "configured",
-            "configure": "configured",  # Alias
+            "configure": "configured",
             "test": "tested",
             "destroy": "destroyed",
         }
