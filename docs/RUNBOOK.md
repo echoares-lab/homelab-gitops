@@ -146,6 +146,52 @@ skip_alloy: true  # Opt-out for ephemeral runners
 - `alloy_central_prometheus_url` / `alloy_central_loki_url` — where to send data
 - Per-profile: `alloy_extra_scrape_targets` to add custom exporters
 
+### Profile Log Retention
+
+Every profile playbook includes the `log_retention` role. By default it keeps
+journald bounded with a daily vacuum retaining up to 14 days or 512MB,
+whichever limit is hit first.
+
+Profiles can add application log policies under `logging.files`. Example from
+`photon-dns`:
+
+```yaml
+logging:
+  files:
+  - path: /var/log/technitium/dns/*.log
+    owner: dns-server
+    group: dns-server
+    mode: "0640"
+    rotate_count: 14
+    max_size: 100M
+  journald:
+    vacuum_enabled: true
+    vacuum_time: 14d
+    vacuum_size: 512M
+```
+
+This renders `/etc/logrotate.d/homelab-profile` and uses compression plus
+copytruncate for app logs that stay open.
+
+### Runner disk expansion
+
+GitHub runner profiles allocate a 400 GB virtual disk. The `github_runner_base`
+role expands the root partition and filesystem during configuration so the OS can
+use the full disk.
+
+Token-free repair for existing runners:
+
+```bash
+ansible-playbook ansible/runner-maintenance.yml \
+  -i ansible/inventory/vmware_vms.yml
+```
+
+Verify a runner after config:
+
+```bash
+df -h /
+```
+
 ### Docker Metrics & TLS
 
 Docker hosts receive the `docker_metrics` role (applied after `docker` role).

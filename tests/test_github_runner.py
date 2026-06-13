@@ -96,6 +96,12 @@ def test_docker_running(host):
     assert svc.is_running
     assert svc.is_enabled
 
+def test_runner_root_filesystem_uses_400gb_disk(host):
+    _skip_if_not_runner()
+    result = host.run("df --output=size -BG / | awk 'NR == 2 { gsub(/G/, \"\", $1); print $1 }'")
+    assert result.rc == 0
+    assert int(result.stdout.strip()) >= 380
+
 def test_build_essential_installed(host):
     _skip_if_not_runner()
     assert host.package("build-essential").is_installed

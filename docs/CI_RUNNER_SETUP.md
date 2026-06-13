@@ -3,6 +3,11 @@
 Self-hosted GitHub Actions runners are provisioned by **homelab-gitops** Ansible.
 Each application repo declares what it needs; homelab-gitops **aggregates** manifests and applies them to runner hosts.
 
+Runner profiles allocate a 400 GB virtual disk. During runner baseline provisioning,
+`github_runner_base` expands the root partition and filesystem so `/` can use the
+full disk exposed by OpenTofu/vSphere instead of remaining at the golden template
+size.
+
 ## Architecture
 
 ```
@@ -79,6 +84,20 @@ ansible-playbook ansible/git-test-runner.yml \
 
 Or Cloudflare runner playbook for org-level runners.
 
+### Existing runner maintenance
+
+Use the token-free maintenance playbook when you need to repair storage or
+baseline packages on already-registered runners. This does not re-register the
+GitHub runner and does not require a GitHub runner token:
+
+```bash
+ansible-playbook ansible/runner-maintenance.yml \
+  -i ansible/inventory/vmware_vms.yml
+```
+
+If vCenter tags are unavailable, limit by hostname pattern or inventory host
+list instead of passing a runner token.
+
 ## What persists on the runner
 
 | Layer | Persists? | Managed by |
@@ -93,7 +112,8 @@ Or Cloudflare runner playbook for org-level runners.
 
 | Role | Purpose |
 |------|---------|
-| `github_runner_base` | Go, Node, python3.12, direnv, base apt |
+| `log_retention` | Profile-owned log retention and journald size/time caps |
+| `github_runner_base` | Grow root filesystem to the full runner disk, then install Go, Node, python3.12, direnv, base apt |
 | `docker` | docker + compose |
 | `github_runner` | Install/register actions-runner service |
 | `github_runner_ci` | **Aggregated** multi-repo apt + pip seed venv |

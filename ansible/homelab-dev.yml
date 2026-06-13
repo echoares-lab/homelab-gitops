@@ -14,6 +14,7 @@
   roles:
     - base
     - security
+    - log_retention
 
 - name: Install homelab-gitops dev toolchain
   hosts: tag_homelab_dev

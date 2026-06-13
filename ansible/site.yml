@@ -7,6 +7,11 @@
   become: true
   roles:
     - op_connect_integration
+- name: Configure profile log retention
+  hosts: all
+  become: true
+  roles:
+    - log_retention
 - name: Deploy monitoring agents
   hosts: tag_alloy
   become: true

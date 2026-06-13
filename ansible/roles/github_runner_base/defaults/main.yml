@@ -26,6 +26,10 @@ runner_base_packages:
   - python3-venv
   - direnv
   - psmisc
+  - cloud-guest-utils
+  - e2fsprogs
+  - lvm2
+  - xfsprogs
 
 playwright_packages:
   - libnss3

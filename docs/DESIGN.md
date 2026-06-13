@@ -55,3 +55,12 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 *   **Fail-Fast Validation:** Pre-deployment linting and post-deployment connectivity tests prevent wasting time on malformed configs or network issues.
 *   **Comprehensive Testing:** Final verification is performed by **Pytest-Testinfra**, ensuring the node is truly "Ready for Production" before the pipeline finishes.
 *   **Read-Only Fleet Visibility:** `python3 manage.py status` compares managed Tofu workspaces with vCenter VM facts so operators can see power state, IP, host placement, profile tags, and likely workspace drift before making lifecycle changes.
+*   **Profile-Owned Retention:** The `log_retention` role is assigned to profile playbooks and consumes profile `logging:` policy. Generic journald retention is bounded globally; application file rotation is declared by the profile that owns the application path.
+
+## Runner Storage
+
+Runner profiles define 400 GB disks and pass that size to OpenTofu as
+`disk_size_gb`. The runner Ansible baseline (`github_runner_base`) grows the
+guest root partition and filesystem so the OS consumes the full virtual disk.
+Existing registered runners can be repaired with `ansible/runner-maintenance.yml`
+without using a GitHub registration token.
