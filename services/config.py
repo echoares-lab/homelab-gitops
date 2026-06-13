@@ -13,8 +13,9 @@ PLAYBOOK_MAP = {
     "cf_runner":    ("ansible/cloudflare-runner.yml", []),
     "cf_dev":       ("ansible/cloudflare-dev.yml",    []),
     "homelab_dev":  ("ansible/homelab-dev.yml",       []),
-    "combined_dev": ("ansible/combined-dev.yml",      ["github_pat"]),
+    "combined_dev": ("ansible/combined-dev.yml",      []),
     "git_test":     ("ansible/git-test-runner.yml",   []),
+    "dns":          ("ansible/site.yml",              []),
 }
 
 class ConfigService:
@@ -71,20 +72,19 @@ class ConfigService:
                 raise ValueError(f"Profile missing required section: {field}")
 
         # Validate vm_specs has hardware config
-        specs = profile.get("vm_specs", {})
+        spec = profile.get("vm_specs", {})
         required_hw = {"cpu", "ram_gb", "disk_size_gb"}
         for hw_field in required_hw:
-            if hw_field not in specs:
+            if hw_field not in spec:
                 raise ValueError(f"Profile vm_specs missing: {hw_field}")
 
-        # Validate deployment has tags
         deployment = profile.get("deployment", {})
         if "tags" not in deployment:
             raise ValueError("Profile deployment missing: tags")
 
         return True
 
-    def resolve_playbook(self, profile_name: str) -> Tuple[str, List[str]]:
+    def resolve_playbook(self, profile_name: str) -> Tuple[str, Dict]:
         """
         Get the playbook and required extra vars for a profile based on its tags.
 
@@ -92,21 +92,54 @@ class ConfigService:
             profile_name: Name of profile
 
         Returns:
-            Tuple of (playbook_filename, list_of_required_extra_var_keys)
+            Tuple of (playbook_filename, extra_vars)
 
         Raises:
             ValueError: If no playbook found for profile's tags
         """
         profile = self.load_profile(profile_name)
-        tags = profile.get("tags", [])
+        deployment = profile.get("deployment") or {}
+        # FIX: Ensure we check deployment.tags first, then root tags (legacy)
+        tags = deployment.get("tags") or profile.get("tags", [])
 
         for tag in tags:
             if tag in PLAYBOOK_MAP:
-                playbook, extra_vars = PLAYBOOK_MAP[tag]
-                return playbook, extra_vars
+                playbook, extra_vars_raw = PLAYBOOK_MAP[tag]
+                # If extra_vars_raw is a list, convert to dict (though it's usually empty [] now)
+                extra_vars = extra_vars_raw if isinstance(extra_vars_raw, dict) else {}
+                return playbook, {**extra_vars, **self.profile_ansible_vars(profile)}
 
         # If no tag matches, default to ansible/site.yml
-        return "ansible/site.yml", []
+        return "ansible/site.yml", self.profile_ansible_vars(profile)
+
+    def profile_ansible_vars(self, profile: dict) -> Dict:
+        """Flatten profile-controlled Ansible variables."""
+        extra_vars = dict(profile.get("ansible_vars") or {})
+        logging_cfg = profile.get("logging") or {}
+
+        logging_var_map = {
+            "enabled": "log_retention_enabled",
+            "files": "log_retention_files",
+            "rotate_frequency": "log_retention_rotate_frequency",
+            "rotate_count": "log_retention_rotate_count",
+            "max_size": "log_retention_max_size",
+        }
+        for source_key, var_name in logging_var_map.items():
+            if source_key in logging_cfg:
+                extra_vars[var_name] = logging_cfg[source_key]
+
+        journald_cfg = logging_cfg.get("journald") or {}
+        journald_var_map = {
+            "vacuum_enabled": "log_retention_journald_vacuum_enabled",
+            "vacuum_time": "log_retention_journald_vacuum_time",
+            "vacuum_size": "log_retention_journald_vacuum_size",
+            "timer_calendar": "log_retention_journald_vacuum_timer_calendar",
+        }
+        for source_key, var_name in journald_var_map.items():
+            if source_key in journald_cfg:
+                extra_vars[var_name] = journald_cfg[source_key]
+
+        return extra_vars
 
     def create_profile(self, name: str, spec: dict, tags: List[str]) -> bool:
         """

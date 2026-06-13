@@ -1,0 +1,10 @@
+[Unit]
+Description=Run HomeLab journald retention policy
+
+[Timer]
+OnCalendar={{ log_retention_journald_vacuum_timer_calendar }}
+RandomizedDelaySec={{ log_retention_journald_vacuum_randomized_delay }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -23,4 +23,5 @@
   roles:
     - base
     - security
+    - log_retention
     - dev_combined

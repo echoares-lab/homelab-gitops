@@ -19,6 +19,7 @@
   roles:
     - base
     - security
+    - log_retention
     - docker
     - github_runner_base
 

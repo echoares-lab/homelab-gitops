@@ -1,0 +1,22 @@
+---
+log_retention_enabled: true
+
+# Optional logrotate-managed files. Profiles should add application-specific
+# paths here rather than hardcoding them in application roles.
+log_retention_files: []
+log_retention_rotate_frequency: daily
+log_retention_rotate_count: 14
+log_retention_max_size: 100M
+log_retention_file_mode: "0640"
+log_retention_file_owner: root
+log_retention_file_group: root
+log_retention_compress: true
+log_retention_delaycompress: true
+log_retention_copytruncate: true
+
+# Journald is present on all supported profiles. Keep logs useful but bounded.
+log_retention_journald_vacuum_enabled: true
+log_retention_journald_vacuum_time: 14d
+log_retention_journald_vacuum_size: 512M
+log_retention_journald_vacuum_timer_calendar: daily
+log_retention_journald_vacuum_randomized_delay: 30m

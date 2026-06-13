@@ -25,6 +25,7 @@
   roles:
     - base
     - security
+    - log_retention
     - github_runner_base
 
 - name: Install and register GitHub Actions runner

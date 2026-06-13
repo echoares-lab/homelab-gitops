@@ -18,3 +18,15 @@ deployment:
   - dns
   vm_name_prefix: photon
   vm_name_domain: mgmt.plexplease.com
+logging:
+  files:
+  - path: /var/log/technitium/dns/*.log
+    owner: dns-server
+    group: dns-server
+    mode: "0640"
+    rotate_count: 14
+    max_size: 100M
+  journald:
+    vacuum_enabled: true
+    vacuum_time: 14d
+    vacuum_size: 512M

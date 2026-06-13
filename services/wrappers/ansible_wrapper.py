@@ -1,5 +1,6 @@
 """Ansible wrapper for configuration management."""
 
+import json
 from typing import List, Dict, Optional
 from services.wrappers.base_wrapper import BaseWrapper
 
@@ -34,7 +35,10 @@ class AnsibleWrapper(BaseWrapper):
 
         if extra_vars:
             for key, value in extra_vars.items():
-                cmd.extend(["-e", f"{key}={value}"])
+                if isinstance(value, (dict, list)):
+                    cmd.extend(["-e", json.dumps({key: value})])
+                else:
+                    cmd.extend(["-e", f"{key}={value}"])
 
         if tags:
             cmd.extend(["-t", ",".join(tags)])
