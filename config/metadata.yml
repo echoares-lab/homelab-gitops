@@ -68,3 +68,7 @@ roles:
   docker: "Container runtime installation and daemon optimization."
   docker_metrics: "Configure Docker daemon for TLS socket and metrics exposure."
   dns_technitium: "Automated Technitium DNS stack deployment."
+  github_runner_base: "Prepare GitHub runner hosts with build dependencies and expand root storage to the provisioned virtual disk size."
+  github_runner: "Install and register the GitHub Actions runner service."
+  github_runner_ci: "Apply aggregated multi-repository CI dependencies and seed caches on runner hosts."
+  log_retention: "Apply profile-owned logrotate policies and bounded journald retention across managed hosts."

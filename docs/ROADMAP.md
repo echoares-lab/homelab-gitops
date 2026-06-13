@@ -17,7 +17,8 @@ These high-impact features are prioritized for near-term development to further 
 *   **Inventory Migration:** [DONE] Migrated to modern `vmware.vmware.vms` plugin and resolved all deprecation warnings.
 *   **1Password Runtime Secrets:** [DONE] Runtime secrets resolve through `config/secrets.env` and the Homelab-GitOps 1Password vault; Ansible Vault remains a legacy migration reference.
 *   **Fleet Status Dashboard:** [DONE] Added a read-only orchestrator command (`python3 manage.py status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
-*   **GitHub Runner for CI/Testing:** [DONE] Added high-performance runner profile (20 cores, 20GB RAM) with automated registration token retrieval and passwordless sudo support.
+*   **GitHub Runner for CI/Testing:** [DONE] Added high-performance runner profile (20 cores, 20GB RAM, 400GB disk), automated registration token retrieval, passwordless sudo support, token-free maintenance, and Ansible root filesystem expansion to consume the full runner disk.
+*   **Profile-Owned Log Retention:** [DONE] Added reusable `log_retention` role plus profile-level log policies for bounded logrotate and journald retention.
 
 ---
 

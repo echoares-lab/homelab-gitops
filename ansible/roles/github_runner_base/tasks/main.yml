@@ -16,6 +16,85 @@
     name: "{{ runner_base_packages }}"
     state: present
 
+- name: Expand root filesystem to fill runner virtual disk
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    root_source="$(readlink -f "$(findmnt -no SOURCE /)")"
+    root_fstype="$(findmnt -no FSTYPE /)"
+    before_bytes="$(df --output=size -B1 / | awk 'NR == 2 { print $1 }')"
+    lvm_root=0
+
+    if [[ "${root_source}" == /dev/mapper/* ]] || [[ "$(lsblk -no TYPE "${root_source}" 2>/dev/null | awk 'NR == 1 { print $1 }')" == "lvm" ]]; then
+      lvm_root=1
+      root_parent="$(lsblk -no PKNAME "${root_source}" 2>/dev/null | awk 'NF { print $1; exit }')"
+      if [[ -n "${root_parent}" ]]; then
+        root_partition="/dev/${root_parent}"
+      else
+        root_partition="$(pvs --noheadings -o pv_name 2>/dev/null | awk 'NF { print $1; exit }')"
+      fi
+      if [[ -z "${root_partition}" ]]; then
+        echo "Unable to identify root LVM physical volume"
+        exit 1
+      fi
+    else
+      root_partition="${root_source}"
+    fi
+
+    part_number="$(lsblk -no PARTN "${root_partition}" | awk 'NF { print $1; exit }')"
+    parent_name="$(lsblk -no PKNAME "${root_partition}" | awk 'NF { print $1; exit }')"
+
+    if [[ -z "${part_number}" || -z "${parent_name}" ]]; then
+      echo "Unable to identify parent disk for ${root_partition}"
+      exit 1
+    fi
+
+    parent_disk="/dev/${parent_name}"
+    set +e
+    growpart_output="$(growpart "${parent_disk}" "${part_number}" 2>&1)"
+    growpart_rc=$?
+    set -e
+
+    if [[ "${growpart_rc}" -ne 0 ]]; then
+      echo "${growpart_output}"
+      if ! grep -qi "NOCHANGE" <<< "${growpart_output}"; then
+        exit "${growpart_rc}"
+      fi
+    else
+      echo "${growpart_output}"
+    fi
+
+    if ! grep -qi "NOCHANGE" <<< "${growpart_output}"; then
+      echo "CHANGED partition"
+    fi
+
+    if [[ "${lvm_root}" -eq 1 ]]; then
+      pvresize "${root_partition}"
+      vg_name="$(lvs --noheadings -o vg_name "${root_source}" | awk 'NF { print $1; exit }')"
+      free_extents="$(vgs --noheadings -o vg_free_count "${vg_name}" | awk 'NF { print $1; exit }')"
+      if [[ "${free_extents:-0}" -gt 0 ]]; then
+        lvextend -r -l +100%FREE "${root_source}"
+        echo "CHANGED lvm"
+      fi
+    elif [[ "${root_fstype}" == "ext4" ]]; then
+      resize2fs "${root_source}"
+    elif [[ "${root_fstype}" == "xfs" ]]; then
+      xfs_growfs /
+    else
+      echo "Unsupported root filesystem type: ${root_fstype}"
+      exit 1
+    fi
+
+    after_bytes="$(df --output=size -B1 / | awk 'NR == 2 { print $1 }')"
+    if [[ "${after_bytes}" -gt "${before_bytes}" ]]; then
+      echo "CHANGED filesystem"
+    fi
+    echo "Root filesystem bytes: ${before_bytes} -> ${after_bytes}"
+  args:
+    executable: /bin/bash
+  register: runner_resize_root
+  changed_when: "'CHANGED' in runner_resize_root.stdout"
+
 - name: Install Playwright system deps
   ansible.builtin.apt:
     name: "{{ playwright_packages }}"
