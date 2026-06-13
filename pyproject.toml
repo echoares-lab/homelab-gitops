@@ -9,7 +9,7 @@ description = "Homelab GitOps infrastructure automation"
 requires-python = ">=3.10"
 
 [tool.setuptools]
-packages = ["homelab_gitops", "opnsense"]
+packages = ["homelab_gitops", "opnsense", "technitium"]
 
 [tool.setuptools.package-dir]
 "" = "src"
