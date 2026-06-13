@@ -74,10 +74,10 @@ jobs:
             --cov-report=json \
             --cov-report=html:htmlcov
 
-      - name: Check coverage threshold (30%)
+      - name: Check coverage threshold (50%)
         run: |
           echo "=== Coverage Check ==="
-          python -m coverage report --fail-under=30 --precision=2 || (echo "Coverage below 30% threshold!" && exit 1)
+          python -m coverage report --fail-under=50 --precision=2 || (echo "Coverage below 50% threshold!" && exit 1)
 
       - name: Upload coverage to artifacts
         if: always()
@@ -96,4 +96,4 @@ jobs:
           echo "✓ Python linting (PEP 8): Completed"
           echo "✓ Shell linting: Completed"
           echo "✓ Unit tests: Completed"
-          echo "✓ Coverage check: 30% minimum enforced"
+          echo "✓ Coverage check: 50% minimum enforced"

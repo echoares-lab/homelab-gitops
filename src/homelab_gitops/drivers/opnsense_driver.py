@@ -21,7 +21,8 @@ class OPNsenseDriver(Driver):
         self.url = os.getenv("OPNSENSE_URL", "").rstrip("/")
         self.key = os.getenv("OPNSENSE_KEY")
         self.secret = os.getenv("OPNSENSE_SECRET")
-        self.verify = os.getenv("OPNSENSE_VERIFY", "false").lower() == "true"
+        # Harden SSL: Default to True. Require explicit 'false' to disable.
+        self.verify = os.getenv("OPNSENSE_VERIFY", "true").lower() != "false"
         self.timeout = 10
 
     def validate(self) -> bool:

@@ -1,6 +1,7 @@
 """DNS domain service for Technitium orchestration."""
 
 import logging
+import ipaddress
 from typing import Dict, Any, Optional, List
 from homelab_gitops.domain.models import NodeProfile, Task, TaskResult
 
@@ -241,17 +242,37 @@ class DNSService:
         return []
 
     def _calculate_ptr(self, ip: str) -> tuple[str, str]:
-        """Calculate PTR zone and domain name from an IPv4 address.
+        """Calculate PTR zone and domain name from an IP address.
 
-        Currently supports standard /24 reverse zones.
+        Uses the ipaddress library for robust reverse DNS calculation.
+        Supports both IPv4 and IPv6. If a CIDR is provided (e.g. '10.0.0.1/16'),
+        it uses that to determine the zone.
         """
-        octets = ip.split('.')
-        if len(octets) != 4:
-            raise ValueError(f"Invalid IPv4 address for PTR calculation: {ip}")
+        try:
+            if '/' in ip:
+                iface = ipaddress.ip_interface(ip)
+                addr = iface.ip
+                prefix = iface.network.prefixlen
+            else:
+                addr = ipaddress.ip_address(ip)
+                prefix = None
 
-        # For IP 192.168.1.10
-        # ptr_zone: 1.168.192.in-addr.arpa
-        # ptr_domain: 10.1.168.192.in-addr.arpa
-        ptr_zone = f"{octets[2]}.{octets[1]}.{octets[0]}.in-addr.arpa"
-        ptr_domain = f"{octets[3]}.{ptr_zone}"
-        return ptr_zone, ptr_domain
+            ptr_domain = addr.reverse_pointer
+            parts = ptr_domain.split('.')
+
+            if prefix is not None:
+                if isinstance(addr, ipaddress.IPv4Address):
+                    # Each label in IPv4 reverse DNS represents 8 bits (one octet)
+                    num_labels_to_keep = (prefix // 8) + 2  # +2 for in-addr.arpa
+                    ptr_zone = ".".join(parts[-num_labels_to_keep:])
+                else:
+                    # Each label in IPv6 reverse DNS represents 4 bits (one nibble)
+                    num_labels_to_keep = (prefix // 4) + 2  # +2 for ip6.arpa
+                    ptr_zone = ".".join(parts[-num_labels_to_keep:])
+            else:
+                # Default: one level up from the full PTR record
+                ptr_zone = ".".join(parts[1:])
+
+            return ptr_zone, ptr_domain
+        except ValueError as e:
+            raise ValueError(f"Invalid IP address for PTR calculation: {ip}") from e

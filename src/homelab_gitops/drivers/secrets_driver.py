@@ -5,7 +5,7 @@ import subprocess
 import time
 import shutil
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
@@ -68,7 +68,7 @@ class SecretsDriver(Driver):
 
         try:
             if task.type == "get":
-                output = self._get_secret(task.target)
+                output = self._get_secret(task.target, task.overrides)
             elif task.type in ("resolve_file", "bootstrap"):
                 output = self._resolve_file(task.target)
             else:
@@ -86,10 +86,12 @@ class SecretsDriver(Driver):
                 raise
             raise ExecutionError(f"Secrets operation failed: {str(e)}")
 
-    def _get_secret(self, secret_ref: Optional[str]) -> str:
+    def _get_secret(self, secret_ref: Optional[str], overrides: Optional[Dict[str, Any]] = None) -> str:
         """Fetch a single secret."""
         if not secret_ref:
             raise ExecutionError("No secret reference provided")
+
+        overrides = overrides or {}
 
         # 1. Check environment variables first (only if not a URI)
         if not secret_ref.startswith("op://"):
@@ -107,9 +109,11 @@ class SecretsDriver(Driver):
             # If it's not a URI, try to construct one using default vault
             # Use 'op read op://vault/item/field' pattern
             op_uri = secret_ref
+            explicit_field = overrides.get("field")
+
             if not op_uri.startswith("op://"):
-                # Fallback: assume item name == secret_ref and field == 'password'
-                op_uri = f"op://{self.default_vault}/{secret_ref}/password"
+                field_name = explicit_field or "password"
+                op_uri = f"op://{self.default_vault}/{secret_ref}/{field_name}"
 
             result = subprocess.run(
                 [self.op_path, "read", op_uri, "-n"],
@@ -120,8 +124,8 @@ class SecretsDriver(Driver):
             if result.returncode == 0:
                 return result.stdout.strip()
 
-            # If it failed and we constructed the URI, maybe try 'credential' field?
-            if not secret_ref.startswith("op://") and "password" in op_uri:
+            # If it failed and we constructed the URI without an explicit field, try 'credential' field?
+            if not secret_ref.startswith("op://") and not explicit_field and "password" in op_uri:
                 op_uri_alt = f"op://{self.default_vault}/{secret_ref}/credential"
                 result_alt = subprocess.run(
                     [self.op_path, "read", op_uri_alt, "-n"],
@@ -136,9 +140,10 @@ class SecretsDriver(Driver):
             if secret_ref.startswith("op://"):
                 raise ExecutionError(f"1Password read failed for {op_uri}: {result.stderr}")
             else:
-                raise ExecutionError(
-                    f"Secret '{secret_ref}' not found in environment or 1Password (tried {op_uri})"
-                )
+                msg = f"Secret '{secret_ref}' not found in environment or 1Password (tried {op_uri})"
+                if not explicit_field:
+                    msg += " and fallback 'credential' field"
+                raise ExecutionError(msg)
 
         except subprocess.TimeoutExpired:
             raise ExecutionError(f"1Password read timed out for {secret_ref}")

@@ -1,8 +1,10 @@
 """Dynamic plugin loader for CLI commands."""
 
 import importlib
+import sys
 from pathlib import Path
 from typing import List, Dict
+import typer
 
 
 class PluginLoader:
@@ -27,7 +29,8 @@ class PluginLoader:
         try:
             package = importlib.import_module(self.package_path)
             package_dir = Path(package.__file__).parent
-        except Exception:
+        except Exception as e:
+            typer.secho(f"Error loading plugin package {self.package_path}: {e}", fg=typer.colors.RED, err=True)
             return plugins
 
         # Discover .py files in package
@@ -38,7 +41,11 @@ class PluginLoader:
             module_name = py_file.stem
             try:
                 module = importlib.import_module(f"{self.package_path}.{module_name}")
-            except Exception:
+            except SyntaxError:
+                typer.secho(f"Syntax error in plugin {module_name}:", fg=typer.colors.RED, err=True)
+                raise
+            except Exception as e:
+                typer.secho(f"Failed to load plugin {module_name}: {e}", fg=typer.colors.YELLOW, err=True)
                 continue
 
             # Extract metadata

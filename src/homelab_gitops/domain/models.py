@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Generic, TypeVar
+
+T = TypeVar("T")
 
 @dataclass
 class NodeProfile:
@@ -44,11 +46,11 @@ class Task:
     overrides: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class TaskResult:
+class TaskResult(Generic[T]):
     """Result of task execution."""
     success: bool
     task_type: str
-    output: Any
+    output: T
     duration: float
     error: Optional[str] = None
     vm_ip: Optional[str] = None  # Returned from deploy task
