@@ -6,7 +6,9 @@ from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 
 def lint_command(
-    path: Optional[str] = typer.Argument(None, help="Path to lint (defaults to config/)"),
+    path: Optional[str] = typer.Argument(
+        None, help="Path to lint (defaults to config/)"
+    ),
 ):
     """Validate configuration files and profiles.
 

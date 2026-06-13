@@ -29,14 +29,14 @@ class MigrationDriver(Driver):
         state_dir = os.path.dirname(os.path.abspath(self.state_file))
         if not os.access(state_dir, os.W_OK):
             return False
-            
+
         return self.opnsense_driver.validate() and self.technitium_driver.validate()
 
     def execute(self, task: Task) -> TaskResult:
         """Execute migration-related state tasks."""
         start = time.time()
         action = task.overrides.get("action")
-        
+
         try:
             if action == "save_state":
                 migrated = task.overrides.get("migrated", [])
@@ -92,27 +92,27 @@ class MigrationDriver(Driver):
 
         results = []
         failed = []
-        
+
         for m in migrated:
             iface = m.get('opnsense_interface')
             scope = m.get('technitium_scope')
-            
+
             if not iface or not scope:
                 continue
-                
+
             try:
                 # Re-enable OPNsense
                 self.opnsense_driver.execute(Task(
                     type="dhcp",
                     overrides={"resource": "dhcp", "action": "enable", "interface": iface}
                 ))
-                
+
                 # Disable Technitium
                 self.technitium_driver.execute(Task(
                     type="dhcp",
                     overrides={"resource": "dhcp", "action": "disable", "name": scope}
                 ))
-                
+
                 results.append({"interface": iface, "scope": scope, "status": "rolled_back"})
             except Exception as e:
                 failed.append({"interface": iface, "error": str(e)})

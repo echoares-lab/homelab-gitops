@@ -33,7 +33,9 @@ def create_app() -> typer.Typer:
                 if isinstance(result, typer.Typer):
                     target = result
             except Exception as e:
-                print_error(f"Failed to load sub-command {plugin['name']}: {e}")
+                print_error(
+                    f"Failed to load sub-command {plugin['name']}: {e}"
+                )
                 continue
 
         # Support both simple commands and Typer sub-apps

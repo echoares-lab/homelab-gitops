@@ -4,7 +4,7 @@ import os
 import re
 import time
 import requests
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
@@ -52,11 +52,11 @@ class OPNsenseDriver(Driver):
     def execute(self, task: Task) -> TaskResult:
         """Execute OPNsense operations for VLAN and Firewall rules."""
         start = time.time()
-        
+
         # Determine operation from overrides or task type
         resource = task.overrides.get("resource", task.type)
         action = task.overrides.get("action", "create")
-        
+
         try:
             if resource == "vlan":
                 output = self._handle_vlan(action, task.overrides)
@@ -85,11 +85,11 @@ class OPNsenseDriver(Driver):
             # Get dnsmasq settings
             settings = self._get('/dnsmasq/settings/get')
             dnsmasq = settings.get('dnsmasq', {})
-            
+
             # Get excluded interfaces
             no_iface = dnsmasq.get('dhcp', {}).get('no_interface', {})
             excluded = {iface for iface, cfg in no_iface.items() if cfg.get('selected') == 1}
-            
+
             # Get DHCP ranges
             ranges = dnsmasq.get('dhcp_ranges', {})
             enabled_interfaces = []
@@ -104,22 +104,22 @@ class OPNsenseDriver(Driver):
                             'uuid': uuid,
                         })
             return {"interfaces": enabled_interfaces}
-            
+
         elif action in ["enable", "disable"]:
             interface = params.get("interface")
             if not interface:
                 raise ExecutionError("Interface required for DHCP operation")
-                
+
             # Get current excluded list
             settings = self._get('/dnsmasq/settings/get')
             no_iface = settings.get('dnsmasq', {}).get('dhcp', {}).get('no_interface', {})
             current_excluded = {iface for iface, cfg in no_iface.items() if cfg.get('selected') == 1}
-            
+
             if action == "disable":
                 current_excluded.add(interface)
             else:
                 current_excluded.discard(interface)
-                
+
             # Update settings
             payload = {
                 'dnsmasq': {
@@ -129,12 +129,12 @@ class OPNsenseDriver(Driver):
                 }
             }
             res = self._post('/dnsmasq/settings/set', payload)
-            
+
             # Reconfigure service
             self._post('/dnsmasq/service/reconfigure', {})
-            
+
             return res
-            
+
         else:
             raise ExecutionError(f"Unsupported DHCP action: {action}")
 
@@ -143,13 +143,13 @@ class OPNsenseDriver(Driver):
         if action == "list":
             response = self._get('/network/interfaces/get')
             return {"interfaces": response.get('interfaces', [])}
-        
+
         elif action == "get":
             name = params.get("name")
             if not name:
                 raise ExecutionError("Interface name required")
             return self._get(f'/network/interfaces/get/{name}')
-        
+
         elif action == "configure":
             name = params.get("name")
             if not name:
@@ -160,7 +160,7 @@ class OPNsenseDriver(Driver):
                 if k not in ['resource', 'action', 'name']:
                     payload[k] = v
             return self._post(f'/network/interfaces/set/{name}', payload)
-        
+
         else:
             raise ExecutionError(f"Unsupported interface action: {action}")
 
@@ -189,17 +189,17 @@ class OPNsenseDriver(Driver):
                     payload[k] = v
 
             return self._post('/network/vlans/set', payload)
-        
+
         elif action == "delete":
             vlan_uuid = params.get("uuid")
             if not vlan_uuid:
                 raise ExecutionError("VLAN UUID required for deletion")
             return self._post(f'/network/vlans/delete/{vlan_uuid}', {})
-        
+
         elif action == "list":
             response = self._get('/network/vlans/get')
             return {"vlans": response.get('rows', [])}
-        
+
         else:
             raise ExecutionError(f"Unsupported VLAN action: {action}")
 
@@ -232,22 +232,22 @@ class OPNsenseDriver(Driver):
 
             # Add extra params
             for k, v in params.items():
-                if k not in ['resource', 'action', 'name', 'src_net', 'dst_net', 
-                            'protocol', 'rule_action', 'port']:
+                if k not in ['resource', 'action', 'name', 'src_net', 'dst_net',
+                             'protocol', 'rule_action', 'port']:
                     payload[k] = v
 
             return self._post('/firewall/rules/set', payload)
-            
+
         elif action == "delete":
             rule_uuid = params.get("uuid")
             if not rule_uuid:
                 raise ExecutionError("Firewall rule UUID required for deletion")
             return self._post(f'/firewall/rules/delete/{rule_uuid}', {})
-            
+
         elif action == "list":
             response = self._get('/firewall/rules/get')
             return {"rules": response.get('rows', [])}
-            
+
         else:
             raise ExecutionError(f"Unsupported firewall action: {action}")
 
@@ -290,11 +290,11 @@ class OPNsenseDriver(Driver):
     def _validate_cidr(self, cidr: str, field: str) -> None:
         if not cidr or not re.match(r'^[\da-fA-F:\.]+/\d+$', cidr):
             # OPNsense also supports aliases and special values like 'any', 'lan', etc.
-            # But the original code was strict. I'll stick to what was there or 
+            # But the original code was strict. I'll stick to what was there or
             # relax it if it makes sense. The original code used this regex.
-            if cidr not in ['any', 'lan', 'wan']: # Basic common values
-                 if not re.match(r'^[\da-fA-F:\.]+/\d+$', cidr):
-                     raise ExecutionError(f"Invalid CIDR for {field}: {cidr}")
+            if cidr not in ['any', 'lan', 'wan']:  # Basic common values
+                if not re.match(r'^[\da-fA-F:\.]+/\d+$', cidr):
+                    raise ExecutionError(f"Invalid CIDR for {field}: {cidr}")
 
     def _validate_protocol(self, protocol: str) -> None:
         if protocol not in self.VALID_PROTOCOLS:

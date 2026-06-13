@@ -1,10 +1,9 @@
 """Networking domain service for OPNsense orchestration."""
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Optional, List
 from homelab_gitops.domain.models import NodeProfile, Task, TaskResult
 from homelab_gitops.drivers.opnsense_driver import OPNsenseDriver
-from homelab_gitops.domain.exceptions import DomainError
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class NetworkingService:
                     profile=profile,
                     overrides={"resource": "vlan", "action": "list"}
                 ))
-                
+
                 existing_vlans = existing_vlans_res.output.get('vlans', [])
                 # OPNsense vlan list rows typically have 'tag' (vlan_id) and 'descr'
                 vlan_exists = any(
@@ -173,7 +172,7 @@ class NetworkingService:
         if vlan_config:
             vlan_id = vlan_config.get('id')
             vlan_interface = vlan_config.get('interface')
-            
+
             if vlan_id and vlan_interface:
                 existing_vlans_res = self.driver.execute(Task(
                     type="vlan",
@@ -181,10 +180,10 @@ class NetworkingService:
                     overrides={"resource": "vlan", "action": "list"}
                 ))
                 existing_vlans = existing_vlans_res.output.get('vlans', [])
-                
+
                 # Find VLAN UUID by tag and interface
                 matching_vlans = [
-                    v for v in existing_vlans 
+                    v for v in existing_vlans
                     if str(v['tag']) == str(vlan_id) and v['if'] == vlan_interface
                 ]
                 for v in matching_vlans:

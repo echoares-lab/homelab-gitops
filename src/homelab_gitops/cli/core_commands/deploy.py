@@ -13,7 +13,9 @@ from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 def deploy_command(
     profile: str,
-    index: Optional[str] = typer.Argument(None, help="Instance index (01, 02, etc.)"),
+    index: Optional[str] = typer.Argument(
+        None, help="Instance index (01, 02, etc.)"
+    ),
     host: Optional[str] = typer.Option(None, help="Target ESXi host"),
 ):
     """Provision virtual hardware via OpenTofu.

@@ -17,7 +17,11 @@ def dns_command():
 
 
 @app.command(name="list")
-def list_records(zone: str = typer.Argument(..., help="DNS Zone to list (e.g. mgmt.plexplease.com)")):
+def list_records(
+    zone: str = typer.Argument(
+        ..., help="DNS Zone to list (e.g. mgmt.plexplease.com)"
+    )
+):
     """List all records in a zone."""
     service = DNSService()
     records = service.list_records(zone)
@@ -53,7 +57,10 @@ def create_record(
         zone = typer.prompt("DNS Zone", default="mgmt.plexplease.com")
 
     service = DNSService()
-    console.print(f"[bold blue]Creating DNS records for {name}.{zone} -> {ip}...[/bold blue]")
+    console.print(
+        f"[bold blue]Creating DNS records for {name}.{zone} -> {ip}..."
+        "[/bold blue]"
+    )
 
     try:
         results = service.provision_manual(name, ip, zone)
@@ -65,7 +72,9 @@ def create_record(
 @app.command(name="delete")
 def delete_record(
     name: str = typer.Argument(..., help="Record name (hostname portion)"),
-    ip: Optional[str] = typer.Option(None, help="IP Address (for PTR record cleanup)"),
+    ip: Optional[str] = typer.Option(
+        None, help="IP Address (for PTR record cleanup)"
+    ),
     zone: Optional[str] = typer.Option(None, help="DNS Zone")
 ):
     """Delete A and PTR records for a host."""
@@ -73,7 +82,9 @@ def delete_record(
         zone = typer.prompt("DNS Zone", default="mgmt.plexplease.com")
 
     service = DNSService()
-    console.print(f"[bold blue]Deleting DNS records for {name}.{zone}...[/bold blue]")
+    console.print(
+        f"[bold blue]Deleting DNS records for {name}.{zone}...[/bold blue]"
+    )
 
     try:
         results = service.deprovision_manual(name, ip, zone)
@@ -91,8 +102,12 @@ def _display_results(results: List[TaskResult], title: str):
     table.add_column("Details", style="magenta")
 
     for res in results:
-        status = "[green]SUCCESS[/green]" if res.success else "[red]FAILED[/red]"
-        details = res.error if not res.success else "Operation completed successfully"
+        status = (
+            "[green]SUCCESS[/green]" if res.success else "[red]FAILED[/red]"
+        )
+        details = (
+            res.error if not res.success else "Operation completed successfully"
+        )
         table.add_row(
             res.task_type,
             status,

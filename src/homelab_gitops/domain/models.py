@@ -23,6 +23,7 @@ class NodeProfile:
             if key not in self.vm_specs:
                 raise ValueError(f"vm_specs missing required key: {key}")
 
+
 @dataclass
 class DeploymentState:
     """Tracks a node through its lifecycle."""
@@ -35,6 +36,7 @@ class DeploymentState:
     created_at: datetime = field(default_factory=datetime.now)
     error: Optional[str] = None
 
+
 @dataclass
 class Task:
     """A unit of work for a driver to execute."""
@@ -42,6 +44,7 @@ class Task:
     profile: NodeProfile
     target: Optional[str] = None  # VM IP or name
     overrides: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class TaskResult:

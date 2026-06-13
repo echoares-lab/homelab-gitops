@@ -98,15 +98,15 @@ class TechnitiumDriver(Driver):
     def _handle_record(self, action: str, task: Task) -> Dict[str, Any]:
         """Handle DNS record operations."""
         params = task.overrides.copy()
-        
+
         # If it's a provision task and record info is missing, try to infer from profile
         if action == "create" and "domain" not in params:
-             # Assume profile.name is the hostname if domain is missing
-             params.setdefault("zone", "homelab.internal") # Default zone
-             params.setdefault("domain", f"{task.profile.name}.homelab.internal")
-             if task.target:
-                 params.setdefault("ipAddress", task.target)
-             params.setdefault("type", "A")
+            # Assume profile.name is the hostname if domain is missing
+            params.setdefault("zone", "homelab.internal")  # Default zone
+            params.setdefault("domain", f"{task.profile.name}.homelab.internal")
+            if task.target:
+                params.setdefault("ipAddress", task.target)
+            params.setdefault("type", "A")
 
         if action in ("create", "add"):
             return self._api_call("dns/addRecord", params)
