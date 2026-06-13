@@ -1,0 +1,112 @@
+---
+- name: Load aggregated CI runner vars
+  ansible.builtin.include_vars:
+    file: "{{ ci_runner_generated_vars }}"
+
+- name: Assert aggregated vars exist (run make sync-ci-runners first)
+  ansible.builtin.stat:
+    path: "{{ ci_runner_generated_vars }}"
+  register: ci_runner_vars_stat
+
+- name: Fail when generated vars missing
+  ansible.builtin.fail:
+    msg: "Run 'make sync-ci-runners' from homelab-gitops root before apply-ci-runners."
+  when: not ci_runner_vars_stat.stat.exists
+
+- name: Check if target Python is already installable from apt
+  ansible.builtin.command:
+    cmd: apt-cache policy {{ ci_runner_python_bin }}
+  register: ci_runner_python_apt_policy
+  changed_when: false
+  failed_when: false
+
+- name: Enable deadsnakes PPA when target Python is missing from apt
+  when: "'Candidate: (none)' in ci_runner_python_apt_policy.stdout"
+  block:
+    - name: Install software-properties-common for add-apt-repository
+      ansible.builtin.apt:
+        name: software-properties-common
+        state: present
+
+    - name: Add deadsnakes PPA
+      ansible.builtin.apt_repository:
+        repo: "{{ ci_runner_deadsnakes_ppa }}"
+        state: present
+
+    - name: Refresh apt cache after PPA
+      ansible.builtin.apt:
+        update_cache: true
+
+- name: Install repo-aggregated apt packages
+  ansible.builtin.apt:
+    name: "{{ ci_runner_apt_packages }}"
+    state: present
+  when: ci_runner_apt_packages | default([]) | length > 0
+
+- name: Ensure github-runner in docker group
+  ansible.builtin.user:
+    name: "{{ ci_runner_user }}"
+    groups: docker
+    append: true
+  failed_when: false
+
+- name: Ensure CI cache directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ci_runner_user }}"
+    group: "{{ ci_runner_group }}"
+    mode: "0755"
+  loop:
+    - "{{ ci_runner_cache_root }}"
+    - "{{ ci_runner_cache_root }}/pip"
+    - "{{ ci_runner_cache_root }}/buildkit"
+
+- name: Grant passwordless sudo for CI pre-clean steps
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/github-runner
+    content: "{{ ci_runner_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Copy aggregated pip requirements to runner home
+  ansible.builtin.copy:
+    src: "{{ ci_runner_pip_requirements_file }}"
+    dest: "{{ runner_home | default('/home/' + ci_runner_user) }}/ci-runner-pip-requirements.txt"
+    owner: "{{ ci_runner_user }}"
+    group: "{{ ci_runner_group }}"
+    mode: "0644"
+
+- name: Seed warm CI venv (survives workspace pre-clean)
+  block:
+    - name: Create seed venv
+      ansible.builtin.command:
+        cmd: "{{ ci_runner_python_bin }} -m venv {{ ci_runner_venv_seed_path }}"
+        creates: "{{ ci_runner_venv_seed_path }}/bin/python"
+
+    - name: Set seed venv ownership
+      ansible.builtin.file:
+        path: "{{ ci_runner_venv_seed_path }}"
+        owner: "{{ ci_runner_user }}"
+        group: "{{ ci_runner_group }}"
+        recurse: true
+
+    - name: Upgrade pip in seed venv
+      ansible.builtin.pip:
+        virtualenv: "{{ ci_runner_venv_seed_path }}"
+        name: pip
+        state: latest
+        extra_args: --upgrade-strategy only-if-needed
+
+    - name: Install aggregated pip requirements into seed venv
+      ansible.builtin.pip:
+        virtualenv: "{{ ci_runner_venv_seed_path }}"
+        requirements: "{{ ci_runner_pip_requirements_file }}"
+        state: present
+        extra_args: --upgrade-strategy only-if-needed
+  rescue:
+    - name: Warn when seed venv pip install failed
+      ansible.builtin.debug:
+        msg: >-
+          Seed venv pip install failed. Ensure python{{ ci_runner_python_version }}-venv is installed
+          via github_runner_base. Check aggregated requirements for wheel availability.
