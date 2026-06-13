@@ -19,7 +19,8 @@ dependencies = [
     "pexpect",
     "paramiko",
     "acme",
-    "cryptography"
+    "cryptography",
+    "mcp[cli]"
 ]
 
 [tool.setuptools]
