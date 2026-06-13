@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -10,6 +10,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 from homelab_gitops.domain.models import Task, NodeProfile
+
+if TYPE_CHECKING:
+    from homelab_gitops.drivers.acme_driver import AcmeDriver
+    from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
+    from homelab_gitops.drivers.secrets_driver import SecretsDriver
 
 logger = logging.getLogger(__name__)
 
