@@ -30,10 +30,4 @@
     runner_extra_labels: "testing,ci"
   roles:
     - github_runner
-  post_tasks:
-    - name: Grant passwordless sudo to the github-runner user
-      ansible.builtin.copy:
-        dest: "/etc/sudoers.d/github-runner"
-        content: "github-runner ALL=(ALL) NOPASSWD: ALL"
-        mode: "0440"
-        validate: "visudo -cf %s"
+    - github_runner_ci

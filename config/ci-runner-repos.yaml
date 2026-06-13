@@ -1,0 +1,19 @@
+# Registry of repos scanned for requirements/ci-runner.manifest.yaml
+# Paths may be absolute or use ~ expansion.
+#
+# After adding a repo or changing a manifest:
+#   make sync-ci-runners          # regenerate aggregated requirements
+#   make apply-ci-runners        # push to runner hosts (Ansible)
+
+repos:
+  - name: ai-gateway
+    path: ~/.cursor/worktrees/ai-gateway__SSH__dev_/wfd0
+    enabled: true
+
+  - name: homelab-gitops
+    path: ~/repos/homelab-gitops
+    enabled: true
+
+  # - name: example-repo
+  #   path: ~/repos/example-repo
+  #   enabled: false
