@@ -10,11 +10,12 @@ console = Console()
 
 # Map deployment tags to playbooks and required extra vars
 PLAYBOOK_MAP = {
-    "cf_runner":    ("cloudflare-runner.yml", ["runner_token"]),
-    "cf_dev":       ("cloudflare-dev.yml",    []),
-    "homelab_dev":  ("homelab-dev.yml",       []),
-    "combined_dev": ("combined-dev.yml",      ["github_pat"]),
-    "git_test":     ("git-test-runner.yml",   ["runner_token"]),
+    "cf_runner":    ("ansible/cloudflare-runner.yml", []),
+    "cf_dev":       ("ansible/cloudflare-dev.yml",    []),
+    "homelab_dev":  ("ansible/homelab-dev.yml",       []),
+    "combined_dev": ("ansible/combined-dev.yml",      []),
+    "git_test":     ("ansible/git-test-runner.yml",   []),
+    "dns":          ("ansible/site.yml",              []),
 }
 
 class ConfigService:
@@ -64,22 +65,26 @@ class ConfigService:
         Raises:
             ValueError: If required fields missing
         """
-        required_fields = {"name", "spec", "tags"}
+        required_fields = {"vcenter", "content_library", "vm_specs", "deployment"}
 
         for field in required_fields:
             if field not in profile:
-                raise ValueError(f"Profile missing required field: {field}")
+                raise ValueError(f"Profile missing required section: {field}")
 
-        # Validate spec has hardware config
-        spec = profile.get("spec", {})
-        required_hw = {"cpu", "memory", "disk"}
+        # Validate vm_specs has hardware config
+        spec = profile.get("vm_specs", {})
+        required_hw = {"cpu", "ram_gb", "disk_size_gb"}
         for hw_field in required_hw:
             if hw_field not in spec:
-                raise ValueError(f"Profile spec missing: {hw_field}")
+                raise ValueError(f"Profile vm_specs missing: {hw_field}")
+
+        deployment = profile.get("deployment", {})
+        if "tags" not in deployment:
+            raise ValueError("Profile deployment missing: tags")
 
         return True
 
-    def resolve_playbook(self, profile_name: str) -> Tuple[str, List[str]]:
+    def resolve_playbook(self, profile_name: str) -> Tuple[str, Dict]:
         """
         Get the playbook and required extra vars for a profile based on its tags.
 
@@ -87,21 +92,51 @@ class ConfigService:
             profile_name: Name of profile
 
         Returns:
-            Tuple of (playbook_filename, list_of_required_extra_var_keys)
+            Tuple of (playbook_filename, extra_vars)
 
         Raises:
             ValueError: If no playbook found for profile's tags
         """
         profile = self.load_profile(profile_name)
-        tags = profile.get("tags", [])
+        deployment = profile.get("deployment") or {}
+        tags = deployment.get("tags") or profile.get("tags", [])
 
         for tag in tags:
             if tag in PLAYBOOK_MAP:
                 playbook, extra_vars = PLAYBOOK_MAP[tag]
-                return playbook, extra_vars
+                return playbook, {**dict(extra_vars), **self.profile_ansible_vars(profile)}
 
-        # If no tag matches, default to site.yml
-        return "site.yml", []
+        # If no tag matches, default to ansible/site.yml
+        return "ansible/site.yml", self.profile_ansible_vars(profile)
+
+    def profile_ansible_vars(self, profile: dict) -> Dict:
+        """Flatten profile-controlled Ansible variables."""
+        extra_vars = dict(profile.get("ansible_vars") or {})
+        logging_cfg = profile.get("logging") or {}
+
+        logging_var_map = {
+            "enabled": "log_retention_enabled",
+            "files": "log_retention_files",
+            "rotate_frequency": "log_retention_rotate_frequency",
+            "rotate_count": "log_retention_rotate_count",
+            "max_size": "log_retention_max_size",
+        }
+        for source_key, var_name in logging_var_map.items():
+            if source_key in logging_cfg:
+                extra_vars[var_name] = logging_cfg[source_key]
+
+        journald_cfg = logging_cfg.get("journald") or {}
+        journald_var_map = {
+            "vacuum_enabled": "log_retention_journald_vacuum_enabled",
+            "vacuum_time": "log_retention_journald_vacuum_time",
+            "vacuum_size": "log_retention_journald_vacuum_size",
+            "timer_calendar": "log_retention_journald_vacuum_timer_calendar",
+        }
+        for source_key, var_name in journald_var_map.items():
+            if source_key in journald_cfg:
+                extra_vars[var_name] = journald_cfg[source_key]
+
+        return extra_vars
 
     def create_profile(self, name: str, spec: dict, tags: List[str]) -> bool:
         """
@@ -109,7 +144,7 @@ class ConfigService:
 
         Args:
             name: Profile name (e.g., 'ubuntu-2404-custom')
-            spec: Hardware spec dict with cpu, memory, disk, etc.
+            spec: Hardware spec dict with cpu, ram_gb, disk_size_gb, etc.
             tags: List of tags for the profile
 
         Returns:
@@ -124,13 +159,32 @@ class ConfigService:
             raise FileExistsError(f"Profile already exists: {profile_path}")
 
         profile_content = {
-            "name": name,
-            "spec": spec,
-            "tags": tags,
+            "vcenter": {
+                "datacenter": "HOMELAB",
+                "cluster": "Primary",
+                "host": "esxi-01.mgmt.plexplease.com",
+                "datastore": "ds-nfs-prod",
+                "network": "VM Network"
+            },
+            "content_library": {
+                "name": "GOLDEN",
+                "template": "ubuntu-24.04-lts-golden"
+            },
+            "vm_specs": {
+                "cpu": spec.get("cpu", 2),
+                "ram_gb": spec.get("ram_gb", spec.get("memory", 4)),
+                "guest_id": "ubuntu64Guest",
+                "disk_size_gb": spec.get("disk_size_gb", spec.get("disk", 40))
+            },
+            "deployment": {
+                "tags": tags,
+                "vm_name_prefix": name.split("-")[0] if "-" in name else name,
+                "vm_name_domain": "mgmt.plexplease.com"
+            }
         }
 
         with open(profile_path, 'w') as f:
-            yaml.dump(profile_content, f, default_flow_style=False)
+            yaml.dump(profile_content, f, default_flow_style=False, sort_keys=False)
 
         return True
 

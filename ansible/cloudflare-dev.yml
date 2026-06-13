@@ -13,6 +13,7 @@
   roles:
     - base
     - security
+    - log_retention
     - github_runner_base
 
 - name: Install Cloudflare Access dev toolchain

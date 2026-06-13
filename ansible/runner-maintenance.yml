@@ -1,0 +1,11 @@
+---
+# Token-free maintenance for existing GitHub runner hosts.
+# Use this for storage/package baseline repair without re-registering runners.
+
+- name: Maintain GitHub runner baseline
+  hosts: tag_git_test,tag_cf_runner
+  become: true
+  gather_facts: true
+  roles:
+    - log_retention
+    - github_runner_base

@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import Mock, patch, MagicMock
 from services.wrappers.ansible_wrapper import AnsibleWrapper
 
@@ -49,6 +50,25 @@ class TestAnsibleWrapperRunPlaybook:
         assert "-e" in cmd
         assert "env=prod" in cmd
         assert "debug=false" in cmd
+
+    @patch("subprocess.run")
+    @patch("shutil.which")
+    def test_run_playbook_with_complex_extra_vars(self, mock_which, mock_run):
+        mock_which.return_value = "/usr/bin/ansible-playbook"
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        wrapper = AnsibleWrapper()
+        wrapper.run_playbook(
+            "ansible/site.yml",
+            extra_vars={"log_retention_files": [{"path": "/var/log/app/*.log"}]}
+        )
+
+        args, _ = mock_run.call_args
+        cmd = args[0]
+        payload = cmd[cmd.index("-e") + 1]
+        assert json.loads(payload)["log_retention_files"][0]["path"] == "/var/log/app/*.log"
 
     @patch("subprocess.run")
     @patch("shutil.which")

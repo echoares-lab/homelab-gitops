@@ -1,0 +1,79 @@
+---
+- name: Install logrotate on Ubuntu
+  ansible.builtin.apt:
+    name: logrotate
+    state: present
+    update_cache: true
+  when:
+    - log_retention_enabled
+    - log_retention_files | length > 0
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Install logrotate on Photon
+  ansible.builtin.command:
+    cmd: tdnf install -y logrotate
+  register: log_retention_tdnf
+  changed_when: "'Nothing to do' not in log_retention_tdnf.stdout and 'already installed' not in log_retention_tdnf.stdout"
+  when:
+    - log_retention_enabled
+    - log_retention_files | length > 0
+    - ansible_facts['distribution'] == 'VMware Photon OS'
+
+- name: Configure profile logrotate policy
+  ansible.builtin.template:
+    src: profile-logrotate.j2
+    dest: /etc/logrotate.d/homelab-profile
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - log_retention_enabled
+    - log_retention_files | length > 0
+
+- name: Remove profile logrotate policy when no files are managed
+  ansible.builtin.file:
+    path: /etc/logrotate.d/homelab-profile
+    state: absent
+  when: not log_retention_enabled or log_retention_files | length == 0
+
+- name: Install journald vacuum service
+  ansible.builtin.template:
+    src: homelab-journald-vacuum.service.j2
+    dest: /etc/systemd/system/homelab-journald-vacuum.service
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - log_retention_enabled
+    - log_retention_journald_vacuum_enabled
+  notify: Reload systemd
+
+- name: Install journald vacuum timer
+  ansible.builtin.template:
+    src: homelab-journald-vacuum.timer.j2
+    dest: /etc/systemd/system/homelab-journald-vacuum.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - log_retention_enabled
+    - log_retention_journald_vacuum_enabled
+  notify: Reload systemd
+
+- name: Enable journald vacuum timer
+  ansible.builtin.systemd:
+    name: homelab-journald-vacuum.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - log_retention_enabled
+    - log_retention_journald_vacuum_enabled
+
+- name: Disable journald vacuum timer when disabled
+  ansible.builtin.systemd:
+    name: homelab-journald-vacuum.timer
+    enabled: false
+    state: stopped
+  failed_when: false
+  when: not log_retention_enabled or not log_retention_journald_vacuum_enabled

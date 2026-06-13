@@ -13,6 +13,12 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.1 - Runner Storage and Profile Log Retention
+- Ensured GitHub runner baseline provisioning expands the root partition and filesystem to use the full 400GB virtual disk allocated by runner profiles.
+- Added `ansible/runner-maintenance.yml` for token-free maintenance of existing self-hosted runners.
+- Added a reusable `log_retention` role with profile-owned logrotate file policies and a 14-day/512MB journald vacuum timer.
+- Added a Technitium DNS profile policy for `/var/log/technitium/dns/*.log` with daily rotation, 14 retained rotations, 100MB max size, compression, and copytruncate.
+
 ### v3.4.0 - GitHub Runner for Testing & CI
 - Added `ubuntu-2404-git-test` profile for high-performance GitHub runners (20 cores, 20GB RAM, 400GB Disk).
 - Implemented `ansible/git-test-runner.yml` dedicated playbook for automated runner registration.
