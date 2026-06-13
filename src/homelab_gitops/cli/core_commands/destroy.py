@@ -1,7 +1,7 @@
 """Destroy command - tear down infrastructure."""
 
 import typer
-from ..utils import print_success, print_error, print_info
+from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 
 def destroy_command(

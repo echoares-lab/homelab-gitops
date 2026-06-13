@@ -1,6 +1,6 @@
 import copy
 
-from .models import DeploymentState, TaskResult
+from homelab_gitops.domain.models import DeploymentState, TaskResult
 
 class StateMachine:
     """Enforces valid state transitions for node lifecycle."""

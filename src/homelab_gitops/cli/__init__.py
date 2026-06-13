@@ -1,5 +1,5 @@
 """CLI package."""
 
-from .app import create_app, main
+from homelab_gitops.cli.app import create_app, main
 
 __all__ = ["create_app", "main"]

@@ -2,7 +2,7 @@
 
 import typer
 from typing import Optional
-from ..utils import print_success, print_error, print_info
+from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 
 def lint_command(

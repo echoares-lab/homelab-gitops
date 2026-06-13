@@ -1,9 +1,9 @@
 """CLI application and entry point."""
 
 import typer
-from .plugin_loader import PluginLoader
-from .utils import print_error
-from .exceptions import CLIError
+from homelab_gitops.cli.plugin_loader import PluginLoader
+from homelab_gitops.cli.utils import print_error
+from homelab_gitops.cli.exceptions import CLIError
 
 
 def create_app() -> typer.Typer:
@@ -23,10 +23,31 @@ def create_app() -> typer.Typer:
     plugins = loader.load_plugins()
 
     for plugin in plugins:
-        app.command(
-            name=plugin["name"],
-            help=plugin["help"],
-        )(plugin["callable"])
+        target = plugin["callable"]
+        metadata = plugin.get("metadata", {})
+        
+        # If it's explicitly marked as an app factory, call it
+        if metadata.get("is_app", False):
+            try:
+                result = target()
+                if isinstance(result, typer.Typer):
+                    target = result
+            except Exception as e:
+                print_error(f"Failed to load sub-command {plugin['name']}: {e}")
+                continue
+
+        # Support both simple commands and Typer sub-apps
+        if isinstance(target, typer.Typer):
+            app.add_typer(
+                target,
+                name=plugin["name"],
+                help=plugin["help"],
+            )
+        else:
+            app.command(
+                name=plugin["name"],
+                help=plugin["help"],
+            )(target)
 
     return app
 

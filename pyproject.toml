@@ -7,18 +7,9 @@ name = "homelab-gitops"
 version = "0.1.0"
 description = "Homelab GitOps infrastructure automation"
 requires-python = ">=3.10"
-dependencies = [
-    "typer",
-    "rich",
-    "pyyaml",
-    "typing_extensions",
-    "requests",
-    "pydantic>=2.12.0",
-    "pyvmomi"
-]
 
 [tool.setuptools]
-packages = ["homelab_gitops", "opnsense", "technitium"]
+packages = ["homelab_gitops"]
 
 [tool.setuptools.package-dir]
 "" = "src"

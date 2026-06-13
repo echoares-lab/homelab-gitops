@@ -1,3 +1,0 @@
-"""
-DNS Management Suite
-"""
