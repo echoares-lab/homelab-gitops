@@ -5,7 +5,7 @@ import subprocess
 import time
 import shutil
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
