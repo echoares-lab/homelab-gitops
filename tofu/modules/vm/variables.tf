@@ -120,3 +120,8 @@ variable "host" {
   description = "vCenter host name"
   default     = ""
 }
+
+variable "vm_name" {
+  type        = string
+  description = "VM FQDN"
+}

@@ -5,7 +5,7 @@ import time
 import logging
 from typing import Optional, List, Dict, Any
 
-from acme import client, messages, crypto_util
+from acme import client, messages, crypto_util, challenges
 from acme.client import ClientV2
 import josepy as jose
 from cryptography import x509
@@ -129,28 +129,29 @@ class AcmeDriver(Driver):
         acme_client = self._get_client()
         
         try:
-            identifiers = [messages.Identifier(ty=messages.IDENTIFIER_FQDN, value=domain)]
+            identifiers = [messages.Identifier(typ=messages.IDENTIFIER_FQDN, value=domain)]
             order = acme_client.new_order(identifiers)
-            challenges = []
-            
+            found_challenges = []
+
             for authz in order.authorizations:
                 for challb in authz.body.challenges:
-                    if isinstance(challb.chall, messages.DNS01):
+                    if isinstance(challb.chall, challenges.DNS01):
                         # Calculate TXT record value
                         # The acme library provides a way to get the response
                         _, validation = challb.response_and_validation(self._account_key)
-                        
-                        challenges.append({
+
+                        found_challenges.append({
                             "domain": domain,
-                            "token": challb.chall.token,
+                            "token": challb.chall.token.decode() if isinstance(challb.chall.token, bytes) else challb.chall.token,
                             "txt_record": f"_acme-challenge.{domain}",
                             "validation": validation,
                         })
-            
-            if not challenges:
+
+            if not found_challenges:
                 raise ExecutionError(f"No DNS-01 challenge found for domain {domain}")
-                
-            return challenges
+
+            return found_challenges
+
         except Exception as e:
             raise ExecutionError(f"Failed to request ACME challenge for {domain}: {str(e)}")
 
@@ -176,7 +177,7 @@ class AcmeDriver(Driver):
         
         try:
             # Re-fetch or create the order
-            identifiers = [messages.Identifier(ty=messages.IDENTIFIER_FQDN, value=domain)]
+            identifiers = [messages.Identifier(typ=messages.IDENTIFIER_FQDN, value=domain)]
             order = acme_client.new_order(identifiers)
             
             # 1. Answer challenges if they are still pending
