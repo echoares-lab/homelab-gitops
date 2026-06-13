@@ -9,9 +9,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from homelab_gitops.drivers.acme_driver import AcmeDriver
-from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
-from homelab_gitops.drivers.secrets_driver import SecretsDriver
 from homelab_gitops.domain.models import Task, NodeProfile
 
 logger = logging.getLogger(__name__)
@@ -21,9 +18,9 @@ class CertificateService:
 
     def __init__(
         self,
-        acme_driver: AcmeDriver,
-        dns_driver: TechnitiumDriver,
-        secrets_driver: SecretsDriver
+        acme_driver: "AcmeDriver",
+        dns_driver: "TechnitiumDriver",
+        secrets_driver: "SecretsDriver"
     ):
         """Initialize CertificateService.
 
