@@ -249,10 +249,11 @@ def test_dns_service_provision_record():
 
 def test_tofu_driver_validate():
     with patch.dict(os.environ, {"TOFU_WORKING_DIR": "/tmp"}):
-        from homelab_gitops.drivers.tofu_driver import TofuDriver
-        driver = TofuDriver()
-        with patch("os.path.exists", return_value=True):
-            assert driver.validate() is True
+        with patch("shutil.which", return_value="/usr/bin/tofu"):
+            from homelab_gitops.drivers.tofu_driver import TofuDriver
+            driver = TofuDriver()
+            with patch("os.path.exists", return_value=True):
+                assert driver.validate() is True
 
 def test_ansible_driver_validate():
     with patch.dict(os.environ, {"ANSIBLE_PLAYBOOK_DIR": "/tmp"}):
