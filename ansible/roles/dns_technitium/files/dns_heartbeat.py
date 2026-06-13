@@ -6,6 +6,7 @@ import time
 import re
 import random
 import sqlite3
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import deque
 from typing import List, Set, Dict
@@ -20,6 +21,7 @@ DB_PATH = "results/dns_suite.db"
 MAX_QPS = float(os.environ.get("HEARTBEAT_QPS", "350.0"))
 QPS_WINDOW_SIZE = 10 # Seconds to average QPS over
 query_history = deque()
+history_lock = threading.Lock()
 
 def api_call(endpoint: str, params: dict = None) -> dict:
     if params is None: params = {}
@@ -54,6 +56,7 @@ def get_weighted_targets() -> List[str]:
         popular_domains = set()
 
     targets = []
+    targets_lock = threading.Lock()
     
     def process_zone(domain: str):
         data = api_call("cache/list", {"domain": domain})
@@ -66,8 +69,8 @@ def get_weighted_targets() -> List[str]:
                 
                 # Check if it's in our predictive "VIP" list
                 if full in popular_domains:
-                    # Give it a small chance to be skipped to spread load
-                    targets.append(full)
+                    with targets_lock:
+                        targets.append(full)
         return data.get("zones", [])
 
     # Parallel TLD scan for the heartbeat
@@ -80,13 +83,15 @@ def get_weighted_targets() -> List[str]:
 
 def check_budget() -> bool:
     now = time.time()
-    while query_history and query_history[0] < (now - QPS_WINDOW_SIZE):
-        query_history.popleft()
-    current_qps = len(query_history) / QPS_WINDOW_SIZE
+    with history_lock:
+        while query_history and query_history[0] < (now - QPS_WINDOW_SIZE):
+            query_history.popleft()
+        current_qps = len(query_history) / QPS_WINDOW_SIZE
     return current_qps < MAX_QPS
 
 def refresh_domain(domain: str):
-    query_history.append(time.time())
+    with history_lock:
+        query_history.append(time.time())
     try:
         subprocess.run(
             ["dig", f"@{DNS_SERVER}", domain, "+short", "+timeout=1"],

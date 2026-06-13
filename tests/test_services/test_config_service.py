@@ -16,9 +16,28 @@ class TestConfigServiceLoadProfile:
         profile_dir.mkdir()
 
         profile_data = {
-            "name": "test-profile",
-            "spec": {"cpu": 2, "memory": 4, "disk": 20},
-            "tags": ["docker"]
+            "vcenter": {
+                "datacenter": "HOMELAB",
+                "cluster": "Primary",
+                "host": "esxi-01.mgmt.plexplease.com",
+                "datastore": "ds-nfs-prod",
+                "network": "VM Network"
+            },
+            "content_library": {
+                "name": "GOLDEN",
+                "template": "ubuntu-24.04-lts-golden"
+            },
+            "vm_specs": {
+                "cpu": 2,
+                "ram_gb": 4,
+                "guest_id": "ubuntu64Guest",
+                "disk_size_gb": 20
+            },
+            "deployment": {
+                "tags": ["docker"],
+                "vm_name_prefix": "test",
+                "vm_name_domain": "mgmt.plexplease.com"
+            }
         }
 
         profile_file = profile_dir / "test-profile.yml"
@@ -29,7 +48,7 @@ class TestConfigServiceLoadProfile:
         result = service.load_profile("test-profile")
 
         assert result == profile_data
-        assert result["name"] == "test-profile"
+        assert result["vm_specs"]["cpu"] == 2
 
     @pytest.mark.unit
     def test_load_profile_raises_on_missing_file(self, tmp_path):

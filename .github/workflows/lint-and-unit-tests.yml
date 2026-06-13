@@ -69,7 +69,7 @@ jobs:
 
       - name: Run unit tests with coverage
         env:
-          PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops/src
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
         run: |
           echo "=== Unit Tests with Coverage ==="
           pytest tests/test_services/ tests/unit/ -v \

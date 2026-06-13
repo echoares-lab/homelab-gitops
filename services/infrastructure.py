@@ -2,6 +2,8 @@
 
 import subprocess
 import shutil
+import os
+import json
 from typing import List, Dict, Optional
 from rich.console import Console
 from services.utils import run_cmd
@@ -128,7 +130,6 @@ class InfrastructureService:
 
         # 2. Get VM info from vCenter
         # Map VCENTER env vars to GOVC env vars for the command
-        import os
         govc_env = os.environ.copy()
         govc_env["GOVC_URL"] = os.getenv("VCENTER_SERVER", "")
         govc_env["GOVC_USERNAME"] = os.getenv("VCENTER_USERNAME", "")
@@ -167,9 +168,9 @@ class InfrastructureService:
                 env=govc_env
             )
             
-            import json
             try:
                 info = json.loads(out)
+
                 vm_data = info.get("VirtualMachines", [{}])[0]
                 runtime = vm_data.get("Runtime", {})
                 guest = vm_data.get("Guest", {})
