@@ -274,9 +274,12 @@ def test_vcenter_driver_validate():
         with pytest.raises(PrerequisiteError):
             driver.validate()
 
-def test_vcenter_driver_execute():
+@patch("subprocess.run")
+def test_vcenter_driver_execute(mock_run):
     from homelab_gitops.drivers.vcenter_driver import vCenterDriver
+    mock_run.return_value = MagicMock(returncode=0, stdout='{"VirtualMachines": [{"Name": "test-profile", "Runtime": {"PowerState": "poweredOn"}, "Guest": {"IpAddress": "1.2.3.4"}}]}')
     driver = vCenterDriver()
-    task = Task(type="test", profile=MagicMock())
+    task = Task(type="test", profile=MagicMock(name="test-profile"))
     result = driver.execute(task)
     assert result.success is True
+    assert result.vm_ip == "1.2.3.4"

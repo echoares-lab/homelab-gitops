@@ -3,6 +3,8 @@
 import subprocess
 import shutil
 import time
+import os
+import json
 from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
@@ -26,29 +28,74 @@ class AnsibleDriver(Driver):
         start = time.time()
 
         if task.type == "config":
-            playbook = "ansible/site.yml"
+            playbook = task.overrides.get("playbook", "ansible/site.yml")
         elif task.type == "build":
-            playbook = "ansible/discover.yml"
+            # For ansible, build might mean discovering or preparing
+            playbook = task.overrides.get("playbook", "ansible/deploy.yml")
+        elif task.type == "test":
+            playbook = task.overrides.get("playbook", "ansible/site.yml")
+            # We might want a specific test playbook or just run with --check/--tags
         else:
             raise ExecutionError(f"Unsupported task type: {task.type}")
 
+        if not os.path.exists(playbook):
+             raise ExecutionError(f"Playbook not found: {playbook}")
+
+        # Build command
+        # Use comma if target is a single IP/hostname and not a file
+        target = task.target or "localhost"
+        if not os.path.exists(target) and "," not in target:
+            inventory = f"{target},"
+        else:
+            inventory = target
+
         cmd = [
             self.ansible_path,
-            "-i", task.target or "localhost",
+            "-i", inventory,
             playbook,
-            "-e", f"profile_name={task.profile.name}",
         ]
+
+        # SSH Identity
+        ssh_key = task.overrides.get("ssh_key")
+        if ssh_key:
+            cmd.extend(["--private-key", ssh_key])
+            
+        ssh_user = task.overrides.get("ssh_user")
+        if ssh_user:
+            cmd.extend(["-u", ssh_user])
+
+        # Extra vars
+        extra_vars = {
+            "profile_name": task.profile.name,
+        }
+        # Merge task overrides into extra_vars (except driver-specific ones)
+        for k, v in task.overrides.items():
+            if k not in ("playbook", "ssh_key", "ssh_user", "timeout"):
+                extra_vars[k] = v
+        
+        # Add profile's deployment roles/vars
+        extra_vars.update(task.profile.deployment)
+
+        cmd.extend(["-e", json.dumps(extra_vars)])
+
+        # Set Ansible environment variables
+        env = os.environ.copy()
+        env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+        env["ANSIBLE_STDOUT_CALLBACK"] = "yaml"
+
+        timeout = task.overrides.get("timeout", 1800)
 
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=600,
+                timeout=timeout,
+                env=env,
             )
 
             if result.returncode != 0:
-                raise ExecutionError(f"Ansible failed: {result.stderr}")
+                raise ExecutionError(f"Ansible failed (RC={result.returncode}): {result.stderr or result.stdout}")
 
             duration = time.time() - start
             return TaskResult(
@@ -58,4 +105,4 @@ class AnsibleDriver(Driver):
                 duration=duration,
             )
         except subprocess.TimeoutExpired:
-            raise ExecutionError("Ansible execution timed out after 600s")
+            raise ExecutionError(f"Ansible execution timed out after {timeout}s")

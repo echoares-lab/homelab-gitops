@@ -7,6 +7,27 @@ src_path = str(Path(__file__).parent.parent / "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+# Mock acme and josepy if not present
+from unittest.mock import MagicMock
+try:
+    import acme
+except ImportError:
+    mock_acme = MagicMock()
+    class MockDNS01: pass
+    mock_acme.challenges.DNS01 = MockDNS01
+    mock_acme.messages.STATUS_READY = "ready"
+    mock_acme.messages.STATUS_VALID = "valid"
+    sys.modules["acme"] = mock_acme
+    sys.modules["acme.client"] = mock_acme.client
+    sys.modules["acme.messages"] = mock_acme.messages
+    sys.modules["acme.crypto_util"] = mock_acme.crypto_util
+    sys.modules["acme.challenges"] = mock_acme.challenges
+
+try:
+    import josepy
+except ImportError:
+    sys.modules["josepy"] = MagicMock()
+
 import time
 import pytest
 from collections import defaultdict
