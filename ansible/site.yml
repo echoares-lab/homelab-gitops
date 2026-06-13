@@ -1,38 +1,38 @@
 ---
 - name: Discover and Group Hosts
-  hosts: all
-  gather_facts: true
+    hosts: all
+    gather_facts: true
   serial: 0
 - name: Configure 1Password Connect Integration
-  hosts: all
-  become: true
-  roles:
+    hosts: all
+    become: true
+    roles:
     - op_connect_integration
 - name: Configure profile log retention
-  hosts: all
-  become: true
-  roles:
+    hosts: all
+    become: true
+    roles:
     - log_retention
 - name: Deploy monitoring agents
-  hosts: tag_alloy
-  become: true
-  roles:
+    hosts: tag_alloy
+    become: true
+    roles:
     - alloy
 - name: Configure Ubuntu Hosts
-  hosts: tag_ubuntu
-  become: true
-  roles:
+    hosts: tag_ubuntu
+    become: true
+    roles:
   - base
   - security
 - name: Configure Photon OS Hosts
-  hosts: tag_photon
-  become: true
+    hosts: tag_photon
+    become: true
   tasks:
-  - name: Ensure all packages are up to date (Photon)
+    - name: Ensure all packages are up to date (Photon)
     ansible.builtin.command: tdnf update -y
     register: tdnf_update
     changed_when: '''Nothing to do'' not in tdnf_update.stdout'
-  - name: Ensure SSH hardening (Photon)
+    - name: Ensure SSH hardening (Photon)
     ansible.builtin.lineinfile:
       path: /etc/ssh/sshd_config
       regexp: '{{ item.regexp }}'
@@ -45,21 +45,21 @@
       line: PasswordAuthentication no
     notify: Restart sshd (Photon)
   handlers:
-  - name: Restart sshd (Photon)
+    - name: Restart sshd (Photon)
     ansible.builtin.systemd:
       name: sshd
       state: restarted
 - name: Configure Docker nodes with metrics and TLS
-  hosts: tag_docker
-  become: true
-  roles:
+    hosts: tag_docker
+    become: true
+    roles:
     - docker
     - docker_metrics
 - name: primary_dns
-  hosts: tag_dns
-  become: true
+    hosts: tag_dns
+    become: true
   pre_tasks:
-  - name: Ensure DNS resolution is functional for installation
+    - name: Ensure DNS resolution is functional for installation
     ansible.builtin.copy:
       dest: /etc/resolv.conf
       content: |
@@ -67,15 +67,15 @@
         nameserver 1.1.1.1
       mode: "0644"
     ignore_errors: true
-  roles:
+    roles:
   - base
   - security
   - dns_technitium
 
 - name: Deploy EnGenius Private Cloud
-  hosts: tag_engenius_epc
-  become: true
-  roles:
+    hosts: tag_engenius_epc
+    become: true
+    roles:
   - base
   - security
   - engenius_epc
