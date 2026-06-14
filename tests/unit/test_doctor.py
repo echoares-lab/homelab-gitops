@@ -10,10 +10,10 @@ from homelab_gitops.drivers.exceptions import PrerequisiteError
 runner = CliRunner()
 
 class TestDoctorService:
-    @patch('homelab_gitops.domain.doctor.vCenterDriver')
-    @patch('homelab_gitops.domain.doctor.TechnitiumDriver')
-    @patch('homelab_gitops.domain.doctor.OPNsenseDriver')
-    @patch('homelab_gitops.domain.doctor.TofuDriver')
+    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
+    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
+    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
+    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
     @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
     def test_run_diagnostics_all_pass(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
         # Setup mocks
@@ -49,10 +49,10 @@ class TestDoctorService:
         assert results["dns"]["status"] == "pass"
         assert "latency" in results["dns"]
 
-    @patch('homelab_gitops.domain.doctor.vCenterDriver')
-    @patch('homelab_gitops.domain.doctor.TechnitiumDriver')
-    @patch('homelab_gitops.domain.doctor.OPNsenseDriver')
-    @patch('homelab_gitops.domain.doctor.TofuDriver')
+    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
+    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
+    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
+    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
     @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
     def test_run_diagnostics_with_failures(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
         # Setup mocks

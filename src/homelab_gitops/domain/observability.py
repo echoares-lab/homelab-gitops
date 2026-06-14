@@ -1,11 +1,11 @@
 from typing import Dict, Any
 from homelab_gitops.domain.models import NodeProfile, Task, TaskResult
-from homelab_gitops.drivers.ansible_driver import AnsibleDriver
 
 class ObservabilityService:
     """Service to manage observability stack."""
 
     def __init__(self):
+        from homelab_gitops.drivers.ansible_driver import AnsibleDriver
         self.ansible = AnsibleDriver()
 
     def deploy_monitoring(self, profile: NodeProfile) -> TaskResult:

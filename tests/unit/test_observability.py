@@ -17,7 +17,7 @@ def create_mock_profile(name="test-node"):
     )
 
 class TestObservabilityService:
-    @patch('homelab_gitops.domain.observability.AnsibleDriver')
+    @patch('homelab_gitops.drivers.ansible_driver.AnsibleDriver')
     def test_deploy_monitoring(self, mock_ansible_driver):
         mock_ansible_instance = mock_ansible_driver.return_value
         mock_ansible_instance.execute.return_value = TaskResult(success=True, task_type="config", output={}, duration=1.0)

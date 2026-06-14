@@ -1,16 +1,16 @@
 import time
 import socket
 from typing import Dict, Any
-from homelab_gitops.drivers.vcenter_driver import vCenterDriver
-from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
-from homelab_gitops.drivers.opnsense_driver import OPNsenseDriver
-from homelab_gitops.drivers.tofu_driver import TofuDriver
-from homelab_gitops.drivers.exceptions import PrerequisiteError
 
 class DoctorService:
     """Service to run diagnostics on core systems."""
 
     def __init__(self):
+        from homelab_gitops.drivers.vcenter_driver import vCenterDriver
+        from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
+        from homelab_gitops.drivers.opnsense_driver import OPNsenseDriver
+        from homelab_gitops.drivers.tofu_driver import TofuDriver
+
         self.vcenter = vCenterDriver()
         self.technitium = TechnitiumDriver()
         self.opnsense = OPNsenseDriver()
@@ -18,6 +18,7 @@ class DoctorService:
 
     def run_diagnostics(self) -> Dict[str, Any]:
         """Run health checks on core systems."""
+        from homelab_gitops.drivers.exceptions import PrerequisiteError
         results = {}
 
         # Check vCenter
