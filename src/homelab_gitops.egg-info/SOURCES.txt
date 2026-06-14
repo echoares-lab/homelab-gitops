@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/homelab_gitops/__init__.py
+src/homelab_gitops/mcp_server.py
+src/homelab_gitops.egg-info/PKG-INFO
+src/homelab_gitops.egg-info/SOURCES.txt
+src/homelab_gitops.egg-info/dependency_links.txt
+src/homelab_gitops.egg-info/requires.txt
+src/homelab_gitops.egg-info/top_level.txt
+tests/test_alloy_role.py
+tests/test_ci_config.py
+tests/test_common.py
+tests/test_connectivity_optimized.py
+tests/test_docker_metrics_role.py
+tests/test_github_runner.py
+tests/test_golden_image.py
+tests/test_log_retention_role.py

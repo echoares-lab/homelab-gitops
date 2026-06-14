@@ -1,0 +1,13 @@
+typer
+rich
+pyyaml
+typing_extensions
+requests
+pydantic>=2.0.0
+pyvmomi
+pytest-testinfra
+pexpect
+paramiko
+acme
+cryptography
+mcp[cli]
