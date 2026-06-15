@@ -83,8 +83,15 @@ class Workflow:
 
     def _prepare_task(self, stage: str) -> Task:
         """Prepare a task for the given stage."""
+        overrides = {}
+        if "mac_address" in self.profile.deployment:
+            overrides["mac_address"] = self.profile.deployment["mac_address"]
+        if "ip_address" in self.profile.deployment:
+            overrides["ipv4_address"] = self.profile.deployment["ip_address"]
+
         return Task(
             type=stage,
             profile=self.profile,
             target=self.state.vm_ip,
+            overrides=overrides
         )
