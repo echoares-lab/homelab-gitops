@@ -16,7 +16,7 @@ def test_state_machine_invalid_transition():
 def test_state_machine_update_state():
     """Transition updates DeploymentState."""
     sm = StateMachine()
-    state = DeploymentState("ubuntu-base", "01", "ubuntu-base-01")
+    state = DeploymentState(profile_name="ubuntu-base", index="01", vm_name="ubuntu-base-01")
     result = TaskResult(success=True, task_type="deploy", output="...", duration=30.0, vm_ip="10.10.10.50")
 
     new_state = sm.transition(state, "deploy", result)
