@@ -291,7 +291,7 @@ def test_opnsense_driver_api_error(opnsense_driver):
         mock_get.return_value.status_code = 500
         mock_get.return_value.text = "Internal Server Error"
         
-        with pytest.raises(ExecutionError, match="API Error \(500\)"):
+        with pytest.raises(ExecutionError, match=r"API Error \(500\)"):
             opnsense_driver._get("/some/endpoint")
 
 def test_opnsense_driver_validate_missing_env():
@@ -424,7 +424,7 @@ def test_opnsense_driver_handle_response_error(opnsense_driver):
     mock_response = MagicMock()
     mock_response.status_code = 400
     mock_response.text = "Bad Request"
-    with pytest.raises(ExecutionError, match="API Error \(400\)"):
+    with pytest.raises(ExecutionError, match=r"API Error \(400\)"):
         opnsense_driver._handle_response(mock_response)
 
 def test_opnsense_driver_validate_credentials_fail(opnsense_driver):

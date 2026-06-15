@@ -14,7 +14,7 @@ class NodeProfile(BaseModel):
 
     def __init__(self, *args, **kwargs):
         if args:
-            kwargs.update(dict(zip(self.model_fields, args)))
+            kwargs.update(dict(zip(self.__class__.model_fields, args)))
         super().__init__(**kwargs)
 
     @field_validator("vcenter")
@@ -48,7 +48,7 @@ class DeploymentState(BaseModel):
 
     def __init__(self, *args, **kwargs):
         if args:
-            kwargs.update(dict(zip(self.model_fields, args)))
+            kwargs.update(dict(zip(self.__class__.model_fields, args)))
         super().__init__(**kwargs)
 
 class Task(BaseModel):
@@ -60,7 +60,7 @@ class Task(BaseModel):
 
     def __init__(self, *args, **kwargs):
         if args:
-            kwargs.update(dict(zip(self.model_fields, args)))
+            kwargs.update(dict(zip(self.__class__.model_fields, args)))
         super().__init__(**kwargs)
 
 class TaskResult(BaseModel, Generic[T]):
@@ -74,5 +74,5 @@ class TaskResult(BaseModel, Generic[T]):
 
     def __init__(self, *args, **kwargs):
         if args:
-            kwargs.update(dict(zip(self.model_fields, args)))
+            kwargs.update(dict(zip(self.__class__.model_fields, args)))
         super().__init__(**kwargs)
