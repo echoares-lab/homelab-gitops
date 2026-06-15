@@ -12,10 +12,6 @@ class NodeProfile(BaseModel):
     deployment: Dict[str, Any]  # tags, roles, playbooks
     networking: Dict[str, Any] = Field(default_factory=dict)  # vlan, firewall_rules
 
-    def __init__(self, *args, **kwargs):
-        if args:
-            kwargs.update(dict(zip(self.__class__.model_fields, args)))
-        super().__init__(**kwargs)
 
     @field_validator("vcenter")
     @classmethod
@@ -46,10 +42,6 @@ class DeploymentState(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     error: Optional[str] = None
 
-    def __init__(self, *args, **kwargs):
-        if args:
-            kwargs.update(dict(zip(self.__class__.model_fields, args)))
-        super().__init__(**kwargs)
 
 class Task(BaseModel):
     """A unit of work for a driver to execute."""
@@ -58,10 +50,6 @@ class Task(BaseModel):
     target: Optional[str] = None  # VM IP or name
     overrides: Dict[str, Any] = Field(default_factory=dict)
 
-    def __init__(self, *args, **kwargs):
-        if args:
-            kwargs.update(dict(zip(self.__class__.model_fields, args)))
-        super().__init__(**kwargs)
 
 class TaskResult(BaseModel, Generic[T]):
     """Result of task execution."""
@@ -72,7 +60,3 @@ class TaskResult(BaseModel, Generic[T]):
     error: Optional[str] = None
     vm_ip: Optional[str] = None  # Returned from deploy task
 
-    def __init__(self, *args, **kwargs):
-        if args:
-            kwargs.update(dict(zip(self.__class__.model_fields, args)))
-        super().__init__(**kwargs)
