@@ -13,6 +13,7 @@ commands:
   edit-profile: "Update resource specs (CPU, RAM, Disk) for an existing profile."
   create-role: "Scaffold a new Ansible role directory structure."
   create-play: "Create a new targeting 'bucket' in site.yml for specific tags."
+  network: "Auto-generate and manage networking assignments (DNS, DHCP, MAC)."
 
 tags:
   ubuntu: "Standard Ubuntu LTS configuration."

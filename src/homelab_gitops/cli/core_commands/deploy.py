@@ -35,6 +35,11 @@ def deploy_command(
         profile_dict["name"] = profile
         profile_obj = NodeProfile(**profile_dict)
 
+        # Auto-generate or load network assignments (MAC, IP, DNS)
+        from homelab_gitops.domain.network import NetworkService
+        net_svc = NetworkService()
+        net_svc.ensure_network(profile_obj, index)
+
         # Setup drivers
         drivers = {
             "deploy": TofuDriver(),
