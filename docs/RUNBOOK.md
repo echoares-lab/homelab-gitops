@@ -67,6 +67,16 @@ Manages ACME certificates using DNS-01 challenges via Technitium.
 *   **Workflow:** Generates a local key, creates a TXT record in Technitium, validates via Let's Encrypt, and stores the resulting cert chain in 1Password.
 *   **Security:** Certificates are stored in 1Password as `cert-<domain>-chain` and `cert-<domain>-key`.
 
+### `doctor`
+Runs comprehensive system diagnostics across all core infrastructure drivers.
+*   **Example:** `python3 manage.py doctor`
+*   **Use case:** Proactively check API connectivity to vCenter, OPNsense, Technitium, and Tofu, while verifying DNS resolution health.
+
+### `monitor`
+Manages the observability stack (Grafana Alloy, Docker Metrics) across the fleet.
+*   **Setup:** `python3 manage.py monitor setup <profile>` - Deploys the monitoring agent to the target node via Ansible.
+*   **Health:** `python3 manage.py monitor health <profile>` - Retrieves real-time health metrics summary from the node.
+
 ---
 
 ## 3. Generator Helpers
