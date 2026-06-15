@@ -13,6 +13,12 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.2 - Driver Maturity & Edge Case Hardening
+- **Ansible Driver:** Added native support for `--limit` and `--tags` CLI overrides in `AnsibleDriver`.
+- **Ansible Driver:** Hardened command construction to filter redundant variables from `extra_vars` when CLI flags are used.
+- **Migration Driver:** Fixed a critical bug in `rollback` where sub-driver tasks were missing required profile context.
+- **Test Coverage:** Achieved 100% unit test coverage for `AnsibleDriver` and `MigrationDriver` with exhaustive edge case validation (SSH failures, state corruption, timeout handling).
+
 ### v3.4.1 - Runner Storage and Profile Log Retention
 - Ensured GitHub runner baseline provisioning expands the root partition and filesystem to use the full 400GB virtual disk allocated by runner profiles.
 - Added `ansible/runner-maintenance.yml` for token-free maintenance of existing self-hosted runners.

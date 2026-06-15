@@ -67,6 +67,8 @@ class OPNsenseDriver(Driver):
                 output = self._handle_interface(action, task.overrides)
             elif resource == "dhcp":
                 output = self._handle_dhcp(action, task.overrides)
+            elif resource == "backup":
+                output = self._handle_backup(action, task.overrides)
             else:
                 raise ExecutionError(f"Unsupported resource type: {resource}")
 
@@ -138,6 +140,25 @@ class OPNsenseDriver(Driver):
             
         else:
             raise ExecutionError(f"Unsupported DHCP action: {action}")
+
+    def _handle_backup(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Backup operations."""
+        if action == "export":
+            response = requests.get(
+                f"{self.url}/core/backup/download",
+                auth=(self.key, self.secret),
+                verify=self.verify,
+                timeout=self.timeout
+            )
+            if response.status_code != 200:
+                raise ExecutionError(f"Failed to download OPNsense backup: {response.status_code}")
+            
+            return {
+                "content": response.text,
+                "filename": "opnsense-config.xml"
+            }
+        else:
+            raise ExecutionError(f"Unsupported backup action: {action}")
 
     def _handle_interface(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle Interface operations."""

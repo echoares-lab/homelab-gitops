@@ -184,7 +184,7 @@ class AcmeDriver(Driver):
             for authz in order.authorizations:
                 if authz.body.status == messages.STATUS_PENDING:
                     for challb in authz.body.challenges:
-                        if isinstance(challb.chall, messages.DNS01):
+                        if isinstance(challb.chall, challenges.DNS01):
                             acme_client.answer_challenge(challb, challb.chall.response(self._account_key))
             
             # 2. Poll for 'ready' status

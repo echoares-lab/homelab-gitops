@@ -74,10 +74,10 @@ jobs:
             --cov-report=json \
             --cov-report=html:htmlcov
 
-      - name: Check coverage threshold (50%)
+      - name: Check coverage threshold (85%)
         run: |
           echo "=== Coverage Check ==="
-          python -m coverage report --fail-under=50 --precision=2 || (echo "Coverage below 50% threshold!" && exit 1)
+          python -m coverage report --fail-under=85 --precision=2 || (echo "Coverage below 85% threshold!" && exit 1)
 
       - name: Upload coverage to artifacts
         if: always()

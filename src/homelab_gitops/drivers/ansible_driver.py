@@ -64,17 +64,29 @@ class AnsibleDriver(Driver):
         if ssh_user:
             cmd.extend(["-u", ssh_user])
 
+        limit = task.overrides.get("limit")
+        if limit:
+            cmd.extend(["--limit", limit])
+
+        tags = task.overrides.get("tags")
+        if tags:
+            if isinstance(tags, list):
+                tags = ",".join(tags)
+            cmd.extend(["--tags", tags])
+
         # Extra vars
         extra_vars = {
             "profile_name": task.profile.name,
         }
         # Merge task overrides into extra_vars (except driver-specific ones)
         for k, v in task.overrides.items():
-            if k not in ("playbook", "ssh_key", "ssh_user", "timeout"):
+            if k not in ("playbook", "ssh_key", "ssh_user", "timeout", "limit", "tags"):
                 extra_vars[k] = v
         
         # Add profile's deployment roles/vars
-        extra_vars.update(task.profile.deployment)
+        for k, v in task.profile.deployment.items():
+            if k not in ("limit", "tags"):
+                extra_vars[k] = v
 
         cmd.extend(["-e", json.dumps(extra_vars)])
 

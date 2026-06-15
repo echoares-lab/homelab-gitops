@@ -67,6 +67,8 @@ class TechnitiumDriver(Driver):
                 output = self._handle_zone(action, task)
             elif resource == "dhcp":
                 output = self._handle_dhcp(action, task)
+            elif resource == "backup":
+                output = self._handle_backup(action, task)
             else:
                 raise ExecutionError(f"Unsupported resource type: {resource}")
 
@@ -94,6 +96,28 @@ class TechnitiumDriver(Driver):
             return self._api_call("dhcp/scopes/disable", params)
         else:
             raise ExecutionError(f"Unsupported DHCP action: {action}")
+
+    def _handle_backup(self, action: str, task: Task) -> Dict[str, Any]:
+        """Handle Backup operations."""
+        if action == "export":
+            # 1. List all zones
+            zones_data = self._api_call("dns/listZones", {})
+            zones = zones_data.get("zones", [])
+            
+            backups = {}
+            for zone in zones:
+                zone_name = zone.get("name")
+                if zone_name:
+                    # 2. Export each zone
+                    export_data = self._api_call("dns/exportZone", {"zone": zone_name})
+                    backups[zone_name] = export_data.get("zoneFileContent")
+            
+            return {
+                "zones": backups,
+                "filename": "technitium-zones.json"
+            }
+        else:
+            raise ExecutionError(f"Unsupported backup action: {action}")
 
     def _handle_record(self, action: str, task: Task) -> Dict[str, Any]:
         """Handle DNS record operations."""
