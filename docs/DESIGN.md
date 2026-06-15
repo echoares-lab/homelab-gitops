@@ -25,6 +25,10 @@ graph TD
     I -->|TXT Record| J[Technitium DNS]
     I -->|Key/Cert| K[1Password Vault]
     K -->|Secrets Injection| F
+    B -->|Diagnostics| L[Doctor Service]
+    L -->|Health Checks| M[Infrastructure Fleet]
+    B -->|Grafana Alloy| N[Observability Service]
+    N -->|Telemetry| O[Prometheus/Grafana Stack]
 ```
 
 ---
