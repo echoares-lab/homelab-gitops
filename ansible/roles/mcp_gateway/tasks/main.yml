@@ -50,6 +50,14 @@
     group: mcpadmin
     mode: '0644'
 
+- name: Template mcp.json config
+  ansible.builtin.template:
+    src: mcp.json.j2
+    dest: /home/mcpadmin/mcp-gateway/mcp.json
+    owner: mcpadmin
+    group: mcpadmin
+    mode: '0644'
+
 - name: Ensure MCP Gateway is running
   community.docker.docker_compose_v2:
     project_src: /home/mcpadmin/mcp-gateway

@@ -13,3 +13,6 @@ services:
       - "uptime-kuma.monitor.url=http://localhost:8080"
       - "dockhand.enable=true"
       - "dockhand.app=mcp-gateway"
+    volumes:
+      - "./mcp.json:/app/mcp.json:ro"
+    command: ["--config", "/app/mcp.json"]
