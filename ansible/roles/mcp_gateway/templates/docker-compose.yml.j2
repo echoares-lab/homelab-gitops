@@ -1,0 +1,15 @@
+services:
+  mcp-gateway:
+    image: docker/mcp-gateway:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+    labels:
+      - "uptime-kuma.monitor.enable=true"
+      - "uptime-kuma.monitor.name=MCP Gateway"
+      - "uptime-kuma.monitor.type=http"
+      - "uptime-kuma.monitor.url=http://localhost:8080"
+      - "dockhand.enable=true"
+      - "dockhand.app=mcp-gateway"

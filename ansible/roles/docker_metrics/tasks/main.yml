@@ -68,3 +68,37 @@
     mode: "0644"
   notify: Restart Docker daemon
   when: docker_metrics_enabled | bool
+
+- name: Register node with Dockhand via API
+  ansible.builtin.uri:
+    url: "{{ dockhand_api_url | default('http://10.10.10.30:3001/api/environments') }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ dockhand_api_token | default('') }}"
+      Accept: "application/json"
+    body_format: json
+    body:
+      name: "{{ inventory_hostname }}"
+      host: "{{ inventory_hostname }}"
+      port: {{ docker_metrics_tls_port }}
+      tls: true
+    status_code: [200, 201, 409] # 409 usually means already exists
+  ignore_errors: true
+  when: dockhand_api_token is defined and dockhand_api_token != ''
+
+- name: Register node with Uptime Kuma via REST API
+  ansible.builtin.uri:
+    url: "{{ uptime_kuma_api_url | default('http://10.10.10.30:3000/api/monitor') }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ uptime_kuma_api_token | default('') }}"
+      Accept: "application/json"
+    body_format: json
+    body:
+      name: "{{ inventory_hostname }} Docker Daemon"
+      type: "docker"
+      docker_host: "tcp://{{ inventory_hostname }}:{{ docker_metrics_tls_port }}"
+    status_code: [200, 201, 400] # 400 might be returned if it already exists
+  ignore_errors: true
+  when: uptime_kuma_api_token is defined and uptime_kuma_api_token != ''
+
