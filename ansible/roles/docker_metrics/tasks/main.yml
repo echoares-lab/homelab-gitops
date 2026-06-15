@@ -80,7 +80,7 @@
     body:
       name: "{{ inventory_hostname }}"
       host: "{{ inventory_hostname }}"
-      port: {{ docker_metrics_tls_port }}
+      port: "{{ docker_metrics_tls_port }}"
       tls: true
     status_code: [200, 201, 409] # 409 usually means already exists
   ignore_errors: true
