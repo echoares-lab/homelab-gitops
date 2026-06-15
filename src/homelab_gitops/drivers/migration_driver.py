@@ -9,7 +9,7 @@ from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import ExecutionError
 from homelab_gitops.drivers.opnsense_driver import OPNsenseDriver
 from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
-from homelab_gitops.domain.models import Task, TaskResult
+from homelab_gitops.domain.models import Task, TaskResult, NodeProfile
 
 
 class MigrationDriver(Driver):
@@ -44,7 +44,7 @@ class MigrationDriver(Driver):
             elif action == "load_state":
                 output = {"migrated": self.load_state()}
             elif action == "rollback":
-                output = self.rollback()
+                output = self.rollback(task.profile)
             elif action == "clear_state":
                 if os.path.exists(self.state_file):
                     os.remove(self.state_file)
@@ -84,7 +84,7 @@ class MigrationDriver(Driver):
         except (json.JSONDecodeError, IOError):
             return []
 
-    def rollback(self) -> Dict[str, Any]:
+    def rollback(self, profile: NodeProfile) -> Dict[str, Any]:
         """Roll back migration based on saved state."""
         migrated = self.load_state()
         if not migrated:
@@ -104,12 +104,14 @@ class MigrationDriver(Driver):
                 # Re-enable OPNsense
                 self.opnsense_driver.execute(Task(
                     type="dhcp",
+                    profile=profile,
                     overrides={"resource": "dhcp", "action": "enable", "interface": iface}
                 ))
                 
                 # Disable Technitium
                 self.technitium_driver.execute(Task(
                     type="dhcp",
+                    profile=profile,
                     overrides={"resource": "dhcp", "action": "disable", "name": scope}
                 ))
                 

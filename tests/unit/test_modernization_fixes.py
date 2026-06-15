@@ -147,7 +147,7 @@ def test_opnsense_driver_validate():
         with pytest.raises(PrerequisiteError, match="Invalid OPNsense API credentials"):
             driver.validate()
 
-def test_opnsense_driver_execute_vlan():
+def test_opnsense_driver_execute_vlan(node_profile):
     driver = OPNsenseDriver()
     driver.url = "https://opnsense.local"
     driver.key = "key"
@@ -155,7 +155,7 @@ def test_opnsense_driver_execute_vlan():
     
     task = Task(
         type="provision",
-        profile=MagicMock(),
+        profile=node_profile,
         overrides={
             "resource": "vlan",
             "action": "create",
@@ -210,12 +210,12 @@ def test_technitium_driver_validate():
             mock_get.return_value.json.return_value = {"status": "ok"}
             assert driver.validate() is True
 
-def test_technitium_driver_execute_record():
+def test_technitium_driver_execute_record(node_profile):
     with patch.dict(os.environ, {"TECHNITIUM_HOST": "http://dns.local", "TECHNITIUM_TOKEN": "token"}):
         driver = TechnitiumDriver()
         task = Task(
             type="provision",
-            profile=MagicMock(),
+            profile=node_profile,
             overrides={
                 "resource": "record",
                 "action": "create",
@@ -275,11 +275,11 @@ def test_vcenter_driver_validate():
             driver.validate()
 
 @patch("subprocess.run")
-def test_vcenter_driver_execute(mock_run):
+def test_vcenter_driver_execute(mock_run, node_profile):
     from homelab_gitops.drivers.vcenter_driver import vCenterDriver
     mock_run.return_value = MagicMock(returncode=0, stdout='{"VirtualMachines": [{"Name": "test-profile", "Runtime": {"PowerState": "poweredOn"}, "Guest": {"IpAddress": "1.2.3.4"}}]}')
     driver = vCenterDriver()
-    task = Task(type="test", profile=MagicMock(name="test-profile"))
+    task = Task(type="test", profile=node_profile)
     result = driver.execute(task)
     assert result.success is True
     assert result.vm_ip == "1.2.3.4"

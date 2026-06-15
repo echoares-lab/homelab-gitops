@@ -124,6 +124,44 @@ class SecretsDriver(Driver):
         except subprocess.CalledProcessError as e:
             raise ExecutionError(f"Failed to store secret in 1Password: {e.stderr}")
 
+    def store_document(self, title: str, file_path: str, vault: Optional[str] = None) -> None:
+        """Store a document in 1Password.
+
+        Args:
+            title: Title of the document.
+            file_path: Path to the file to upload.
+            vault: Vault to store in.
+        """
+        if not self.op_path:
+            raise ExecutionError("'op' CLI required for storing documents")
+
+        vault = vault or self.default_vault
+
+        try:
+            # Check if document exists
+            result = subprocess.run(
+                [self.op_path, "item", "get", title, "--vault", vault, "--format", "json"],
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode == 0:
+                # Delete existing document first (op doesn't support updating document content easily via edit)
+                subprocess.run(
+                    [self.op_path, "item", "delete", title, "--vault", vault],
+                    check=True,
+                    capture_output=True
+                )
+
+            # Create new document
+            subprocess.run(
+                [self.op_path, "document", "create", file_path, "--title", title, "--vault", vault],
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            raise ExecutionError(f"Failed to store document in 1Password: {e.stderr}")
+
     def _get_secret(self, secret_ref: Optional[str], overrides: Optional[Dict[str, Any]] = None) -> str:
         """Fetch a single secret."""
         if not secret_ref:

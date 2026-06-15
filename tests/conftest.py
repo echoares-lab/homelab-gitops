@@ -13,7 +13,9 @@ try:
     import acme
 except ImportError:
     mock_acme = MagicMock()
-    class MockDNS01: pass
+    class MockDNS01:
+        def response(self, key): return MagicMock()
+        def response_and_validation(self, key): return (MagicMock(), "token")
     mock_acme.challenges.DNS01 = MockDNS01
     mock_acme.messages.STATUS_READY = "ready"
     mock_acme.messages.STATUS_VALID = "valid"
@@ -186,4 +188,29 @@ def test_vm_ssh_key():
     Defaults to ~/.ssh/id_ed25519 if TEST_VM_SSH_KEY not set.
     """
     return os.environ.get("TEST_VM_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519"))
+
+
+@pytest.fixture
+def node_profile():
+    """Returns a valid NodeProfile for testing."""
+    from homelab_gitops.domain.models import NodeProfile
+    return NodeProfile(
+        name="test-profile",
+        vcenter={
+            "datacenter": "dc1",
+            "cluster": "cl1",
+            "datastore": "ds1",
+            "network": "net1"
+        },
+        vm_specs={
+            "cpu": 2,
+            "memory": 4096,
+            "disk": 20
+        },
+        deployment={
+            "template": "ubuntu-22.04",
+            "roles": ["base"],
+            "playbooks": ["site.yml"]
+        }
+    )
 
