@@ -51,7 +51,7 @@ class TofuDriver(Driver):
         
         # Check for drift using plan
         # -detailed-exitcode: 0=no changes, 2=changes, 1=error
-        plan_res = self._run_tofu(["plan", "-detailed-exitcode", "-no-color", "-input=false", f"-var=name={profile_name}"])
+        plan_res = self._run_tofu(["plan", "-detailed-exitcode", "-no-color", "-input=false", f"-var=profile_name={profile_name}"])
         
         return {
             "provisioned": True,
@@ -84,7 +84,7 @@ class TofuDriver(Driver):
         cmd_args = [action, "-auto-approve", "-no-color", "-input=false"]
         
         # Profile vars
-        cmd_args.extend(["-var", f"name={task.profile.name}"])
+        cmd_args.extend(["-var", f"profile_name={task.profile.name}"])
         
         # Overrides
         for k, v in task.overrides.items():

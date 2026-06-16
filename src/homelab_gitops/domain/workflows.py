@@ -96,9 +96,21 @@ class Workflow:
         overrides["host"] = self.profile.vcenter.get("host", "")
         overrides["datastore"] = self.profile.vcenter.get("datastore", "")
         overrides["network"] = self.profile.vcenter.get("network", "")
+        
+        # Load secrets via SecretsDriver
+        from homelab_gitops.drivers.secrets_driver import SecretsDriver
+        from homelab_gitops.domain.models import Task as SecretsTask
+        try:
+            secrets_driver = SecretsDriver()
+            vcenter_user = secrets_driver.execute(SecretsTask(type="get", target="VCENTER_USER", overrides={"field": "username"})).output
+            vcenter_pass = secrets_driver.execute(SecretsTask(type="get", target="VCENTER_PASSWORD", overrides={"field": "password"})).output
+        except Exception:
+            vcenter_user = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
+            vcenter_pass = os.environ.get("VCENTER_PASSWORD", "")
+            
         overrides["vcenter_server"] = os.environ.get("VCENTER_SERVER", self.profile.vcenter.get("host", ""))
-        overrides["vcenter_user"] = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
-        overrides["vcenter_password"] = os.environ.get("VCENTER_PASSWORD", "")
+        overrides["vcenter_user"] = vcenter_user or os.environ.get("VCENTER_USER", "administrator@vsphere.local")
+        overrides["vcenter_password"] = vcenter_pass or os.environ.get("VCENTER_PASSWORD", "")
         
         # Content Library
         overrides["library_name"] = self.profile.content_library.get("name", "")
