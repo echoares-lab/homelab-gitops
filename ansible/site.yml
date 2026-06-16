@@ -55,6 +55,13 @@
     roles:
     - docker
     - docker_metrics
+
+- name: Deploy MCP Gateway
+  hosts: tag_mcp_gateway
+  become: true
+  roles:
+    - mcp_gateway
+
 - name: primary_dns
     hosts: tag_dns
     become: true
