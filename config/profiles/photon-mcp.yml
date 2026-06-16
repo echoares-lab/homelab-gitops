@@ -12,9 +12,9 @@ content_library:
 
 vm_specs:
   cpu: 16
-  ram_gb: 24
+  memory: 24
   guest_id: "vmwarePhoton64Guest"
-  disk_size_gb: 50
+  disk: 50
 
 deployment:
   tags:

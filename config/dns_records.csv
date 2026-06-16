@@ -2,3 +2,6 @@ resource_type,name,parent,type,value,ttl,mac_address,network_address,subnet_mask
 zone,plexplease.com,,Primary,,,,, ,,,,Technitium Primary Zone,,
 record,dns-01.plexplease.com,plexplease.com,A,10.10.10.2,3600,,,, ,,,,Technitium Primary DNS,,
 record,www.plexplease.com,plexplease.com,CNAME,dns-01.plexplease.com,3600,,,, ,,,,Web Server,,
+dhcp_lease,photon-mcp-01,10.10.10.0,,10.10.10.3,,00:50:56:22:a0:7f,,,,,,Auto-generated for photon-mcp-01,,
+record,photon-mcp-01,infa.plexplease.com,A,10.10.10.3,,,,,,,,Auto-generated for photon-mcp-01,,
+record,3.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,photon-mcp-01.infa.plexplease.com,,,,,,,,Auto-generated for photon-mcp-01,,
