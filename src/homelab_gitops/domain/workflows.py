@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Any
 from homelab_gitops.domain.models import NodeProfile, Task, TaskResult, DeploymentState
 from homelab_gitops.domain.state_machine import StateMachine
@@ -84,6 +85,35 @@ class Workflow:
     def _prepare_task(self, stage: str) -> Task:
         """Prepare a task for the given stage."""
         overrides = {}
+        
+        # Map profile variables to Tofu variables
+        overrides["profile_name"] = self.profile.name
+        overrides["vm_name"] = self.state.vm_name
+        
+        # vCenter
+        overrides["datacenter"] = self.profile.vcenter.get("datacenter", "")
+        overrides["cluster"] = self.profile.vcenter.get("cluster", "")
+        overrides["host"] = self.profile.vcenter.get("host", "")
+        overrides["datastore"] = self.profile.vcenter.get("datastore", "")
+        overrides["network"] = self.profile.vcenter.get("network", "")
+        overrides["vcenter_server"] = os.environ.get("VCENTER_SERVER", self.profile.vcenter.get("host", ""))
+        overrides["vcenter_user"] = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
+        overrides["vcenter_password"] = os.environ.get("VCENTER_PASSWORD", "")
+        
+        # Content Library
+        overrides["library_name"] = self.profile.content_library.get("name", "")
+        overrides["template_name"] = self.profile.content_library.get("template", "")
+        
+        # VM Specs
+        overrides["vm_cpu"] = self.profile.vm_specs.get("cpu", 2)
+        overrides["vm_ram_gb"] = self.profile.vm_specs.get("memory", 4)
+        overrides["disk_size_gb"] = self.profile.vm_specs.get("disk", 50)
+        overrides["guest_id"] = self.profile.vm_specs.get("guest_id", "")
+        
+        # Deployment
+        tags = self.profile.deployment.get("tags", [])
+        overrides["vm_tags"] = ",".join(tags) if tags else ""
+
         if "mac_address" in self.profile.deployment:
             overrides["mac_address"] = self.profile.deployment["mac_address"]
         if "ip_address" in self.profile.deployment:

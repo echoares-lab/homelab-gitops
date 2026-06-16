@@ -51,7 +51,7 @@ class TofuDriver(Driver):
         
         # Check for drift using plan
         # -detailed-exitcode: 0=no changes, 2=changes, 1=error
-        plan_res = self._run_tofu(["plan", "-detailed-exitcode", "-no-color", f"-var=name={profile_name}"])
+        plan_res = self._run_tofu(["plan", "-detailed-exitcode", "-no-color", "-input=false", f"-var=name={profile_name}"])
         
         return {
             "provisioned": True,
@@ -81,7 +81,7 @@ class TofuDriver(Driver):
 
         # 3. Build Apply/Destroy Command
         action = "apply" if task.type == "deploy" else "destroy"
-        cmd_args = [action, "-auto-approve", "-no-color"]
+        cmd_args = [action, "-auto-approve", "-no-color", "-input=false"]
         
         # Profile vars
         cmd_args.extend(["-var", f"name={task.profile.name}"])

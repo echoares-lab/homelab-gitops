@@ -11,6 +11,7 @@ class NodeProfile(BaseModel):
     vm_specs: Dict[str, Any]  # cpu, memory, disk
     deployment: Dict[str, Any]  # tags, roles, playbooks
     networking: Dict[str, Any] = Field(default_factory=dict)  # vlan, firewall_rules
+    content_library: Dict[str, Any] = Field(default_factory=dict)  # name, template
 
 
     @field_validator("vcenter")
