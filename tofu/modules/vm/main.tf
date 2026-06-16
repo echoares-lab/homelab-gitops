@@ -30,16 +30,24 @@ data "vsphere_content_library" "library" {
   name = var.library_name
 }
 
-data "vsphere_content_library_item" "template" {
-  name       = var.template_name
-  library_id = data.vsphere_content_library.library.id
-  type       = "ovf"
+data "vsphere_virtual_machine" "template" {
+  name          = var.template_name
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_host" "host" {
+  count         = var.host != "" ? 1 : 0
+  name          = var.host
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 resource "vsphere_virtual_machine" "vm" {
   name             = var.vm_name
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
   datastore_id     = data.vsphere_datastore.datastore.id
+  host_system_id   = var.host != "" ? data.vsphere_host.host[0].id : null
+
+  wait_for_guest_net_timeout = 0
 
   num_cpus         = var.cpu
   memory           = var.memory
@@ -66,7 +74,7 @@ resource "vsphere_virtual_machine" "vm" {
   }
 
   clone {
-    template_uuid = data.vsphere_content_library_item.template.id
+    template_uuid = data.vsphere_virtual_machine.template.id
 
     dynamic "customize" {
       for_each = var.ipv4_address != "" ? [1] : []
@@ -75,12 +83,10 @@ resource "vsphere_virtual_machine" "vm" {
           host_name = split(".", var.vm_name)[0]
           domain    = length(split(".", var.vm_name)) > 1 ? join(".", slice(split(".", var.vm_name), 1, length(split(".", var.vm_name)))) : "local"
         }
-
         network_interface {
           ipv4_address = var.ipv4_address
           ipv4_netmask = var.ipv4_netmask
         }
-
         ipv4_gateway    = var.ipv4_gateway
         dns_server_list = var.dns_servers
       }

@@ -6,7 +6,8 @@
     name: 1password
     state: present
   register: op_connect_integration_install
-  changed_when: op_connect_integration_install.changed
+  changed_when: op_connect_integration_install.changed | default(false)
+  when: ansible_os_family == 'Debian'
 
 - name: Verify Connect server is reachable
   ansible.builtin.uri:
@@ -19,23 +20,27 @@
   until: op_connect_integration_health.status == 200
 
 - name: Test Connect authentication
-  ansible.builtin.shell: |
-    set -o pipefail
-    TOKEN="{{ lookup('file', op_connect_integration_token_path) }}"
-    export OP_CONNECT_TOKEN="${TOKEN}"
-    curl -s -H "Authorization: Bearer ${OP_CONNECT_TOKEN}" \
-      {{ op_connect_integration_server }}/v1/vaults | jq empty
-  register: op_connect_integration_auth
-  changed_when: false
-  failed_when: op_connect_integration_auth.rc != 0
+  ansible.builtin.uri:
+    url: "{{ op_connect_integration_server }}/v1/vaults"
+    headers:
+      Authorization: "Bearer {{ lookup('env', 'OP_CONNECT_TOKEN') }}"
+    method: GET
+    status_code: 200
 
 - name: Set up op run environment
   ansible.builtin.lineinfile:
     path: /etc/environment
     line: >-
       OP_CONNECT_TOKEN={{
-      lookup('file', op_connect_integration_token_path) }}
+      lookup('env', 'OP_CONNECT_TOKEN') }}
     state: present
+  become: true
+
+- name: Ensure op-connect directory exists
+  ansible.builtin.file:
+    path: /etc/op-connect
+    state: directory
+    mode: "0755"
   become: true
 
 - name: Document op integration

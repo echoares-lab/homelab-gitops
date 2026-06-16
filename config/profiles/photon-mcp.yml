@@ -2,19 +2,19 @@
 vcenter:
   datacenter: "HOMELAB"
   cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
+  host: "10.10.10.11"
   datastore: "NVME_2TB_970_SAMSUNG_EVO_M.2"
   network: "VM Network"
 
 content_library:
   name: "GOLDEN"
-  template: "photon-5.0-golden"
+  template: "photon-test-base"
 
 vm_specs:
   cpu: 16
-  memory: 24
+  ram_gb: 24
   guest_id: "vmwarePhoton64Guest"
-  disk: 50
+  disk_size_gb: 50
 
 deployment:
   tags:
@@ -24,3 +24,6 @@ deployment:
     - "mcp_gateway"
   vm_name_prefix: "mcp"
   vm_name_domain: "infa.plexplease.com"
+  ansible_user: "ansible"
+  ansible_password: "Singer4life!@"
+  ansible_become_password: "Singer4life!@"

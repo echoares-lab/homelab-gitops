@@ -28,7 +28,7 @@ class TechnitiumDriver(Driver):
         try:
             # Check connectivity by listing zones
             response = requests.get(
-                f"{self.host}/api/dns/listZones",
+                f"{self.host}/api/zones/list",
                 params={"token": self.token},
                 timeout=self.timeout
             )
@@ -101,15 +101,15 @@ class TechnitiumDriver(Driver):
         """Handle Backup operations."""
         if action == "export":
             # 1. List all zones
-            zones_data = self._api_call("dns/listZones", {})
+            zones_data = self._api_call("zones/list", {})
             zones = zones_data.get("zones", [])
-            
+
             backups = {}
             for zone in zones:
                 zone_name = zone.get("name")
                 if zone_name:
                     # 2. Export each zone
-                    export_data = self._api_call("dns/exportZone", {"zone": zone_name})
+                    export_data = self._api_call("zones/export", {"zone": zone_name})
                     backups[zone_name] = export_data.get("zoneFileContent")
             
             return {
@@ -133,11 +133,11 @@ class TechnitiumDriver(Driver):
              params.setdefault("type", "A")
 
         if action in ("create", "add"):
-            return self._api_call("dns/addRecord", params)
+            return self._api_call("zones/records/add", params)
         elif action == "delete":
-            return self._api_call("dns/deleteRecord", params)
+            return self._api_call("zones/records/delete", params)
         elif action in ("list", "get"):
-            return self._api_call("dns/getRecords", params)
+            return self._api_call("zones/records/get", params)
         else:
             raise ExecutionError(f"Unsupported record action: {action}")
 
@@ -146,11 +146,11 @@ class TechnitiumDriver(Driver):
         params = task.overrides.copy()
         
         if action in ("create", "add"):
-            return self._api_call("dns/createZone", params)
+            return self._api_call("zones/create", params)
         elif action == "delete":
-            return self._api_call("dns/deleteZone", params)
+            return self._api_call("zones/delete", params)
         elif action == "list":
-            return self._api_call("dns/listZones", params)
+            return self._api_call("zones/list", params)
         else:
             raise ExecutionError(f"Unsupported zone action: {action}")
 
