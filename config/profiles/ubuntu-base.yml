@@ -2,7 +2,7 @@
 vcenter:
   datacenter: "HOMELAB"
   cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
+  host: "10.10.10.11"
   datastore: "NVME_2TB_970_SAMSUNG_EVO_M.2"
   network: "VM Network"
 

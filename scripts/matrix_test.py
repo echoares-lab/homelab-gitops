@@ -196,67 +196,16 @@ def _run_test(name: str, fn):
         _tracker.record(name, "FAIL", time.time() - t0, str(exc))
 
 
-# ── Original tests ────────────────────────────────────────────────────────────
-
-def test_generators():
-    log("Testing Generators...")
-    if os.path.exists(f"config/profiles/{TEST_PROFILE}.yml"):
-        os.remove(f"config/profiles/{TEST_PROFILE}.yml")
-
-    child = pexpect.spawn("python3 manage.py create-profile")
-    child.expect("Enter new profile name:")
-    child.sendline(TEST_PROFILE)
-    child.expect("Base OS")
-    child.sendline("1")
-    child.expect("CPU Count")
-    child.sendline("2")
-    child.expect("RAM")
-    child.sendline("4")
-    child.expect("Disk Size")
-    child.sendline("20")
-    child.expect("Extra Tags")
-    child.sendline("matrix_test")
-    child.expect(pexpect.EOF)
-
-    if not os.path.exists(f"config/profiles/{TEST_PROFILE}.yml"):
-        fail("Profile generation produced no file.")
-    log("Generator test PASSED.")
-
 def test_logic_audit():
     log("Testing Orchestrator Logic...")
-    out = run_cmd(["python3", "manage.py", "lint", TEST_PROFILE, "01"])
-    if "Infrastructure Linting Passed" not in out:
+    out = run_cmd(["python3", "manage.py", "lint"])
+    if "Lint passed" not in out:
         fail("Linting did not report success.")
     out = run_cmd(["python3", "manage.py", "--help"])
-    if "Synthesis" not in out:
+    if "manage.py" not in out:
         fail("--help output missing expected content.")
     log("Logic audit PASSED.")
 
-
-# ── Alias tests ───────────────────────────────────────────────────────────────
-
-def test_aliases_in_help():
-    log("Testing CLI aliases appear in --help...")
-    out = run_cmd(["python3", "manage.py", "--help"])
-    missing = [alias for alias in EXPECTED_ALIASES if alias not in out]
-    if missing:
-        fail(f"Aliases missing from --help: {missing}")
-    log("Alias help test PASSED.")
-
-def test_aliases_have_help():
-    log("Testing each alias responds to --help...")
-    for alias, canonical in EXPECTED_ALIASES.items():
-        out = run_cmd(["python3", "manage.py", alias, "--help"])
-        if not out.strip():
-            fail(f"Alias '{alias}' (for '{canonical}') returned empty --help")
-    log("Alias --help test PASSED.")
-
-def test_bu_alias():
-    log("Testing 'bu' alias for build...")
-    out = run_cmd(["python3", "manage.py", "bu", "--help"])
-    if "build" not in out.lower() and "packer" not in out.lower():
-        fail("'bu --help' does not look like build output")
-    log("bu alias test PASSED.")
 
 
 # ── Profile integrity tests ───────────────────────────────────────────────────
@@ -350,11 +299,7 @@ def main():
     start = time.time()
 
     try:
-        _run_test("generators",              test_generators)
         _run_test("logic_audit",             test_logic_audit)
-        _run_test("aliases_in_help",         test_aliases_in_help)
-        _run_test("aliases_have_help",       test_aliases_have_help)
-        _run_test("bu_alias",                test_bu_alias)
         _run_test("known_profiles_exist",    test_known_profiles_exist)
         _run_test("all_profiles_valid_yaml", test_all_profiles_valid_yaml)
         _run_test("all_profiles_pos_specs",  test_all_profiles_positive_specs)

@@ -27,7 +27,7 @@ def test_validate_success(driver):
         
         assert driver.validate() is True
         mock_get.assert_called_once_with(
-            "http://dns.local/api/dns/listZones",
+            "http://dns.local/api/zones/list",
             params={"token": "fake-token"},
             timeout=10
         )
@@ -210,13 +210,13 @@ def test_handle_zone_actions(driver, mock_profile):
         mock_get.return_value = mock_response
         
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "zone", "action": "create"}))
-        assert "dns/createZone" in mock_get.call_args[0][0]
-        
+        assert "zones/create" in mock_get.call_args[0][0]
+
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "zone", "action": "delete"}))
-        assert "dns/deleteZone" in mock_get.call_args[0][0]
-        
+        assert "zones/delete" in mock_get.call_args[0][0]
+
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "zone", "action": "list"}))
-        assert "dns/listZones" in mock_get.call_args[0][0]
+        assert "zones/list" in mock_get.call_args[0][0]
 
 def test_handle_record_actions(driver, mock_profile):
     with patch("requests.get") as mock_get:
@@ -226,13 +226,13 @@ def test_handle_record_actions(driver, mock_profile):
         mock_get.return_value = mock_response
         
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "record", "action": "add"}))
-        assert "dns/addRecord" in mock_get.call_args[0][0]
-        
+        assert "zones/records/add" in mock_get.call_args[0][0]
+
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "record", "action": "delete"}))
-        assert "dns/deleteRecord" in mock_get.call_args[0][0]
-        
+        assert "zones/records/delete" in mock_get.call_args[0][0]
+
         driver.execute(Task(type="provision", profile=mock_profile, overrides={"resource": "record", "action": "get"}))
-        assert "dns/getRecords" in mock_get.call_args[0][0]
+        assert "zones/records/get" in mock_get.call_args[0][0]
 
 def test_provision_infer_params(driver, mock_profile):
     task = Task(type="provision", profile=mock_profile, target="10.0.0.1")
@@ -259,7 +259,7 @@ def test_execute_destroy_action(driver, mock_profile):
         mock_get.return_value = mock_response
         
         driver.execute(task)
-        assert "dns/deleteRecord" in mock_get.call_args[0][0]
+        assert "zones/records/delete" in mock_get.call_args[0][0]
 
 def test_execute_custom_action(driver, mock_profile):
     task = Task(type="custom-action", profile=mock_profile)

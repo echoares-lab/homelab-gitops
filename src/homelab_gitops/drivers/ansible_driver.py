@@ -93,7 +93,7 @@ class AnsibleDriver(Driver):
         # Set Ansible environment variables
         env = os.environ.copy()
         env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
-        env["ANSIBLE_STDOUT_CALLBACK"] = "yaml"
+        env["ANSIBLE_STDOUT_CALLBACK"] = "default"
 
         timeout = task.overrides.get("timeout", 1800)
 
@@ -107,7 +107,7 @@ class AnsibleDriver(Driver):
             )
 
             if result.returncode != 0:
-                raise ExecutionError(f"Ansible failed (RC={result.returncode}): {result.stderr or result.stdout}")
+                raise ExecutionError(f"Ansible failed (RC={result.returncode}):\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
 
             duration = time.time() - start
             return TaskResult(
