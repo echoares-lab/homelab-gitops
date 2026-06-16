@@ -92,7 +92,7 @@ def test_execute_failure(driver, mock_profile):
     with patch("os.path.exists", return_value=True), \
          patch("subprocess.run", return_value=mock_result):
         
-        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=1\): Ansible error"):
+        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=1\):\nSTDOUT:\nSome output\nSTDERR:\nAnsible error"):
             driver.execute(task)
 
 def test_execute_failure_no_stderr(driver, mock_profile):
@@ -106,7 +106,7 @@ def test_execute_failure_no_stderr(driver, mock_profile):
     with patch("os.path.exists", return_value=True), \
          patch("subprocess.run", return_value=mock_result):
         
-        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=2\): Some output"):
+        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=2\):\nSTDOUT:\nSome output\nSTDERR:\n"):
             driver.execute(task)
 
 def test_execute_ssh_auth_failure(driver, mock_profile):
@@ -120,7 +120,7 @@ def test_execute_ssh_auth_failure(driver, mock_profile):
     with patch("os.path.exists", return_value=True), \
          patch("subprocess.run", return_value=mock_result):
         
-        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=255\): Permission denied \(publickey\)."):
+        with pytest.raises(ExecutionError, match=r"Ansible failed \(RC=255\):\nSTDOUT:\n\nSTDERR:\nPermission denied \(publickey\)\."):
             driver.execute(task)
 
 def test_execute_timeout(driver, mock_profile):
