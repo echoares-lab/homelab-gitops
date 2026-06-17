@@ -5,34 +5,111 @@ import subprocess
 import time
 import shutil
 import json
+import re
+import urllib.request
+import urllib.error
 from typing import Optional, Dict, Any
 from homelab_gitops.drivers.base import Driver
 from homelab_gitops.drivers.exceptions import PrerequisiteError, ExecutionError
 from homelab_gitops.domain.models import Task, TaskResult
 
 
+class ConnectClient:
+    """A minimal 1Password Connect API client."""
+    def __init__(self, host: str, token: str):
+        self.host = host.rstrip('/')
+        self.token = token
+        self._vaults_cache = {}
+        self._items_cache = {}
+        self._item_details_cache = {}
+
+    def _request(self, path: str, method="GET", data=None):
+        url = f"{self.host}{path}"
+        req = urllib.request.Request(url, method=method)
+        req.add_header("Authorization", f"Bearer {self.token}")
+        if data:
+            req.add_header("Content-Type", "application/json")
+            req.data = json.dumps(data).encode("utf-8")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.URLError as e:
+            raise ExecutionError(f"Connect Server API error: {e}")
+
+    def get_vault_id(self, vault_name: str) -> str:
+        if vault_name in self._vaults_cache:
+            return self._vaults_cache[vault_name]
+        
+        vaults = self._request("/v1/vaults")
+        for v in vaults:
+            self._vaults_cache[v["name"]] = v["id"]
+            
+        if vault_name not in self._vaults_cache:
+            raise ExecutionError(f"Vault '{vault_name}' not found")
+        return self._vaults_cache[vault_name]
+
+    def get_item_id(self, vault_id: str, item_name: str) -> str:
+        cache_key = f"{vault_id}:{item_name}"
+        if cache_key in self._items_cache:
+            return self._items_cache[cache_key]
+
+        # Fetch all items in vault and cache them to avoid multiple calls per vault
+        items = self._request(f"/v1/vaults/{vault_id}/items")
+        for item in items:
+            key = f"{vault_id}:{item['title']}"
+            self._items_cache[key] = item["id"]
+                
+        if cache_key not in self._items_cache:
+            raise ExecutionError(f"Item '{item_name}' not found in vault")
+            
+        return self._items_cache[cache_key]
+
+    def get_item_field(self, vault_name: str, item_name: str, field_name: str) -> str:
+        vault_id = self.get_vault_id(vault_name)
+        item_id = self.get_item_id(vault_id, item_name)
+        
+        if item_id not in self._item_details_cache:
+            self._item_details_cache[item_id] = self._request(f"/v1/vaults/{vault_id}/items/{item_id}")
+            
+        item = self._item_details_cache[item_id]
+        
+        # Look for field by label or id
+        for field in item.get("fields", []):
+            if field.get("label") == field_name or field.get("id") == field_name:
+                return field.get("value", "")
+                
+        # Fallback to credential
+        for field in item.get("fields", []):
+            if field.get("label") == "credential":
+                return field.get("value", "")
+                
+        raise ExecutionError(f"Field '{field_name}' not found on item '{item_name}'")
+
+
 class SecretsDriver(Driver):
     """Driver for resolving secrets from 1Password and Environment."""
 
     def __init__(self, default_vault: Optional[str] = None):
-        """Initialize SecretsDriver.
-
-        Args:
-            default_vault: Default 1Password vault to use if not specified in URI.
-        """
+        """Initialize SecretsDriver."""
         self.op_path = shutil.which("op")
         self.default_vault = default_vault or os.getenv("OP_VAULT", "homelab-gitops")
+        
+        self.connect_host = os.getenv("OP_CONNECT_HOST")
+        self.connect_token = os.getenv("OP_CONNECT_TOKEN")
+        self.connect_client = None
+        
+        if self.connect_host and self.connect_token:
+            self.connect_client = ConnectClient(self.connect_host, self.connect_token)
 
     def validate(self) -> bool:
-        """Validate 1Password CLI is available and authenticated if needed."""
-        # If op is missing, we can only use environment variables
+        """Validate 1Password CLI or Connect is available."""
+        if self.connect_client:
+            return True
+            
         if not self.op_path:
-            # We don't fail here because some secrets might be in ENV already.
-            # But if a task requires op, it will fail during execute.
             return True
 
         try:
-            # Check if authenticated - 'op whoami' is the standard way
             result = subprocess.run(
                 [self.op_path, "whoami"],
                 capture_output=True,
@@ -40,8 +117,6 @@ class SecretsDriver(Driver):
                 timeout=5
             )
             if result.returncode != 0:
-                # If OP_SERVICE_ACCOUNT_TOKEN is set, op whoami should work.
-                # If not set, user might need 'op signin'
                 raise PrerequisiteError(
                     "1Password CLI not authenticated. Run 'op signin' or set OP_SERVICE_ACCOUNT_TOKEN."
                 )
@@ -55,15 +130,7 @@ class SecretsDriver(Driver):
         return True
 
     def execute(self, task: Task) -> TaskResult:
-        """Execute secret resolution task.
-
-        Supported task types:
-            get: Fetch a single secret. Target should be env var name or op:// URI.
-            resolve_file: Resolve all op:// references in a file. Target is file path.
-
-        Returns:
-            TaskResult with secret value (for 'get') or JSON-encoded dict (for 'resolve_file').
-        """
+        """Execute secret resolution task."""
         start = time.time()
 
         try:
@@ -87,20 +154,13 @@ class SecretsDriver(Driver):
             raise ExecutionError(f"Secrets operation failed: {str(e)}")
 
     def store_secret(self, item_name: str, value: str, vault: Optional[str] = None) -> None:
-        """Store a secret in 1Password.
-
-        Args:
-            item_name: Name of the item to create/update.
-            value: Secret value (stored in 'password' field by default).
-            vault: Vault to store in.
-        """
+        """Store a secret in 1Password."""
         if not self.op_path:
             raise ExecutionError("'op' CLI required for storing secrets")
 
         vault = vault or self.default_vault
 
         try:
-            # Check if item exists
             result = subprocess.run(
                 [self.op_path, "item", "get", item_name, "--vault", vault, "--format", "json"],
                 capture_output=True,
@@ -108,14 +168,12 @@ class SecretsDriver(Driver):
             )
 
             if result.returncode == 0:
-                # Update existing item
                 subprocess.run(
                     [self.op_path, "item", "edit", item_name, f"password={value}", "--vault", vault],
                     check=True,
                     capture_output=True
                 )
             else:
-                # Create new item
                 subprocess.run(
                     [self.op_path, "item", "create", "--category", "login", "--title", item_name, f"password={value}", "--vault", vault],
                     check=True,
@@ -125,20 +183,13 @@ class SecretsDriver(Driver):
             raise ExecutionError(f"Failed to store secret in 1Password: {e.stderr}")
 
     def store_document(self, title: str, file_path: str, vault: Optional[str] = None) -> None:
-        """Store a document in 1Password.
-
-        Args:
-            title: Title of the document.
-            file_path: Path to the file to upload.
-            vault: Vault to store in.
-        """
+        """Store a document in 1Password."""
         if not self.op_path:
             raise ExecutionError("'op' CLI required for storing documents")
 
         vault = vault or self.default_vault
 
         try:
-            # Check if document exists
             result = subprocess.run(
                 [self.op_path, "item", "get", title, "--vault", vault, "--format", "json"],
                 capture_output=True,
@@ -146,14 +197,12 @@ class SecretsDriver(Driver):
             )
 
             if result.returncode == 0:
-                # Delete existing document first (op doesn't support updating document content easily via edit)
                 subprocess.run(
                     [self.op_path, "item", "delete", title, "--vault", vault],
                     check=True,
                     capture_output=True
                 )
 
-            # Create new document
             subprocess.run(
                 [self.op_path, "document", "create", file_path, "--title", title, "--vault", vault],
                 check=True,
@@ -169,28 +218,32 @@ class SecretsDriver(Driver):
 
         overrides = overrides or {}
 
-        # 1. Check environment variables first (only if not a URI)
         if not secret_ref.startswith("op://"):
             val = os.getenv(secret_ref)
             if val:
                 return val
 
-        # 2. Try 1Password
+        explicit_field = overrides.get("field")
+        op_uri = secret_ref
+
+        if not op_uri.startswith("op://"):
+            field_name = explicit_field or "password"
+            op_uri = f"op://{self.default_vault}/{secret_ref}/{field_name}"
+
+        # Try Connect Server if configured
+        if self.connect_client:
+            m = re.match(r"op://([^/]+)/([^/]+)/([^/]+)", op_uri)
+            if not m:
+                raise ExecutionError(f"Invalid op:// URI format: {op_uri}")
+            vault_name, item_name, field_name = m.groups()
+            return self.connect_client.get_item_field(vault_name, item_name, field_name)
+
         if not self.op_path:
             raise ExecutionError(
-                f"Secret '{secret_ref}' not found in environment and 'op' CLI is missing"
+                f"Secret '{secret_ref}' not found in environment and Connect Server/op CLI missing"
             )
 
         try:
-            # If it's not a URI, try to construct one using default vault
-            # Use 'op read op://vault/item/field' pattern
-            op_uri = secret_ref
-            explicit_field = overrides.get("field")
-
-            if not op_uri.startswith("op://"):
-                field_name = explicit_field or "password"
-                op_uri = f"op://{self.default_vault}/{secret_ref}/{field_name}"
-
             result = subprocess.run(
                 [self.op_path, "read", op_uri, "-n"],
                 capture_output=True,
@@ -200,7 +253,6 @@ class SecretsDriver(Driver):
             if result.returncode == 0:
                 return result.stdout.strip()
 
-            # If it failed and we constructed the URI without an explicit field, try 'credential' field?
             if not secret_ref.startswith("op://") and not explicit_field and "password" in op_uri:
                 op_uri_alt = f"op://{self.default_vault}/{secret_ref}/credential"
                 result_alt = subprocess.run(
@@ -212,7 +264,6 @@ class SecretsDriver(Driver):
                 if result_alt.returncode == 0:
                     return result_alt.stdout.strip()
 
-            # Final failure
             if secret_ref.startswith("op://"):
                 raise ExecutionError(f"1Password read failed for {op_uri}: {result.stderr}")
             else:
@@ -228,18 +279,42 @@ class SecretsDriver(Driver):
 
     def _resolve_file(self, file_path: Optional[str]) -> str:
         """Resolve all op:// references in a file."""
-        # Use default if not provided
         if not file_path:
             file_path = "config/secrets.env"
 
         if not os.path.exists(file_path):
             raise ExecutionError(f"Env file not found: {file_path}")
+            
+        # Try Connect Server if configured
+        if self.connect_client:
+            resolved_secrets = {}
+            with open(file_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        value = value.strip().strip('"').strip("'")
+                        
+                        if value.startswith("op://"):
+                            m = re.match(r"op://([^/]+)/([^/]+)/([^/]+)", value)
+                            if m:
+                                vault_name, item_name, field_name = m.groups()
+                                try:
+                                    value = self.connect_client.get_item_field(vault_name, item_name, field_name)
+                                except Exception as e:
+                                    raise ExecutionError(f"Failed resolving {value} via Connect: {e}")
+                            else:
+                                raise ExecutionError(f"Invalid op:// URI format: {value}")
+                        
+                        resolved_secrets[key.strip()] = value
+            return json.dumps(resolved_secrets)
 
         if not self.op_path:
-            raise ExecutionError("'op' CLI required for resolving files")
+            raise ExecutionError("'op' CLI required for resolving files when Connect Server is not used")
 
         try:
-            # 'op inject' resolves op:// references in the file
             result = subprocess.run(
                 [self.op_path, "inject", "-i", file_path],
                 capture_output=True,
@@ -249,7 +324,6 @@ class SecretsDriver(Driver):
             if result.returncode != 0:
                 raise ExecutionError(f"1Password inject failed: {result.stderr}")
 
-            # Parse the resolved content into a dict
             resolved_secrets = {}
             for line in result.stdout.splitlines():
                 line = line.strip()
@@ -257,7 +331,6 @@ class SecretsDriver(Driver):
                     continue
                 if "=" in line:
                     key, value = line.split("=", 1)
-                    # Strip quotes if present
                     value = value.strip().strip('"').strip("'")
                     resolved_secrets[key.strip()] = value
 
