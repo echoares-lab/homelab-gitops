@@ -180,3 +180,71 @@ class TestConfigCapturer:
         """Test timestamp generation."""
         ts = capturer.get_timestamp()
         assert len(ts) == 19  # YYYY-MM-DD HH:MM:SS format
+
+
+from benchmarks.comparison_engine import ComparisonEngine
+
+
+class TestComparisonEngine:
+    """Test baseline vs optimized metrics comparison."""
+
+    @pytest.fixture
+    def baseline_result(self):
+        return {
+            'timestamp': '2026-06-18 10:00:00',
+            'workload': 'database',
+            'metrics': {
+                'total_iops': 5000,
+                'read_iops': 3500,
+                'write_iops': 1500,
+                'read_lat_p99_ms': 10.0,
+                'write_lat_p99_ms': 15.0,
+            }
+        }
+
+    @pytest.fixture
+    def optimized_result(self):
+        return {
+            'timestamp': '2026-06-18 11:00:00',
+            'workload': 'database',
+            'metrics': {
+                'total_iops': 6500,
+                'read_iops': 4550,
+                'write_iops': 1950,
+                'read_lat_p99_ms': 8.0,
+                'write_lat_p99_ms': 12.0,
+            }
+        }
+
+    def test_comparison_engine_init(self):
+        """Test comparison engine initialization."""
+        engine = ComparisonEngine()
+        assert hasattr(engine, 'compare_results')
+
+    def test_compare_results(self, baseline_result, optimized_result):
+        """Test result comparison."""
+        engine = ComparisonEngine()
+        comparison = engine.compare_results(baseline_result, optimized_result)
+
+        assert comparison['baseline']['metrics']['total_iops'] == 5000
+        assert comparison['optimized']['metrics']['total_iops'] == 6500
+        assert 'delta' in comparison
+
+    def test_calculate_improvement(self, baseline_result, optimized_result):
+        """Test improvement calculation."""
+        engine = ComparisonEngine()
+        comparison = engine.compare_results(baseline_result, optimized_result)
+
+        iops_improvement = comparison['delta']['total_iops']['percent_change']
+        assert iops_improvement == 30.0  # 30% improvement
+
+    def test_detect_regression(self):
+        """Test regression detection."""
+        baseline = {'total_iops': 5000}
+        optimized = {'total_iops': 4500}
+
+        engine = ComparisonEngine()
+        delta = ((optimized['total_iops'] - baseline['total_iops']) / baseline['total_iops']) * 100
+
+        assert delta == -10.0  # 10% regression
+        assert delta < 0  # Regression detected
