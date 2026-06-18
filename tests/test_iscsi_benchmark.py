@@ -248,3 +248,38 @@ class TestComparisonEngine:
 
         assert delta == -10.0  # 10% regression
         assert delta < 0  # Regression detected
+
+
+class TestIntegration:
+    """Integration tests for benchmark orchestrator."""
+
+    def test_orchestrator_initialization(self):
+        """Test benchmark orchestrator initialization."""
+        from benchmarks.iscsi_benchmark import iSCSIBenchmark
+
+        benchmark = iSCSIBenchmark()
+        assert benchmark.workload_dir.exists()
+        assert benchmark.results_dir.exists()
+
+    def test_workload_files_exist(self):
+        """Test that all workload files are present."""
+        from benchmarks.iscsi_benchmark import iSCSIBenchmark
+
+        benchmark = iSCSIBenchmark()
+        workloads = ['database.fio', 'sequential.fio', 'mixed.fio']
+
+        for workload in workloads:
+            workload_path = benchmark.workload_dir / workload
+            assert workload_path.exists(), f"Missing workload: {workload}"
+
+    def test_results_directory_creation(self):
+        """Test results directory is created."""
+        import tempfile
+        from pathlib import Path
+        from benchmarks.iscsi_benchmark import iSCSIBenchmark
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results_dir = Path(tmpdir) / "results"
+            benchmark = iSCSIBenchmark(results_dir=str(results_dir))
+
+            assert results_dir.exists()
