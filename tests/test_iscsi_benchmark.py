@@ -53,3 +53,77 @@ class TestSSHExecutor:
         """Test file transfer setup (mocked)."""
         # Mock will be implemented in SSH executor
         assert hasattr(executor, 'transfer_file')
+
+
+from benchmarks.metrics_parser import MetricsParser
+
+
+class TestMetricsParser:
+    """Test FIO JSON metrics extraction."""
+
+    @pytest.fixture
+    def sample_fio_output(self):
+        """Sample FIO JSON output."""
+        return {
+            "jobs": [
+                {
+                    "jobname": "database-70-30",
+                    "read": {
+                        "iops": 5000.5,
+                        "bw_mean": 20000,
+                        "clat_ns": {
+                            "percentile": {
+                                "50.000000": 1000000,
+                                "95.000000": 5000000,
+                                "99.000000": 10000000,
+                                "100.000000": 15000000
+                            }
+                        }
+                    },
+                    "write": {
+                        "iops": 2000.25,
+                        "bw_mean": 8000,
+                        "clat_ns": {
+                            "percentile": {
+                                "50.000000": 1500000,
+                                "95.000000": 6000000,
+                                "99.000000": 11000000,
+                                "100.000000": 16000000
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+
+    def test_parser_init(self):
+        """Test metrics parser initialization."""
+        parser = MetricsParser()
+        assert hasattr(parser, 'parse_fio_json')
+
+    def test_extract_iops(self, sample_fio_output):
+        """Test IOPS extraction from FIO output."""
+        parser = MetricsParser()
+        metrics = parser.parse_fio_json(sample_fio_output)
+
+        assert metrics['read_iops'] == 5000.5
+        assert metrics['write_iops'] == 2000.25
+        assert metrics['total_iops'] == pytest.approx(7000.75)
+
+    def test_extract_latency(self, sample_fio_output):
+        """Test latency percentile extraction."""
+        parser = MetricsParser()
+        metrics = parser.parse_fio_json(sample_fio_output)
+
+        assert metrics['read_lat_p50_ms'] == pytest.approx(1.0)
+        assert metrics['read_lat_p95_ms'] == pytest.approx(5.0)
+        assert metrics['read_lat_p99_ms'] == pytest.approx(10.0)
+        assert metrics['read_lat_p100_ms'] == pytest.approx(15.0)
+
+    def test_extract_throughput(self, sample_fio_output):
+        """Test throughput extraction."""
+        parser = MetricsParser()
+        metrics = parser.parse_fio_json(sample_fio_output)
+
+        assert metrics['read_throughput_mb'] == pytest.approx(20.0)
+        assert metrics['write_throughput_mb'] == pytest.approx(8.0)
