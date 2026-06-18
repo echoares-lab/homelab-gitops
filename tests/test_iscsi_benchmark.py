@@ -127,3 +127,56 @@ class TestMetricsParser:
 
         assert metrics['read_throughput_mb'] == pytest.approx(20.0)
         assert metrics['write_throughput_mb'] == pytest.approx(8.0)
+
+
+from benchmarks.config_capturer import ConfigCapturer
+
+
+class TestConfigCapturer:
+    """Test TrueNAS/ESXi configuration snapshots."""
+
+    @pytest.fixture
+    def capturer(self):
+        return ConfigCapturer(truenas_host="10.10.10.20", truenas_api_key="test-key")
+
+    def test_capturer_init(self, capturer):
+        """Test config capturer initialization."""
+        assert capturer.truenas_host == "10.10.10.20"
+        assert capturer.truenas_api_key == "test-key"
+
+    @patch('requests.get')
+    def test_capture_truenas_pool_config(self, mock_get, capturer):
+        """Test capturing TrueNAS pool configuration."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            'id': 1,
+            'name': 'tank',
+            'guid': '12345',
+            'status': 'ONLINE'
+        }
+        mock_get.return_value = mock_response
+
+        config = capturer.capture_truenas_pool()
+
+        assert config['name'] == 'tank'
+        assert config['status'] == 'ONLINE'
+
+    @patch('requests.get')
+    def test_capture_truenas_iscsi_config(self, mock_get, capturer):
+        """Test capturing TrueNAS iSCSI target configuration."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            'id': 1,
+            'name': 'iSCSI_PRODUCTION',
+            'comment': 'Production datastore'
+        }
+        mock_get.return_value = mock_response
+
+        config = capturer.capture_iscsi_target()
+
+        assert config['name'] == 'iSCSI_PRODUCTION'
+
+    def test_capture_timestamp(self, capturer):
+        """Test timestamp generation."""
+        ts = capturer.get_timestamp()
+        assert len(ts) == 19  # YYYY-MM-DD HH:MM:SS format
