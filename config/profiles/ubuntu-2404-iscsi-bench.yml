@@ -2,7 +2,7 @@
 vcenter:
   datacenter: "HOMELAB"
   cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
+  host: "10.10.10.11"
   datastore: "iSCSI_PRODUCTION"
   network: "VM Network"
 
