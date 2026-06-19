@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.3 - OpenBao Runtime Secrets Migration
+- Migrated committed runtime secret references in `config/secrets.env` from `op://` to `bao://` KV v2 paths.
+- Added native `bao://` resolution to `SecretsDriver` for single secret reads and env-file bootstrap.
+- Migrated existing 1Password values and local `.env` values into OpenBao without committing secret material.
+
 ### v3.4.2 - Driver Maturity & Edge Case Hardening
 - **Ansible Driver:** Added native support for `--limit` and `--tags` CLI overrides in `AnsibleDriver`.
 - **Ansible Driver:** Hardened command construction to filter redundant variables from `extra_vars` when CLI flags are used.

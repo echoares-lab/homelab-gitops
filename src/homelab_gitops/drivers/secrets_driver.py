@@ -1,4 +1,4 @@
-"""Secrets driver for 1Password and environment variables."""
+"""Secrets driver for OpenBao, 1Password, and environment variables."""
 
 import os
 import subprocess
@@ -87,11 +87,12 @@ class ConnectClient:
 
 
 class SecretsDriver(Driver):
-    """Driver for resolving secrets from 1Password and Environment."""
+    """Driver for resolving secrets from OpenBao, 1Password, and Environment."""
 
     def __init__(self, default_vault: Optional[str] = None):
         """Initialize SecretsDriver."""
         self.op_path = shutil.which("op")
+        self.bao_path = shutil.which("bao")
         self.default_vault = default_vault or os.getenv("OP_VAULT", "homelab-gitops")
         
         self.connect_host = os.getenv("OP_CONNECT_HOST")
@@ -218,6 +219,9 @@ class SecretsDriver(Driver):
 
         overrides = overrides or {}
 
+        if secret_ref.startswith("bao://"):
+            return self._get_bao_secret(secret_ref)
+
         if not secret_ref.startswith("op://"):
             val = os.getenv(secret_ref)
             if val:
@@ -277,13 +281,62 @@ class SecretsDriver(Driver):
         except subprocess.SubprocessError as e:
             raise ExecutionError(f"1Password execution failed: {str(e)}")
 
+    def _parse_bao_uri(self, secret_ref: str) -> tuple[str, str, str]:
+        """Return mount, path, and field from bao://mount/path/to/item/field."""
+        m = re.match(r"bao://([^/]+)/(.+)/([^/]+)$", secret_ref)
+        if not m:
+            raise ExecutionError(f"Invalid bao:// URI format: {secret_ref}")
+        return m.groups()
+
+    def _get_bao_secret(self, secret_ref: str) -> str:
+        """Fetch a single OpenBao KV v2 field."""
+        if not self.bao_path:
+            raise ExecutionError("'bao' CLI required for OpenBao secret references")
+
+        mount, path, field = self._parse_bao_uri(secret_ref)
+
+        try:
+            result = subprocess.run(
+                [self.bao_path, "kv", "get", f"-mount={mount}", f"-field={field}", path],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode != 0:
+                raise ExecutionError(f"OpenBao read failed for {secret_ref}: {result.stderr}")
+            return result.stdout.rstrip("\n")
+        except subprocess.TimeoutExpired:
+            raise ExecutionError(f"OpenBao read timed out for {secret_ref}")
+        except subprocess.SubprocessError as e:
+            raise ExecutionError(f"OpenBao execution failed: {str(e)}")
+
     def _resolve_file(self, file_path: Optional[str]) -> str:
-        """Resolve all op:// references in a file."""
+        """Resolve secret references in an env file."""
         if not file_path:
             file_path = "config/secrets.env"
 
         if not os.path.exists(file_path):
             raise ExecutionError(f"Env file not found: {file_path}")
+
+        try:
+            with open(file_path, "r") as f:
+                file_content = f.read()
+        except FileNotFoundError:
+            file_content = ""
+
+        if "bao://" in file_content:
+            resolved_secrets = {}
+            for line in file_content.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    value = value.strip().strip('"').strip("'")
+                    if value.startswith(("bao://", "op://")):
+                        value = self._get_secret(value)
+                    resolved_secrets[key.strip()] = value
+            return json.dumps(resolved_secrets)
             
         # Try Connect Server if configured
         if self.connect_client:
