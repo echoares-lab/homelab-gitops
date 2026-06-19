@@ -1,25 +1,20 @@
----
 vcenter:
-  datacenter: "HOMELAB"
-  cluster: "Primary"
-  host: "10.10.10.11"
-  datastore: "iSCSI_PRODUCTION"
-  network: "VM Network"
-
+  datacenter: HOMELAB
+  cluster: Primary
+  host: 10.10.10.11
+  datastore: iSCSI_PRODUCTION
+  network: VM Network
 content_library:
-  name: "GOLDEN"
-  template: "ubuntu-24.04-lts-golden"
-
+  name: GOLDEN
+  template: ubuntu-24.04-lts-golden
 vm_specs:
   cpu: 4
   memory: 8192
-  guest_id: "ubuntu64Guest"
   disk: 50
-
 deployment:
   tags:
-    - "ubuntu"
-    - "ubuntu-2404"
-    - "benchmark"
-  vm_name_prefix: "iscsi-bench"
-  vm_name_domain: "mgmt.plexplease.com"
+  - ubuntu
+  - ubuntu-2404
+  - benchmark
+  vm_name_prefix: iscsi-bench
+  vm_name_domain: mgmt.plexplease.com

@@ -1,25 +1,20 @@
----
 vcenter:
-  datacenter: "HOMELAB"
-  cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
-  datastore: "ds-nfs-prod"
-  network: "VM Network"
-
+  datacenter: HOMELAB
+  cluster: Primary
+  host: esxi-01.mgmt.plexplease.com
+  datastore: ds-nfs-prod
+  network: VM Network
 content_library:
-  name: "GOLDEN"
-  template: "ubuntu-24.04-lts-golden"
-
+  name: GOLDEN
+  template: ubuntu-24.04-lts-golden
 vm_specs:
   cpu: 20
-  ram_gb: 20
-  guest_id: "ubuntu64Guest"
-  disk_size_gb: 400
-
+  memory: 20480
+  disk: 400
 deployment:
   tags:
-    - "ubuntu"
-    - "ubuntu-2404"
-    - "git_test"
-  vm_name_prefix: "git-test"
-  vm_name_domain: "mgmt.plexplease.com"
+  - ubuntu
+  - ubuntu-2404
+  - git_test
+  vm_name_prefix: git-test
+  vm_name_domain: mgmt.plexplease.com

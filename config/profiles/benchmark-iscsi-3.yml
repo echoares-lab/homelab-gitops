@@ -13,7 +13,6 @@ content_library:
 vm_specs:
   cpu: 4
   memory: 8192
-  guest_id: "ubuntu64Guest"
   disk: 50
 
 deployment:

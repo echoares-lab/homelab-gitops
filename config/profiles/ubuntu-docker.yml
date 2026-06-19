@@ -1,24 +1,19 @@
----
 vcenter:
-  datacenter: "HOMELAB"
-  cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
-  datastore: "NVME_2TB_970_SAMSUNG_EVO_M.2"
-  network: "VM Network"
-
+  datacenter: HOMELAB
+  cluster: Primary
+  host: esxi-01.mgmt.plexplease.com
+  datastore: NVME_2TB_970_SAMSUNG_EVO_M.2
+  network: VM Network
 content_library:
-  name: "GOLDEN"
-  template: "ubuntu-26.04-golden"
-
+  name: GOLDEN
+  template: ubuntu-26.04-golden
 vm_specs:
   cpu: 4
-  ram_gb: 8
-  guest_id: "ubuntu64Guest"
-  disk_size_gb: 50
-
+  memory: 8192
+  disk: 50
 deployment:
   tags:
-    - "ubuntu"
-    - "docker"
-  vm_name_prefix: "ubuntu-docker"
-  vm_name_domain: "mgmt.plexplease.com"
+  - ubuntu
+  - docker
+  vm_name_prefix: ubuntu-docker
+  vm_name_domain: mgmt.plexplease.com
