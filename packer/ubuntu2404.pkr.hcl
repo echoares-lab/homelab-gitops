@@ -102,13 +102,6 @@ source "vsphere-iso" "ubuntu2404" {
   pause_before_connecting = "30s"
 
   convert_to_template = true
-
-  content_library_destination {
-    library = "GOLDEN"
-    name    = "ubuntu-24.04-lts-golden"
-    ovf     = true
-    destroy = true
-  }
 }
 
 build {
