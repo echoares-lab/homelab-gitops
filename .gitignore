@@ -28,6 +28,7 @@ tofu/.terraform.lock.hcl
 tofu/terraform.tfstate*
 tofu/terraform.tfstate.d/
 tofu/dns/terraform.tfvars
+.worktrees/
 __pycache__/
 
 __pycache__
