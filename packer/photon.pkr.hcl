@@ -93,18 +93,12 @@ source "vsphere-iso" "photon" {
     "vmlinuz initrd=initrd.img root=/dev/ram0 ks=cdrom:/ks.json photon.media=cdrom<enter>"
   ]
 
-  ssh_username = var.ssh_username
-  ssh_password = var.ssh_password
-  ssh_timeout  = "20m"
+  ssh_username           = var.ssh_username
+  ssh_password           = var.ssh_password
+  ssh_timeout            = "20m"
+  pause_before_connecting = "10s"
 
   convert_to_template = true
-  
-  content_library_destination {
-    library = "PHOTON"
-    name    = "photon-5.0-minimal-golden"
-    ovf     = true
-    destroy = true
-  }
 }
 
 build {
