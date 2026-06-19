@@ -1,4 +1,3 @@
----
 vcenter:
   datacenter: HOMELAB
   cluster: Primary
@@ -10,9 +9,8 @@ content_library:
   template: photon-5.0-golden
 vm_specs:
   cpu: 8
-  ram_gb: 8
-  guest_id: vmwarePhoton64Guest
-  disk_size_gb: 50
+  memory: 8192
+  disk: 50
 deployment:
   tags:
   - photon
@@ -24,7 +22,7 @@ logging:
   - path: /var/log/technitium/dns/*.log
     owner: dns-server
     group: dns-server
-    mode: "0640"
+    mode: '0640'
     rotate_count: 14
     max_size: 100M
   journald:

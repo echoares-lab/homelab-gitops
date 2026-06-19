@@ -50,4 +50,7 @@ config/.env.local
 config/technitium.token
 config/top_*.txt
 results/
+benchmarks/results/
+benchmarks/reports/
+benchmarks/configs/
 prefill*.log

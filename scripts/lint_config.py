@@ -49,7 +49,7 @@ def lint():
     required_structure = {
         "vcenter": ["datacenter", "cluster", "datastore", "network"],
         "content_library": ["name", "template"],
-        "vm_specs": ["cpu", "ram_gb"],
+        "vm_specs": ["cpu", "memory", "disk"],
         "deployment": ["tags", "vm_name_prefix"]
     }
     

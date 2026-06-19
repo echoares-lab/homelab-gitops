@@ -30,9 +30,10 @@ data "vsphere_content_library" "library" {
   name = var.library_name
 }
 
-data "vsphere_virtual_machine" "template" {
-  name          = var.template_name
-  datacenter_id = data.vsphere_datacenter.dc.id
+data "vsphere_content_library_item" "template" {
+  name       = var.template_name
+  library_id = data.vsphere_content_library.library.id
+  type       = "ovf"
 }
 
 data "vsphere_host" "host" {
@@ -74,7 +75,7 @@ resource "vsphere_virtual_machine" "vm" {
   }
 
   clone {
-    template_uuid = data.vsphere_virtual_machine.template.id
+    template_uuid = data.vsphere_content_library_item.template.id
 
     dynamic "customize" {
       for_each = var.ipv4_address != "" ? [1] : []

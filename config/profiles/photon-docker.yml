@@ -1,24 +1,19 @@
----
 vcenter:
-  datacenter: "HOMELAB"
-  cluster: "Primary"
-  host: "esxi-01.mgmt.plexplease.com"
-  datastore: "NVME_2TB_970_SAMSUNG_EVO_M.2"
-  network: "VM Network"
-
+  datacenter: HOMELAB
+  cluster: Primary
+  host: esxi-01.mgmt.plexplease.com
+  datastore: NVME_2TB_970_SAMSUNG_EVO_M.2
+  network: VM Network
 content_library:
-  name: "GOLDEN"
-  template: "photon-5.0-golden"
-
+  name: GOLDEN
+  template: photon-5.0-golden
 vm_specs:
   cpu: 4
-  ram_gb: 8
-  guest_id: "vmwarePhoton64Guest"
-  disk_size_gb: 50
-
+  memory: 8192
+  disk: 50
 deployment:
   tags:
-    - "photon"
-    - "docker"
-  vm_name_prefix: "docker"
-  vm_name_domain: "infa.plexplease.com"
+  - photon
+  - docker
+  vm_name_prefix: docker
+  vm_name_domain: infa.plexplease.com

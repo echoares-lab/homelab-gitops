@@ -96,9 +96,10 @@ source "vsphere-iso" "ubuntu2404" {
     "boot<enter>"
   ]
 
-  ssh_username = var.ssh_username
-  ssh_password = var.ssh_password
-  ssh_timeout  = "30m"
+  ssh_username           = var.ssh_username
+  ssh_private_key_file   = "/tmp/packer-build-key"
+  ssh_timeout            = "30m"
+  pause_before_connecting = "30s"
 
   convert_to_template = true
 
