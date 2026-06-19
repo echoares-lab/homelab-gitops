@@ -18,7 +18,7 @@ autoinstall:
     username: ansible
     # Generate with: openssl passwd -6 'yourpassword'
     # Generate with: openssl passwd -6 'yourpassword'
-    password: "REPLACE_ME_SHA512_HASH"
+    password: "$6$ND9DTq0ieEKVWRHj$BOVcq0I1KxuqG.3dW0AXultIGC5zvsO2ECp1htmKUiYL0mFZpOh31EJz7YMkTVkQgHwXXKdBcIsTFhiylnN4D/"
   ssh:
     install-server: true
     authorized-keys:
