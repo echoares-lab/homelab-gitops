@@ -19,7 +19,8 @@ Ensure the orchestration host has the following:
 *   **Ansible** (`>= 2.14`) with `vSphere Automation SDK`
 *   **Pytest & Testinfra**
 *   **govc** (installed in `build/`)
-*   **1Password CLI** with `OP_SERVICE_ACCOUNT_TOKEN` for runtime secret resolution
+*   **OpenBao CLI** (`bao`) with `VAULT_ADDR` and an appropriate token for runtime secret resolution
+*   **1Password CLI** only for legacy migration reads
 *   **curl** — HTTP client for API testing
 *   **jq** — JSON query tool for parsing responses
 *   **docker-compose** or **docker compose** — Container orchestration
@@ -95,12 +96,12 @@ Wizards to automate the "Logic -> Play -> Blueprint" GitOps chain.
 ## 4. Configuration System
 
 ### Consolidated Secrets
-Runtime secrets are resolved through 1Password using `config/secrets.env`.
-*   **Setup:** Run `bash scripts/op-vault-setup.sh` to create or update the Homelab-GitOps vault items.
-*   **Validation:** Run `bash scripts/op-setup.sh` to verify the 1Password CLI, vault access, required items, and `config/secrets.env` references.
-*   **Runtime:** Export `OP_SERVICE_ACCOUNT_TOKEN`, then run `python3 manage.py <command>`. Commands that need secrets automatically re-exec through `op run --env-file=config/secrets.env`.
-*   **Security:** `config/secrets.env` contains only `op://` references and is safe to commit. Real secret values remain in 1Password.
-*   **Legacy:** `config/vault.yml.example` remains as a migration reference only; Ansible Vault is not the primary runtime path.
+Runtime secrets are resolved through OpenBao KV v2 using `config/secrets.env`.
+*   **Endpoint:** `VAULT_ADDR=http://openbao.plexplease.com:8201`
+*   **Runtime:** Export `VAULT_ADDR` and a token with read access, then run `python3 manage.py <command>`.
+*   **Reference format:** `bao://kv/prod/<scope>/<field>`, for example `bao://kv/prod/platform/vcenter/VCENTER_PASSWORD`.
+*   **Security:** `config/secrets.env` contains only `bao://` references and is safe to commit. Real secret values remain in OpenBao.
+*   **Legacy:** 1Password and `config/vault.yml.example` remain migration references only; Ansible Vault is not the primary runtime path.
 
 ---
 
@@ -134,7 +135,7 @@ See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed i
 
 ### Ansible "Unreachable"
 *   **Cause:** Incorrect SSH key or path.
-*   **Fix:** Check the `SSH_PRIVATE_KEY_PATH` and SSH admin fields in the Homelab-GitOps 1Password vault. The pipeline uses ED25519 by default.
+*   **Fix:** Check the `SSH_PRIVATE_KEY_PATH` and SSH admin fields in OpenBao under `kv/prod/repo/homelab-gitops`. The pipeline uses ED25519 by default.
 
 ---
 

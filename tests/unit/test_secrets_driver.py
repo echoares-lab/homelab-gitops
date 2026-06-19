@@ -33,7 +33,10 @@ def node_profile():
 
 @pytest.fixture
 def secrets_driver():
-    with patch("shutil.which", return_value="/usr/bin/op"):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
         with patch.dict("os.environ", {"OP_VAULT": "test-vault"}):
             return SecretsDriver()
 
@@ -78,6 +81,25 @@ def test_secrets_driver_execute_get_op(secrets_driver, node_profile):
         result = secrets_driver.execute(task)
         assert result.success is True
         assert result.output == "op-value"
+
+def test_secrets_driver_execute_get_bao(node_profile):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
+        driver = SecretsDriver()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="bao-value\n")
+        task = Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD", profile=node_profile)
+        result = driver.execute(task)
+
+    assert result.success is True
+    assert result.output == "bao-value"
+    mock_run.assert_called_with(
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        capture_output=True, text=True, timeout=10
+    )
 
 def test_secrets_driver_execute_get_op_constructed(secrets_driver, node_profile):
     with patch("subprocess.run") as mock_run:
@@ -126,6 +148,31 @@ def test_secrets_driver_execute_resolve_file(secrets_driver, node_profile):
             assert output["KEY1"] == "VAL1"
             assert output["KEY2"] == "VAL2"
             assert output["KEY3"] == "VAL3"
+
+def test_secrets_driver_resolve_file_bao_refs(tmp_path):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
+        driver = SecretsDriver()
+
+    env_file = tmp_path / "secrets.env"
+    env_file.write_text(
+        "VCENTER_PASSWORD=bao://kv/prod/platform/vcenter/VCENTER_PASSWORD\n"
+        "STATIC_VALUE=literal\n"
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="bao-password\n")
+        result_json = driver._resolve_file(str(env_file))
+
+    result = json.loads(result_json)
+    assert result["VCENTER_PASSWORD"] == "bao-password"
+    assert result["STATIC_VALUE"] == "literal"
+    mock_run.assert_called_once_with(
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        capture_output=True, text=True, timeout=10
+    )
 
 def test_secrets_driver_resolve_file_not_found(secrets_driver, node_profile):
     with patch("os.path.exists", return_value=False):
@@ -281,7 +328,6 @@ def test_secrets_driver_resolve_file_default(secrets_driver):
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="K=V")
             secrets_driver._resolve_file(None)
-            mock_run.assert_called_with(
-                ["/usr/bin/op", "inject", "-i", "config/secrets.env"],
-                capture_output=True, text=True, timeout=20
-            )
+            assert mock_run.call_count > 0
+            first_call = mock_run.call_args_list[0]
+            assert first_call.args[0][:3] == ["/usr/bin/bao", "kv", "get"]

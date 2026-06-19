@@ -23,7 +23,7 @@ graph TD
     E --> H
     B -->|ACME DNS-01| I[Certificate Service]
     I -->|TXT Record| J[Technitium DNS]
-    I -->|Key/Cert| K[1Password Vault]
+    I -->|Key/Cert| K[OpenBao KV v2]
     K -->|Secrets Injection| F
     B -->|Diagnostics| L[Doctor Service]
     L -->|Health Checks| M[Infrastructure Fleet]
@@ -62,6 +62,7 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 *   **Idempotency:** Every layer (Tofu, Ansible) is designed to be re-run safely. If the desired state is already reached, no changes are made.
 *   **Fail-Fast Validation:** Pre-deployment linting and post-deployment connectivity tests prevent wasting time on malformed configs or network issues.
 *   **Comprehensive Testing:** Final verification is performed by **Pytest-Testinfra**, ensuring the node is truly "Ready for Production" before the pipeline finishes.
+*   **Centralized Secrets:** Runtime secret references use `bao://` URIs in `config/secrets.env` and resolve from OpenBao KV v2. 1Password is retained only as a legacy migration source.
 *   **Read-Only Fleet Visibility:** `python3 manage.py status` compares managed Tofu workspaces with vCenter VM facts so operators can see power state, IP, host placement, profile tags, and likely workspace drift before making lifecycle changes.
 *   **Profile-Owned Retention:** The `log_retention` role is assigned to profile playbooks and consumes profile `logging:` policy. Generic journald retention is bounded globally; application file rotation is declared by the profile that owns the application path.
 
