@@ -102,9 +102,9 @@ class Workflow:
         from homelab_gitops.domain.models import Task as SecretsTask
         try:
             secrets_driver = SecretsDriver()
-            vcenter_user = secrets_driver.execute(SecretsTask(type="get", target="op://platform-vcenter/vcenter/VCENTER_USERNAME")).output
-            vcenter_pass = secrets_driver.execute(SecretsTask(type="get", target="op://platform-vcenter/vcenter/VCENTER_PASSWORD")).output
-            vcenter_server = secrets_driver.execute(SecretsTask(type="get", target="op://platform-vcenter/vcenter/VCENTER_SERVER")).output
+            vcenter_user = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_USERNAME")).output
+            vcenter_pass = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD")).output
+            vcenter_server = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_SERVER")).output
         except Exception:
             vcenter_user = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
             vcenter_pass = os.environ.get("VCENTER_PASSWORD", "")
@@ -120,8 +120,10 @@ class Workflow:
         
         # VM Specs
         overrides["vm_cpu"] = self.profile.vm_specs.get("cpu", 2)
-        overrides["vm_ram_gb"] = self.profile.vm_specs.get("ram_gb", 4)
-        overrides["disk_size_gb"] = self.profile.vm_specs.get("disk_size_gb", 50)
+        # Convert memory from MB to GB (vm_specs stores in MB, provider expects GB)
+        memory_mb = self.profile.vm_specs.get("memory", 8192)
+        overrides["vm_ram_gb"] = memory_mb // 1024  # Convert MB to GB
+        overrides["disk_size_gb"] = self.profile.vm_specs.get("disk", 50)
         overrides["guest_id"] = self.profile.vm_specs.get("guest_id", "")
         
         # Deployment
