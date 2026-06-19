@@ -3,19 +3,17 @@
 ## ✅ Completed
 
 ### Benchmark Suite Implementation
-- ✓ Complete iSCSI benchmarking framework implemented (`benchmarks/` directory)
-- ✓ FIO workload profiles: database.fio, sequential.fio, mixed.fio
-- ✓ SSH executor, metrics parser, configuration capturer
-- ✓ Comparison engine and HTML report generator
-- ✓ CLI orchestrator with comprehensive options
+- ⚠️  Benchmarking framework moved to separate repository: `~/repos/benchmarks`
+- Includes: iscsi_benchmark.py, FIO workload profiles, metrics analysis, reporting tools
+- **Note:** Execute tests against actual VMs once deployment succeeds
 
 ### Infrastructure Verification
 - ✓ vCenter 10.10.10.9 accessible with administrator credentials
 - ✓ ESXi host 10.10.10.11 accessible
 - ✓ iSCSI_PRODUCTION datastore exists and is empty
-- ✓ GOLDEN content library contains ubuntu-24.04-lts-golden OVF
+- ⚠️  GOLDEN library: Template deployment configured (requires Packer build execution and vCenter API fix)
 - ✓ TrueNAS at 10.10.10.20 is accessible
-- ✓ 1Password Connect integration working for credential retrieval
+- ✓ OpenBao integration configured for credential retrieval
 
 ### Deployment Infrastructure
 - ✓ OpenTofu/Terraform modules configured for VM provisioning
