@@ -62,10 +62,53 @@ dns={dns_str}
                     {
                         "name": "install-k3s.service",
                         "enabled": True,
-                        "contents": "[Unit]\nDescription=Install K3s\nWants=network-online.target\nAfter=network-online.target\nConditionPathExists=!/usr/local/bin/k3s\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/curl -sfL https://get.k3s.io -o /tmp/k3s-install.sh\nExecStartPost=/bin/sh /tmp/k3s-install.sh\n\n[Install]\nWantedBy=multi-user.target\n"
+                        "contents": "[Unit]\nDescription=Install K3s\nWants=network-online.target\nAfter=network-online.target\nConditionPathExists=!/usr/local/bin/k3s\n\n[Service]\nType=oneshot\nEnvironment=INSTALL_K3S_VERSION=v1.35.5+k3s1\nExecStart=/usr/bin/curl -sfL https://get.k3s.io -o /tmp/k3s-install.sh\nExecStartPost=/bin/sh /tmp/k3s-install.sh server --write-kubeconfig-mode 0644\n\n[Install]\nWantedBy=multi-user.target\n"
                     }
                 ]
             }
+            # Inject ArgoCD bootstrap manifests
+            files.append({
+                "path": "/var/lib/rancher/k3s/server/manifests/argocd.yaml",
+                "mode": 420,  # 0644
+                "contents": {"inline": """apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: argocd
+  namespace: kube-system
+spec:
+  chart: argo-cd
+  repo: https://argoproj.github.io/argo-helm
+  targetNamespace: argocd
+  createNamespace: true
+"""}
+            })
+
+            files.append({
+                "path": "/var/lib/rancher/k3s/server/manifests/argocd-root-app.yaml",
+                "mode": 420,  # 0644
+                "contents": {"inline": """apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k3s-01
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/echoares-lab/homelab-gitops.git
+    targetRevision: HEAD
+    path: kubernetes/clusters/k3s-01
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+"""}
+            })
+
 
         input_data = yaml.dump(butane_yaml).encode('utf-8')
 
