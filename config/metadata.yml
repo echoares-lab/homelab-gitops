@@ -24,7 +24,7 @@ tags:
   dns: "Configure Technitium DNS services."
   fcos: "Fedora CoreOS immutable host configuration using Ignition."
   k3s_server: "Bootstrap a single-node k3s control plane for GitOps-managed workloads."
-  external_dns: "Deploy external-dns with Technitium webhook to auto-register Ingress hostnames in Technitium DNS."
+  external_dns: "Deploy external-dns using native RFC-2136 provider to auto-register Ingress hostnames in Technitium DNS."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."

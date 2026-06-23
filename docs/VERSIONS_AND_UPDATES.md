@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.4 - K3s ExternalDNS RFC-2136 DNS Registration
+- Switched external-dns deployment on k3s-01 from webhook sidecar to native RFC-2136 provider.
+- Configured external-dns to target the 'infra.plexplease.com' zone on Technitium DNS to support the cluster's hostnames.
+- Configured Technitium DNS zone 'infra.plexplease.com' updateSecurityPolicies to allow TSIG key 'externaldns-k3s-01' updates for both parent and wildcard subdomains.
+
 ### v3.4.3 - OpenBao Runtime Secrets Migration
 - Migrated committed runtime secret references in `config/secrets.env` from `op://` to `bao://` KV v2 paths.
 - Added native `bao://` resolution to `SecretsDriver` for single secret reads and env-file bootstrap.
