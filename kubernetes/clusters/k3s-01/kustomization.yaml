@@ -5,8 +5,10 @@ resources:
   - openbao/rbac.yaml
   - helmcharts/cert-manager.yaml
   - helmcharts/external-secrets.yaml
+  - helmcharts/external-dns.yaml
   - external-secrets/cluster-secret-store.yaml
   - cert-manager/cloudflare-api-token.yaml
   - cert-manager/letsencrypt-cloudflare.yaml
+  - external-dns/technitium-token.yaml
   - argocd/cmd-params.yaml
   - argocd/ingress.yaml
