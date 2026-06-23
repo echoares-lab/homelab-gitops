@@ -24,9 +24,13 @@ tags:
   dns: "Configure Technitium DNS services."
   fcos: "Fedora CoreOS immutable host configuration using Ignition."
   k3s_server: "Bootstrap a single-node k3s control plane for GitOps-managed workloads."
+  external_dns: "Deploy external-dns with Technitium webhook to auto-register Ingress hostnames in Technitium DNS."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."
   security: "SSH hardening (disable root/passwords) and UFW firewall setup."
   docker: "Container runtime installation and daemon optimization."
   dns_technitium: "Automated Technitium DNS stack deployment."
+  k3s_common: "Kernel module loading, sysctl tuning, and UFW firewall rules for k3s nodes."
+  k3s_server: "Single-node k3s control plane installation, kubeconfig setup, and StorageClass configuration."
+  argocd_bootstrap: "Install Argo CD controllers and apply the root GitOps Application manifest."

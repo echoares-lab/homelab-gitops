@@ -1,0 +1,52 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: external-dns
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  repo: https://kubernetes-sigs.github.io/external-dns
+  chart: external-dns
+  version: 1.16.1
+  targetNamespace: external-dns
+  createNamespace: true
+  valuesContent: |-
+    provider:
+      name: webhook
+      webhook:
+        image:
+          repository: ghcr.io/mconfalonieri/external-dns-technitium-webhook
+          tag: v0.4.0
+        env:
+          - name: TECHNITIUM_BASE_URL
+            value: "http://10.10.10.2:5380"
+          - name: TECHNITIUM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: technitium-api-token
+                key: api-token
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http-webhook
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http-webhook
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+    sources:
+      - ingress
+    domainFilters:
+      - plexplease.com
+    policy: sync
+    txtOwnerId: k3s-01
+    txtPrefix: "edns-"
+    interval: 1m
+    logLevel: info
+    serviceAccount:
+      create: true
+      name: external-dns

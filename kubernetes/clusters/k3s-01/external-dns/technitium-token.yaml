@@ -1,0 +1,21 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: technitium-api-token
+  namespace: external-dns
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
+    name: technitium-api-token
+    creationPolicy: Owner
+  data:
+    - secretKey: api-token
+      remoteRef:
+        key: prod/platform/technitium
+        property: TECHNITIUM_TOKEN
