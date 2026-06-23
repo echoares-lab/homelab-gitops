@@ -8,7 +8,7 @@
     vcenter_server: "{{ lookup('env', 'VCENTER_SERVER') }}"
     vcenter_user: "{{ lookup('env', 'VCENTER_USERNAME') }}"
     vcenter_password: "{{ lookup('env', 'VCENTER_PASSWORD') }}"
-    
+
     # Infrastructure
     datacenter: "{{ lookup('env', 'VCENTER_DATACENTER') }}"
     cluster: "{{ lookup('env', 'VCENTER_CLUSTER') }}"
@@ -17,11 +17,11 @@
     template_name: "{{ lookup('env', 'CONTENT_LIBRARY_ITEM_NAME') | default('ubuntu-26.04-official-v1', true) }}"
     vm_network: "{{ lookup('env', 'VCENTER_NETWORK') }}"
     esxi_host: "{{ lookup('env', 'DEPLOY_ESXI_HOST') | default(omit, true) }}"
-    
+
     # Targeting
     vm_name: "{{ lookup('env', 'RUNTIME_VM_NAME') | default(lookup('env', 'DEPLOY_VM_NAME') | default('ubuntu-' ~ ansible_date_time.date, true), true) }}"
     folder: "{{ lookup('env', 'RUNTIME_DEPLOY_FOLDER') | default(lookup('env', 'VCENTER_DEPLOY_TEST_FOLDER'), true) }}"
-    
+
     # Customization
     cpus: "{{ lookup('env', 'DEPLOY_CPU_COUNT') | default(4, true) }}"
     memory_mb: "{{ lookup('env', 'DEPLOY_MEMORY_MB') | default(8192, true) }}"
@@ -29,7 +29,7 @@
   tasks:
     - name: Debug Deployment Details
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "Targeting Folder: {{ folder }}"
           - "Targeting Host: {{ esxi_host | default('Dynamic (Cluster Managed)', true) }}"
           - "VM Name: {{ vm_name }}"
@@ -166,7 +166,7 @@
           ansible.builtin.file:
             path: "{{ local_temp_dir.path }}"
             state: absent
-          when: 
+          when:
             - not vm_exists
             - local_temp_dir.path is defined
           delegate_to: localhost
@@ -180,7 +180,7 @@
             GOVC_USERNAME: "{{ vcenter_user }}"
             GOVC_PASSWORD: "{{ vcenter_password }}"
           when: not vm_exists
-          ignore_errors: true
+          failed_when: false
           delegate_to: localhost
 
         - name: Cleanup datastore ISO via govc
@@ -192,5 +192,5 @@
             GOVC_USERNAME: "{{ vcenter_user }}"
             GOVC_PASSWORD: "{{ vcenter_password }}"
           when: not vm_exists
-          ignore_errors: true
+          failed_when: false
           delegate_to: localhost

@@ -26,14 +26,9 @@ data "vsphere_network" "network" {
   datacenter_id = data.vsphere_datacenter.dc.id
 }
 
-data "vsphere_content_library" "library" {
-  name = var.library_name
-}
-
-data "vsphere_content_library_item" "template" {
-  name       = var.template_name
-  library_id = data.vsphere_content_library.library.id
-  type       = "ovf"
+data "vsphere_virtual_machine" "template" {
+  name          = var.template_name
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 data "vsphere_host" "host" {
@@ -53,7 +48,7 @@ resource "vsphere_virtual_machine" "vm" {
   num_cpus         = var.cpu
   memory           = var.memory
   guest_id         = var.guest_id
-  firmware         = "efi"
+  firmware         = var.firmware
   hardware_version = 21
 
   scsi_type = "pvscsi"
@@ -74,11 +69,16 @@ resource "vsphere_virtual_machine" "vm" {
     client_device = true
   }
 
+  extra_config = var.ignition_data != null ? {
+    "guestinfo.ignition.config.data"          = base64encode(var.ignition_data)
+    "guestinfo.ignition.config.data.encoding" = "base64"
+  } : null
+
   clone {
-    template_uuid = data.vsphere_content_library_item.template.id
+    template_uuid = data.vsphere_virtual_machine.template.id
 
     dynamic "customize" {
-      for_each = var.ipv4_address != "" ? [1] : []
+      for_each = var.os_type != "fcos" && var.ipv4_address != "" ? [1] : []
       content {
         linux_options {
           host_name = split(".", var.vm_name)[0]

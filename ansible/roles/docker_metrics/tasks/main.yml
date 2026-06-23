@@ -83,7 +83,7 @@
       port: "{{ docker_metrics_tls_port }}"
       tls: true
     status_code: [200, 201, 409] # 409 usually means already exists
-  ignore_errors: true
+  failed_when: false
   when: dockhand_api_token is defined and dockhand_api_token != ''
 
 - name: Register node with Uptime Kuma via REST API
@@ -99,6 +99,6 @@
       type: "docker"
       docker_host: "tcp://{{ inventory_hostname }}:{{ docker_metrics_tls_port }}"
     status_code: [200, 201, 400] # 400 might be returned if it already exists
-  ignore_errors: true
+  failed_when: false
   when: uptime_kuma_api_token is defined and uptime_kuma_api_token != ''
 

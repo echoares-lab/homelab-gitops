@@ -32,7 +32,7 @@
     mode: '0600'
     owner: mcpadmin
     group: mcpadmin
-  ignore_errors: true
+  failed_when: false
 
 - name: Create MCP Gateway deployment directory
   ansible.builtin.file:

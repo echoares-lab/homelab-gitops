@@ -11,6 +11,11 @@ variable "vcenter_user" {
   type = string
 }
 
+variable "vcenter_username" {
+  type    = string
+  default = ""
+}
+
 variable "vcenter_password" {
   type      = string
   sensitive = true
@@ -92,4 +97,14 @@ variable "ipv4_gateway" {
 variable "dns_servers" {
   type    = list(string)
   default = ["8.8.8.8"]
+}
+
+variable "os_type" {
+  type    = string
+  default = "ubuntu"
+}
+
+variable "ignition_data" {
+  type    = string
+  default = null
 }

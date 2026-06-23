@@ -212,7 +212,7 @@
     name: dns-heartbeat.timer
     enabled: false
     state: stopped
-  ignore_errors: true
+  failed_when: false
 
 - name: Install DNS Heartbeat systemd service
   ansible.builtin.template:
