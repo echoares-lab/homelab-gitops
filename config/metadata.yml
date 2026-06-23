@@ -22,6 +22,8 @@ tags:
   photon: "VMware Photon OS 5.0 (minimal) configuration."
   docker: "Install and configure Docker Engine and Docker Compose."
   dns: "Configure Technitium DNS services."
+  fcos: "Fedora CoreOS immutable host configuration using Ignition."
+  k3s_server: "Bootstrap a single-node k3s control plane for GitOps-managed workloads."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."

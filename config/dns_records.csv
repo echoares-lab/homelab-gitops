@@ -32,3 +32,7 @@ record,8.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,benchmark-iscsi-02-02.mgmt.pl
 dhcp_lease,benchmark-iscsi-03-03,10.10.10.0,,10.10.10.10,,00:50:56:2f:f7:4d,,,,,,Auto-generated for benchmark-iscsi-03-03,,
 record,benchmark-iscsi-03-03,mgmt.plexplease.com,A,10.10.10.10,,,,,,,,Auto-generated for benchmark-iscsi-03-03,,
 record,10.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,benchmark-iscsi-03-03.mgmt.plexplease.com,,,,,,,,Auto-generated for benchmark-iscsi-03-03,,
+dhcp_lease,k3s-01,10.10.10.0,,10.10.10.50,,00:50:56:9f:71:25,,,,,,Single-node k3s FCOS control plane,,
+record,k3s-01,infra.plexplease.com,A,10.10.10.50,,,,,,,,Single-node k3s FCOS control plane,,
+record,50.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,k3s-01.infra.plexplease.com,,,,,,,,Single-node k3s FCOS control plane,,
+record,argocd,infra.plexplease.com,A,10.10.10.50,900,,,,,,,,Argo CD ingress on k3s-01,,
