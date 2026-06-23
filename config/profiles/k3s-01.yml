@@ -1,0 +1,25 @@
+content_library:
+  name: GOLDEN
+  template: fcos-latest
+deployment:
+  dns_servers: 10.10.10.2
+  hostname: k3s-01.infra.plexplease.com
+  ip_address: 10.10.10.50
+  ipv4_gateway: 10.10.10.1
+  tags:
+  - fcos
+  - k3s_server
+  vm_name: k3s-01
+is_immutable: true
+vcenter:
+  cluster: Primary
+  datacenter: HOMELAB
+  datastore: NVME_2TB_970_SAMSUNG_EVO_M.2
+  host: 10.10.10.11
+  network: VM Network
+  os_type: fcos
+vm_specs:
+  cpu: 16
+  disk: 40
+  guest_id: fedora64Guest
+  memory: 16384
