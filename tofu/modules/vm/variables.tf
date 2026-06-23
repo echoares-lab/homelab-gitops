@@ -125,3 +125,18 @@ variable "vm_name" {
   type        = string
   description = "VM FQDN"
 }
+
+variable "firmware" {
+  type    = string
+  default = "efi"
+}
+
+variable "os_type" {
+  type    = string
+  default = "ubuntu"
+}
+
+variable "ignition_data" {
+  type    = string
+  default = null
+}
