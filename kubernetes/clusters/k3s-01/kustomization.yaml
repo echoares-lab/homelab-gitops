@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespaces.yaml
   - openbao/rbac.yaml
+  - helmcharts/argocd.yaml
   - helmcharts/cert-manager.yaml
   - helmcharts/external-secrets.yaml
   - helmcharts/external-dns.yaml
