@@ -32,7 +32,10 @@ As established in `GEMINI.md`, any significant feature change must be reflected 
 3.  `RUNBOOK.md` (Update usage examples).
 4.  `DESIGN.md` (Update architectural diagrams if workflow changes).
 
-## 4. Matrix Testing (`scripts/matrix_test.py`)
+## 4. Pull Request Submission
+Agents submitting a pull request MUST enable auto-merge for that PR whenever repository permissions and branch protection allow it. Auto-merge must still respect required reviews, required status checks, and branch protection rules; agents must not bypass or weaken those protections to merge faster.
+
+## 5. Matrix Testing (`scripts/matrix_test.py`)
 To prevent regressions in the orchestrator's logic or hardware mapping, agents must validate their changes using the Matrix Test suite.
 
 **MANDATE:** Agents MUST execute `python3 scripts/matrix_test.py` before considering any of the following tasks complete:
@@ -43,10 +46,10 @@ To prevent regressions in the orchestrator's logic or hardware mapping, agents m
 
 If a change breaks the current matrix, the agent MUST update `scripts/matrix_test.py` to reflect the new expected behavior.
 
-## 5. CI & Testing Modifications
+## 6. CI & Testing Modifications
 When modifying CI workflows, test configurations, or test dependencies, agents must follow a structured validation process to prevent silent failures and infrastructure drift.
 
-### 5.1 Key Steps for Safe CI Changes
+### 6.1 Key Steps for Safe CI Changes
 
 1. **Dependency Verification:** Before using a package or tool in CI, verify it is already present in `requirements.txt` or add it. All CI dependencies must be pinned to a specific version and documented in the requirements file.
 
@@ -58,7 +61,7 @@ When modifying CI workflows, test configurations, or test dependencies, agents m
 
 5. **Documentation:** Update `docs/TESTING.md` if changing testing standards, coverage thresholds, test organization, or CI behavior. Ensure the documentation reflects the actual CI implementation.
 
-### 5.2 Red Flags in CI Changes
+### 6.2 Red Flags in CI Changes
 
 Watch for these patterns that indicate problematic CI modifications:
 
@@ -68,6 +71,6 @@ Watch for these patterns that indicate problematic CI modifications:
 *   ❌ **Test file references that don't exist:** CI workflow references test files or paths that have been removed or renamed, causing silent skips or failures.
 *   ❌ **Inconsistent values:** Threshold messages don't match actual checks (e.g., CI logs say "80% coverage required" but pyproject.toml defines 85%).
 
-### 5.3 Reference to Testing Policy
+### 6.3 Reference to Testing Policy
 
 See `docs/TESTING.md` for the complete testing policy, coverage requirements, and approved test frameworks. Any changes to test organization or CI standards must be synchronized with that documentation.
