@@ -1,70 +1,30 @@
 import time
 import socket
-from typing import Dict, Any
+from typing import Callable, Dict, Any
 
 class DoctorService:
     """Service to run diagnostics on core systems."""
 
-    def __init__(self):
-        from homelab_gitops.drivers.vcenter_driver import vCenterDriver
-        from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
-        from homelab_gitops.drivers.opnsense_driver import OPNsenseDriver
-        from homelab_gitops.drivers.tofu_driver import TofuDriver
-
-        self.vcenter = vCenterDriver()
-        self.technitium = TechnitiumDriver()
-        self.opnsense = OPNsenseDriver()
-        self.tofu = TofuDriver()
+    def __init__(self, health_checks: Dict[str, Any], dns_resolver: Callable[[str], str] = socket.gethostbyname):
+        self.health_checks = health_checks
+        self.dns_resolver = dns_resolver
 
     def run_diagnostics(self) -> Dict[str, Any]:
         """Run health checks on core systems."""
-        from homelab_gitops.drivers.exceptions import PrerequisiteError
         results = {}
 
-        # Check vCenter
-        start = time.time()
-        try:
-            self.vcenter.validate()
-            results["vcenter"] = {"status": "pass", "latency": time.time() - start}
-        except PrerequisiteError as e:
-            results["vcenter"] = {"status": "fail", "error": str(e)}
-        except Exception as e:
-            results["vcenter"] = {"status": "fail", "error": str(e)}
-
-        # Check Technitium
-        start = time.time()
-        try:
-            self.technitium.validate()
-            results["technitium"] = {"status": "pass", "latency": time.time() - start}
-        except PrerequisiteError as e:
-            results["technitium"] = {"status": "fail", "error": str(e)}
-        except Exception as e:
-            results["technitium"] = {"status": "fail", "error": str(e)}
-
-        # Check OPNsense
-        start = time.time()
-        try:
-            self.opnsense.validate()
-            results["opnsense"] = {"status": "pass", "latency": time.time() - start}
-        except PrerequisiteError as e:
-            results["opnsense"] = {"status": "fail", "error": str(e)}
-        except Exception as e:
-            results["opnsense"] = {"status": "fail", "error": str(e)}
-
-        # Check Tofu
-        start = time.time()
-        try:
-            self.tofu.validate()
-            results["tofu"] = {"status": "pass", "latency": time.time() - start}
-        except PrerequisiteError as e:
-            results["tofu"] = {"status": "fail", "error": str(e)}
-        except Exception as e:
-            results["tofu"] = {"status": "fail", "error": str(e)}
+        for component, provider in self.health_checks.items():
+            start = time.time()
+            try:
+                provider.validate()
+                results[component] = {"status": "pass", "latency": time.time() - start}
+            except Exception as e:
+                results[component] = {"status": "fail", "error": str(e)}
 
         # Check DNS Resolution
         start = time.time()
         try:
-            socket.gethostbyname("1.1.1.1")
+            self.dns_resolver("1.1.1.1")
             results["dns"] = {"status": "pass", "latency": time.time() - start}
         except socket.error as e:
             results["dns"] = {"status": "fail", "error": str(e)}

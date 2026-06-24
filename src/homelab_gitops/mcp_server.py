@@ -7,9 +7,9 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP
 
 from homelab_gitops.domain.models import NodeProfile
-from homelab_gitops.domain.status import StatusService
 from homelab_gitops.domain.certificate import CertificateService
 from homelab_gitops.domain.workflows import Workflow
+from homelab_gitops.providers.read_only import ReadOnlyProviderFactory
 from homelab_gitops.drivers.vcenter_driver import vCenterDriver
 from homelab_gitops.drivers.tofu_driver import TofuDriver
 from homelab_gitops.drivers.ansible_driver import AnsibleDriver
@@ -38,7 +38,7 @@ def get_fleet_status() -> str:
                 profile_dict["name"] = profile_name
                 profiles.append(NodeProfile(**profile_dict))
 
-        status_service = StatusService(vCenterDriver(), TofuDriver())
+        status_service = ReadOnlyProviderFactory().status_service()
         fleet_status = status_service.get_fleet_status(profiles)
         
         output = []

@@ -7,9 +7,7 @@ from typing import Optional, List
 from rich.console import Console
 from rich.table import Table
 from homelab_gitops.domain.models import NodeProfile
-from homelab_gitops.domain.status import StatusService
-from homelab_gitops.drivers.vcenter_driver import vCenterDriver
-from homelab_gitops.drivers.tofu_driver import TofuDriver
+from homelab_gitops.providers.read_only import ReadOnlyProviderFactory
 from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 
@@ -47,7 +45,7 @@ def status_command(
             return
 
         # Setup service
-        service = StatusService(vcenter_driver=vCenterDriver(), tofu_driver=TofuDriver())
+        service = ReadOnlyProviderFactory().status_service()
 
         print_info("Fetching fleet status ...")
         fleet_status = service.get_fleet_status(profiles)

@@ -9,29 +9,29 @@ from homelab_gitops.drivers.exceptions import PrerequisiteError
 
 runner = CliRunner()
 
-class TestDoctorService:
-    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
-    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
-    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
-    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
-    @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
-    def test_run_diagnostics_all_pass(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
-        # Setup mocks
-        mock_vcenter_instance = mock_vcenter.return_value
-        mock_vcenter_instance.validate.return_value = True
-        
-        mock_technitium_instance = mock_technitium.return_value
-        mock_technitium_instance.validate.return_value = True
-        
-        mock_opnsense_instance = mock_opnsense.return_value
-        mock_opnsense_instance.validate.return_value = True
-        
-        mock_tofu_instance = mock_tofu.return_value
-        mock_tofu_instance.validate.return_value = True
-        
-        mock_gethostbyname.return_value = "1.1.1.1"
 
-        service = DoctorService()
+class HealthCheckStub:
+    def __init__(self, error=None):
+        self.error = error
+        self.calls = 0
+
+    def validate(self):
+        self.calls += 1
+        if self.error:
+            raise self.error
+        return True
+
+class TestDoctorService:
+    def test_run_diagnostics_all_pass(self):
+        health_checks = {
+            "vcenter": HealthCheckStub(),
+            "technitium": HealthCheckStub(),
+            "opnsense": HealthCheckStub(),
+            "tofu": HealthCheckStub(),
+        }
+        dns_resolver = MagicMock(return_value="1.1.1.1")
+
+        service = DoctorService(health_checks=health_checks, dns_resolver=dns_resolver)
         results = service.run_diagnostics()
 
         assert results["vcenter"]["status"] == "pass"
@@ -48,29 +48,19 @@ class TestDoctorService:
         
         assert results["dns"]["status"] == "pass"
         assert "latency" in results["dns"]
+        assert all(check.calls == 1 for check in health_checks.values())
+        dns_resolver.assert_called_once_with("1.1.1.1")
 
-    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
-    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
-    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
-    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
-    @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
-    def test_run_diagnostics_with_failures(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
-        # Setup mocks to trigger PrerequisiteError for some and Exception for others
-        mock_vcenter_instance = mock_vcenter.return_value
-        mock_vcenter_instance.validate.side_effect = PrerequisiteError("vCenter unreachable")
-        
-        mock_technitium_instance = mock_technitium.return_value
-        mock_technitium_instance.validate.side_effect = PrerequisiteError("Technitium down")
-        
-        mock_opnsense_instance = mock_opnsense.return_value
-        mock_opnsense_instance.validate.side_effect = PrerequisiteError("OPNsense API error")
-        
-        mock_tofu_instance = mock_tofu.return_value
-        mock_tofu_instance.validate.side_effect = PrerequisiteError("Tofu binary missing")
-        
-        mock_gethostbyname.side_effect = socket.error("DNS resolution failed")
+    def test_run_diagnostics_with_failures(self):
+        health_checks = {
+            "vcenter": HealthCheckStub(PrerequisiteError("vCenter unreachable")),
+            "technitium": HealthCheckStub(PrerequisiteError("Technitium down")),
+            "opnsense": HealthCheckStub(PrerequisiteError("OPNsense API error")),
+            "tofu": HealthCheckStub(PrerequisiteError("Tofu binary missing")),
+        }
+        dns_resolver = MagicMock(side_effect=socket.error("DNS resolution failed"))
 
-        service = DoctorService()
+        service = DoctorService(health_checks=health_checks, dns_resolver=dns_resolver)
         results = service.run_diagnostics()
 
         assert results["vcenter"]["status"] == "fail"
@@ -88,20 +78,15 @@ class TestDoctorService:
         assert results["dns"]["status"] == "fail"
         assert results["dns"]["error"] == "DNS resolution failed"
 
-    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
-    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
-    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
-    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
-    @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
-    def test_run_diagnostics_generic_exceptions(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
-        # Setup mocks to trigger generic Exception
-        mock_vcenter.return_value.validate.side_effect = Exception("vCenter generic error")
-        mock_technitium.return_value.validate.side_effect = Exception("Technitium generic error")
-        mock_opnsense.return_value.validate.side_effect = Exception("OPNsense generic error")
-        mock_tofu.return_value.validate.side_effect = Exception("Tofu generic error")
-        mock_gethostbyname.return_value = "1.1.1.1"
+    def test_run_diagnostics_generic_exceptions(self):
+        health_checks = {
+            "vcenter": HealthCheckStub(Exception("vCenter generic error")),
+            "technitium": HealthCheckStub(Exception("Technitium generic error")),
+            "opnsense": HealthCheckStub(Exception("OPNsense generic error")),
+            "tofu": HealthCheckStub(Exception("Tofu generic error")),
+        }
 
-        service = DoctorService()
+        service = DoctorService(health_checks=health_checks, dns_resolver=MagicMock(return_value="1.1.1.1"))
         results = service.run_diagnostics()
 
         assert results["vcenter"]["error"] == "vCenter generic error"
@@ -109,29 +94,22 @@ class TestDoctorService:
         assert results["opnsense"]["error"] == "OPNsense generic error"
         assert results["tofu"]["error"] == "Tofu generic error"
 
-    @patch('homelab_gitops.drivers.vcenter_driver.vCenterDriver')
-    @patch('homelab_gitops.drivers.technitium_driver.TechnitiumDriver')
-    @patch('homelab_gitops.drivers.opnsense_driver.OPNsenseDriver')
-    @patch('homelab_gitops.drivers.tofu_driver.TofuDriver')
-    @patch('homelab_gitops.domain.doctor.socket.gethostbyname')
-    def test_run_diagnostics_dns_failure(self, mock_gethostbyname, mock_tofu, mock_opnsense, mock_technitium, mock_vcenter):
-        # All other pass, DNS fails
-        mock_vcenter.return_value.validate.return_value = True
-        mock_technitium.return_value.validate.return_value = True
-        mock_opnsense.return_value.validate.return_value = True
-        mock_tofu.return_value.validate.return_value = True
-        mock_gethostbyname.side_effect = socket.gaierror("Name or service not known")
+    def test_run_diagnostics_dns_failure(self):
+        dns_resolver = MagicMock(side_effect=socket.gaierror("Name or service not known"))
 
-        service = DoctorService()
+        service = DoctorService(
+            health_checks={"vcenter": HealthCheckStub()},
+            dns_resolver=dns_resolver,
+        )
         results = service.run_diagnostics()
 
         assert results["dns"]["status"] == "fail"
         assert "Name or service not known" in results["dns"]["error"]
 
 class TestDoctorCLI:
-    @patch('homelab_gitops.cli.core_commands.doctor.DoctorService')
-    def test_doctor_command_success(self, mock_doctor_service):
-        mock_instance = mock_doctor_service.return_value
+    @patch('homelab_gitops.cli.core_commands.doctor.ReadOnlyProviderFactory')
+    def test_doctor_command_success(self, mock_factory):
+        mock_instance = mock_factory.return_value.doctor_service.return_value
         mock_instance.run_diagnostics.return_value = {
             "vcenter": {"status": "pass", "latency": 0.1},
             "dns": {"status": "fail", "error": "Timeout"}
@@ -151,9 +129,9 @@ class TestDoctorCLI:
         assert "FAIL" in result.stdout
         assert "Timeout" in result.stdout
 
-    @patch('homelab_gitops.cli.core_commands.doctor.DoctorService')
-    def test_doctor_command_exception(self, mock_doctor_service):
-        mock_instance = mock_doctor_service.return_value
+    @patch('homelab_gitops.cli.core_commands.doctor.ReadOnlyProviderFactory')
+    def test_doctor_command_exception(self, mock_factory):
+        mock_instance = mock_factory.return_value.doctor_service.return_value
         mock_instance.run_diagnostics.side_effect = Exception("Critical failure")
 
         import typer
