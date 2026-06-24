@@ -87,7 +87,7 @@ def deploy_vm(profile_name: str, index: Optional[str] = None) -> str:
             "config": AnsibleDriver(),
         }
 
-        workflow = Workflow(profile_obj, drivers=drivers)
+        workflow = Workflow(profile_obj, drivers=drivers, secrets_driver=SecretsDriver())
         state = workflow.execute(["deploy", "config"])
         
         return f"Successfully deployed and configured {profile_name}. IP: {state.vm_ip}"

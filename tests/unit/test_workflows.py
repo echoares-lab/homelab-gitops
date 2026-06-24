@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import MagicMock
 from homelab_gitops.domain.workflows import Workflow
 from homelab_gitops.domain.models import NodeProfile, Task, TaskResult
 from homelab_gitops.domain.state_machine import StateMachine
@@ -29,6 +30,29 @@ def test_workflow_execute_deploy():
 
     assert state.state == "deployed"
     assert state.vm_ip == "10.10.10.50"
+
+def test_workflow_uses_injected_secrets_provider_for_vcenter_overrides():
+    """Workflow should use an injected secrets provider rather than constructing one."""
+    profile = NodeProfile(
+        name="ubuntu-base",
+        vcenter={"datacenter": "DC", "cluster": "C", "datastore": "DS", "network": "N"},
+        vm_specs={"cpu": 4, "memory": 8192, "disk": 50},
+        deployment={"tags": ["ubuntu"]},
+    )
+    secrets_driver = MagicMock()
+    secrets_driver.execute.side_effect = [
+        MagicMock(output="secret-user"),
+        MagicMock(output="secret-pass"),
+        MagicMock(output="vcenter.local"),
+    ]
+
+    workflow = Workflow(profile, drivers={}, secrets_driver=secrets_driver)
+    task = workflow._prepare_task("deploy")
+
+    assert task.overrides["vcenter_user"] == "secret-user"
+    assert task.overrides["vcenter_password"] == "secret-pass"
+    assert task.overrides["vcenter_server"] == "vcenter.local"
+    assert secrets_driver.execute.call_count == 3
 
 def test_workflow_invalid_transition():
     """Workflow prevents invalid transitions."""
