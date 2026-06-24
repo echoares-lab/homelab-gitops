@@ -54,11 +54,9 @@ def test_status_service_aggregate(dummy_profile):
     mock_tofu = MagicMock()
     
     mock_tofu.get_status.return_value = {"provisioned": True, "drift": False}
-    mock_vcenter.execute.return_value = TaskResult(
-        success=True, task_type="test", output="Power: poweredOn", duration=1.0, vm_ip="10.0.0.1"
-    )
+    mock_vcenter.get_vm_status.return_value = {"provisioned": "Yes", "power": "On", "ip": "10.0.0.1"}
     
-    service = StatusService(vcenter_driver=mock_vcenter, tofu_driver=mock_tofu)
+    service = StatusService(vcenter_provider=mock_vcenter, tofu_provider=mock_tofu)
     status = service.get_fleet_status([dummy_profile])
     
     assert len(status) == 1

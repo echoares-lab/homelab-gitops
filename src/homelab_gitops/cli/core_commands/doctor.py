@@ -3,7 +3,7 @@
 import typer
 from rich.console import Console
 from rich.table import Table
-from homelab_gitops.domain.doctor import DoctorService
+from homelab_gitops.providers.read_only import ReadOnlyProviderFactory
 from homelab_gitops.cli.utils import print_success, print_error, print_info
 
 def doctor_command():
@@ -12,7 +12,7 @@ def doctor_command():
     print_info("Running system diagnostics...")
     
     try:
-        service = DoctorService()
+        service = ReadOnlyProviderFactory().doctor_service()
         results = service.run_diagnostics()
         
         table = Table(title="System Diagnostics")
