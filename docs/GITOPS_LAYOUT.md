@@ -111,24 +111,22 @@ platform app, but platform app directories must not depend on workload content.
   storage classes, and ingress assumptions in that directory's README when those
   assumptions are not obvious from the manifests.
 
-## k3s-01 Mapping
+## k3s-01 Layout
 
-The current `kubernetes/clusters/k3s-01/` manifests map cleanly to the target
-standard without moving files in this issue:
+The `k3s-01` manifests follow the standard layout. Argo CD should continue to
+sync the cluster entrypoint at `kubernetes/clusters/k3s-01/`, which composes the
+cluster config and selected platform overlays.
 
-| Current path | Target ownership | Future target |
-| --- | --- | --- |
-| `kubernetes/clusters/k3s-01/kustomization.yaml` | Cluster composition | `kubernetes/clusters/k3s-01/kustomization.yaml` |
-| `kubernetes/clusters/k3s-01/namespaces.yaml` | Cluster namespace baseline | `kubernetes/clusters/k3s-01/config/namespaces.yaml` |
-| `kubernetes/clusters/k3s-01/helmcharts/argocd.yaml` | Bootstrap/platform control plane | `kubernetes/bootstrap/k3s-01/root-apps/` or `kubernetes/platform/argocd/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/argocd/` | Platform app overlay | `kubernetes/platform/argocd/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/helmcharts/cert-manager.yaml` | Platform app | `kubernetes/platform/cert-manager/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/cert-manager/` | Platform app overlay | `kubernetes/platform/cert-manager/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/helmcharts/external-secrets.yaml` | Platform app | `kubernetes/platform/external-secrets/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/external-secrets/` | Platform app overlay | `kubernetes/platform/external-secrets/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/helmcharts/external-dns.yaml` | Platform app | `kubernetes/platform/external-dns/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/external-dns/` | Platform app overlay | `kubernetes/platform/external-dns/overlays/k3s-01/` |
-| `kubernetes/clusters/k3s-01/openbao/` | Platform integration | `kubernetes/platform/openbao/overlays/k3s-01/` |
+| Current path | Ownership |
+| --- | --- |
+| `kubernetes/bootstrap/k3s-01/root-apps/` | Bootstrap root Application manifests |
+| `kubernetes/clusters/k3s-01/kustomization.yaml` | Cluster composition |
+| `kubernetes/clusters/k3s-01/config/namespaces.yaml` | Cluster namespace baseline |
+| `kubernetes/platform/argocd/overlays/k3s-01/` | Argo CD platform overlay |
+| `kubernetes/platform/cert-manager/overlays/k3s-01/` | cert-manager platform overlay |
+| `kubernetes/platform/external-secrets/overlays/k3s-01/` | external-secrets platform overlay |
+| `kubernetes/platform/external-dns/overlays/k3s-01/` | external-dns platform overlay |
+| `kubernetes/platform/openbao/overlays/k3s-01/` | OpenBao platform integration |
 
 No workload directories are present today. Future application services should be
 added under `kubernetes/workloads/<owner>/<app>/` and then referenced by
