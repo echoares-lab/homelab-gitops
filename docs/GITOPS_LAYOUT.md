@@ -131,3 +131,15 @@ cluster config and selected platform overlays.
 No workload directories are present today. Future application services should be
 added under `kubernetes/workloads/<owner>/<app>/` and then referenced by
 `kubernetes/clusters/k3s-01/`.
+
+## Manifest Validation
+
+Run the local validation command after changing files under `kubernetes/`:
+
+```bash
+python3 scripts/validate_gitops_manifests.py
+```
+
+The command renders every checked-in kustomization, follows local resource
+references, validates YAML syntax, and checks basic Kubernetes object fields. It
+does not contact a cluster or require `kubectl`.

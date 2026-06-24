@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.7 - GitOps Manifest Validation
+- Added `python3 scripts/validate_gitops_manifests.py` to render Kubernetes kustomizations under `kubernetes/` and catch malformed YAML, missing resource paths, and missing Kubernetes object fields.
+- Documented the local validation command for manifest authors and operators.
+- Added focused unit tests for nested kustomization rendering and validation failures.
+
 ### v3.4.6 - k3s-01 GitOps Layout Migration
 - Moved k3s-01 Kubernetes manifests into the standard bootstrap, cluster config, and platform overlay directories.
 - Preserved the Argo CD root Application source path at `kubernetes/clusters/k3s-01` while updating that kustomization to compose the moved overlays.

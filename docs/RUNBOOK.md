@@ -122,6 +122,16 @@ For tracked and local generated-file inventory, including OpenTofu state,
 generated Ignition, coverage, scratch, local env, and generated Ansible
 artifacts, see [Artifact and State Hygiene Inventory](./ARTIFACT_STATE_HYGIENE.md).
 
+Validate GitOps manifests locally before opening a PR:
+
+```bash
+python3 scripts/validate_gitops_manifests.py
+```
+
+The validator renders every `kustomization.yaml` under `kubernetes/`, follows
+referenced resource paths, parses rendered YAML, and checks that each Kubernetes
+object has `apiVersion`, `kind`, and `metadata.name`.
+
 ---
 
 ## 6. Automated Testing
