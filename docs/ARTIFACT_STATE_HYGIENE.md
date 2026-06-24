@@ -4,6 +4,9 @@ This inventory documents tracked and local generated artifacts that should not b
 part of ordinary source changes. It is an evidence record only: do not delete
 files or change ignore rules from this document alone.
 
+The target source-versus-generated layout for image build files is documented in
+[Image Build Source And Artifact Layout](./IMAGE_BUILD_LAYOUT.md).
+
 Evidence gathered on 2026-06-24:
 
 ```bash

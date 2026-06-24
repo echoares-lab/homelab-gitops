@@ -35,6 +35,9 @@ As established in `GEMINI.md`, any significant feature change must be reflected 
 ## 4. Pull Request Submission
 Agents submitting a pull request MUST enable auto-merge for that PR whenever repository permissions and branch protection allow it. Auto-merge must still respect required reviews, required status checks, and branch protection rules; agents must not bypass or weaken those protections to merge faster.
 
+## 4.1 Working-Tree and PR Hygiene
+Agents must keep issue work isolated from unrelated dirty files and generated local state. See `docs/AGENT_WORKFLOW_HYGIENE.md` for the repository-specific guidance on claim comments, generated artifacts, one-issue/one-PR flow, and auto-merge expectations.
+
 ## 5. Matrix Testing (`scripts/matrix_test.py`)
 To prevent regressions in the orchestrator's logic or hardware mapping, agents must validate their changes using the Matrix Test suite.
 
