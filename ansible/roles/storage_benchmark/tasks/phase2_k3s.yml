@@ -1,0 +1,39 @@
+# ansible/roles/storage_benchmark/tasks/phase2_k3s.yml
+---
+- name: "Phase2 | Process NVMe local-path"
+  ansible.builtin.include_tasks: phase2_backend.yml
+  vars:
+    backend_key: "nvme-local"
+    backend_name: "nvme-local"
+    protocol: "local"
+    sc_provisioner: "rancher.io/local-path"
+    sc_parameters: {}
+  when: "'nvme-local-phase2' not in completed_backends"
+
+- name: "Phase2 | Process NFS backends"
+  ansible.builtin.include_tasks: phase2_backend.yml
+  loop: "{{ truenas_datasets }}"
+  loop_control:
+    loop_var: dataset
+  vars:
+    backend_key: "{{ dataset.name | lower }}-nfs4"
+    backend_name: "{{ dataset.name }}"
+    protocol: "nfs4"
+    sc_provisioner: "org.democratic-csi.nfs"
+    sc_parameters:
+      fsType: "nfs"
+  when: "dataset.name + '-nfs4-phase2' not in completed_backends"
+
+- name: "Phase2 | Process iSCSI backends"
+  ansible.builtin.include_tasks: phase2_backend.yml
+  loop: "{{ truenas_datasets }}"
+  loop_control:
+    loop_var: dataset
+  vars:
+    backend_key: "{{ dataset.name | lower }}-iscsi"
+    backend_name: "{{ dataset.name }}"
+    protocol: "iscsi"
+    sc_provisioner: "org.democratic-csi.iscsi"
+    sc_parameters:
+      fsType: "ext4"
+  when: "dataset.name + '-iscsi-phase2' not in completed_backends"
