@@ -43,7 +43,7 @@
     dest: "/tmp/fio-iscsi-{{ dataset.name }}.ini"
     mode: "0644"
   vars:
-    fio_target_path: "{{ iscsi_dev_path.stdout | trim }}"
+    fio_filename: "{{ iscsi_dev_path.stdout | trim }}"
   when: not _skip_iscsi
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Run fio on block device (async)"

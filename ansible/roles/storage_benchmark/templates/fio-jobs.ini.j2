@@ -8,7 +8,7 @@ time_based=1
 group_reporting=1
 output-format=json
 size={{ fio_file_size }}
-filename={{ fio_target_path }}/fio-testfile
+filename={{ fio_filename }}
 
 [rand-read-4k]
 rw=randread
@@ -17,18 +17,21 @@ iodepth=32
 name=rand-read-4k
 
 [rand-write-4k]
+stonewall
 rw=randwrite
 bs=4k
 iodepth=32
 name=rand-write-4k
 
 [seq-read-1m]
+stonewall
 rw=read
 bs=1m
 iodepth=8
 name=seq-read-1m
 
 [mixed-7030-4k]
+stonewall
 rw=randrw
 rwmixread=70
 bs=4k
@@ -36,6 +39,7 @@ iodepth=32
 name=mixed-7030-4k
 
 [db-pattern-8k]
+stonewall
 rw=randrw
 rwmixread=75
 bs=8k

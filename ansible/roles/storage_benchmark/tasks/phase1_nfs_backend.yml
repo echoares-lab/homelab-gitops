@@ -28,7 +28,7 @@
     dest: "/tmp/fio-nfs-{{ dataset.name }}.ini"
     mode: "0644"
   vars:
-    fio_target_path: "{{ nfs_mount_base }}/{{ dataset.name }}"
+    fio_filename: "{{ nfs_mount_base }}/{{ dataset.name }}/fio-testfile"
   when: not _skip_nfs
 
 - name: "Phase1 NFS {{ dataset.name }} | Run fio (async)"
@@ -37,6 +37,8 @@
   become: true
   async: 900
   poll: 30
+  changed_when: false
+  failed_when: false
   when: not _skip_nfs
 
 - name: "Phase1 NFS {{ dataset.name }} | Save result"
@@ -45,7 +47,7 @@
     content: "{{ {'backend': dataset.name, 'protocol': 'nfs4', 'phase': 'phase1', 'run_id': benchmark_run_id, 'secrets_source': secrets_source, 'fio': fio_nfs_result.stdout | from_json} | to_json(indent=2) }}"
     mode: "0644"
   delegate_to: localhost
-  when: not _skip_nfs
+  when: not _skip_nfs and fio_nfs_result.rc == 0
 
 - name: "Phase1 NFS {{ dataset.name }} | Update state"
   ansible.builtin.copy:
@@ -72,3 +74,4 @@
     state: unmounted
   become: true
   when: not _skip_nfs
+  failed_when: false
