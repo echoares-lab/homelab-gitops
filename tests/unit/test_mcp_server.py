@@ -13,8 +13,8 @@ def test_mcp_server_initialization():
 @patch("homelab_gitops.mcp_server.os.listdir")
 @patch("builtins.open", new_callable=mock_open, read_data="ip: 192.168.1.10\nmac: aa:bb:cc:dd:ee:ff")
 @patch("homelab_gitops.mcp_server.yaml.safe_load")
-@patch("homelab_gitops.mcp_server.StatusService")
-def test_get_fleet_status_success(mock_status_service, mock_yaml_load, mock_file, mock_listdir, mock_exists):
+@patch("homelab_gitops.mcp_server.ReadOnlyProviderFactory")
+def test_get_fleet_status_success(mock_factory, mock_yaml_load, mock_file, mock_listdir, mock_exists):
     mock_exists.return_value = True
     mock_listdir.return_value = ["test_profile.yml"]
     mock_yaml_load.return_value = {
@@ -24,7 +24,7 @@ def test_get_fleet_status_success(mock_status_service, mock_yaml_load, mock_file
     }
     
     mock_service_instance = MagicMock()
-    mock_status_service.return_value = mock_service_instance
+    mock_factory.return_value.status_service.return_value = mock_service_instance
     mock_service_instance.get_fleet_status.return_value = [
         {
             "name": "test_profile",
