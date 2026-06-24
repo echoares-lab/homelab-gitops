@@ -55,6 +55,10 @@ verification. That coupling is an explicit cleanup target: future refactors
 should introduce provider interfaces or factories at workflow boundaries so
 core/domain logic depends on capabilities, not concrete drivers.
 
+Minimal provider adapter responsibilities, read-only methods, mutating methods,
+and workflow injection guidance are defined in
+[Provider Adapter Boundaries](./PROVIDER_ADAPTERS.md).
+
 This note is a boundary plan only. It does not require broad file moves by
 itself; moves should happen incrementally with tests and compatibility shims
 when implementation work begins.
