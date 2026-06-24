@@ -143,6 +143,17 @@ The validator renders every `kustomization.yaml` under `kubernetes/`, follows
 referenced resource paths, parses rendered YAML, and checks that each Kubernetes
 object has `apiVersion`, `kind`, and `metadata.name`.
 
+Validate image build inputs locally after changing Packer templates, Packer
+HTTP fixtures, or Butane transpilation logic:
+
+```bash
+python3 scripts/validate_image_build_inputs.py
+```
+
+The image validator runs Packer syntax validation and Butane transpilation only.
+It does not build templates, contact vCenter, or deploy infrastructure. The same
+command is suitable for CI runners that have `packer` and `butane` installed.
+
 ---
 
 ## 6. Automated Testing
