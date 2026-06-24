@@ -38,6 +38,19 @@ The clean-install smoke test must use the console script from the fresh virtual 
 
 Run this command locally after changing files under `kubernetes/`. It validates repository manifest structure only; it does not perform API-server admission checks.
 
+### Image Build Input Smoke Validation (Fast, No Infrastructure)
+- **Purpose:** Validate checked-in Packer templates and Butane transpilation inputs without building images or contacting vCenter
+- **Location:** `scripts/validate_image_build_inputs.py`
+- **Run Time:** < 30 seconds after Packer plugins are initialized
+- **Dependencies:** Packer and Butane binaries on `PATH`; Python dependencies from `requirements.txt`
+- **Command:** `python3 scripts/validate_image_build_inputs.py`
+
+Run this command locally after changing files under `packer/` or
+`src/homelab_gitops/immutable/`. It runs `packer init` and `packer validate`
+for each `packer/*.pkr.hcl` template with non-secret placeholder variables,
+then runs a sample FCOS profile through `butane --strict`. It is suitable for
+CI only on runners that explicitly install Packer and Butane.
+
 ### Tier 3: Integration Tests (Medium Speed, Self-Hosted VM)
 - **Purpose:** Validate orchestrator against real infrastructure (vCenter, vSphere, testinfra)
 - **Location:** `tests/integration/`

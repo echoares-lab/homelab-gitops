@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.10 - Image Build Smoke Validation
+- Added `scripts/validate_image_build_inputs.py` to run no-deploy Packer and Butane smoke validation for image build inputs.
+- Added unit coverage for Packer template discovery, placeholder variable handling, and Butane transpilation invocation.
+- Documented the local command and optional CI usage for runners with Packer and Butane installed.
+
 ### v3.4.9 - Image Build Asset Layout
 - Updated FCOS Packer HTTP serving to use generated installer payloads under `build/http/fcos`.
 - Removed the generated FCOS `installed.ign` payload from tracked Packer source fixtures.

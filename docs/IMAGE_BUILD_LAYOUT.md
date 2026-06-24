@@ -43,6 +43,22 @@ Ignition JSON from `butane --strict`. Until templates are extracted, its output
 should be considered generated Ignition and should not be committed as ordinary
 source.
 
+## Smoke Validation
+
+Run the image build input smoke validator after changing Packer templates,
+Packer HTTP fixtures, or Butane transpilation logic:
+
+```bash
+python3 scripts/validate_image_build_inputs.py
+```
+
+The validator runs `packer init` and `packer validate` for each
+`packer/*.pkr.hcl` template with non-secret placeholder variables, then
+transpiles a sample FCOS profile through `butane --strict`. It validates local
+inputs only; it does not build images, contact vCenter, or deploy
+infrastructure. The same command can be used as a CI gate on runners that have
+Packer and Butane installed.
+
 ## Cleanup Rules
 
 1. Keep source templates and generated output in separate top-level trees:
