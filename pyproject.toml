@@ -23,8 +23,12 @@ dependencies = [
     "mcp[cli]"
 ]
 
-[tool.setuptools]
-packages = ["homelab_gitops"]
+[project.scripts]
+homelab-gitops = "homelab_gitops.cli:main"
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["homelab_gitops*"]
