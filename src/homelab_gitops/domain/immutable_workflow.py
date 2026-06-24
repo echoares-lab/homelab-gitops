@@ -10,9 +10,17 @@ from homelab_gitops.domain.validators import YAMLSchemaValidator
 class ImmutableWorkflow:
     """Orchestrates the Build → Transpile → Provision → Verify pipeline."""
 
-    def __init__(self, profile: NodeProfile, drivers: Dict[str, Any]):
+    def __init__(
+        self,
+        profile: NodeProfile,
+        drivers: Dict[str, Any],
+        secrets_driver: Any = None,
+        immutable_config_driver: Any = None,
+    ):
         self.profile = profile
         self.drivers = drivers
+        self.secrets_driver = secrets_driver
+        self.immutable_config_driver = immutable_config_driver
         self.state_machine = StateMachine()
         self.state = DeploymentState(
             profile_name=profile.name,
@@ -46,8 +54,7 @@ class ImmutableWorkflow:
             driver = self.drivers.get(stage)
             if stage in ["config", "configure"]:
                 # Bypass standard Ansible driver for immutable
-                from homelab_gitops.immutable.drivers.immutable_driver import ImmutableDriver
-                driver = ImmutableDriver()
+                driver = self.immutable_config_driver or driver
             
             if not driver:
                 raise DomainError(f"No driver for stage: {stage}")
@@ -85,14 +92,13 @@ class ImmutableWorkflow:
                 overrides["machine_config"] = payload
                 overrides["os_type"] = "talos"
                 
-        # Load secrets via SecretsDriver
-        from homelab_gitops.drivers.secrets_driver import SecretsDriver
-        from homelab_gitops.domain.models import Task as SecretsTask
+        # Load secrets through an injected provider when available.
         try:
-            secrets_driver = SecretsDriver()
-            vcenter_user = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_USERNAME")).output
-            vcenter_pass = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD")).output
-            vcenter_server = secrets_driver.execute(SecretsTask(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_SERVER")).output
+            if not self.secrets_driver:
+                raise DomainError("No secrets provider configured")
+            vcenter_user = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_USERNAME")).output
+            vcenter_pass = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD")).output
+            vcenter_server = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_SERVER")).output
         except Exception:
             vcenter_user = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
             vcenter_pass = os.environ.get("VCENTER_PASSWORD", "")

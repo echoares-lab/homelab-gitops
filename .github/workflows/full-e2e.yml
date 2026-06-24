@@ -81,7 +81,7 @@ jobs:
         run: |
           echo "=== Running Testinfra Validation ==="
           pytest --hosts='ansible://e2e_test_vms' \
-            tests/test_services/ tests/test_manage_cli.py -v || exit 1
+            tests/e2e/ -v || exit 1
           echo "✓ All testinfra assertions passed"
 
       - name: Cleanup E2E test VMs

@@ -66,6 +66,12 @@ make sync-ci-runners      # regenerate ansible/generated/ci_runner/*
 make apply-ci-runners    # push to tag_git_test / tag_cf_runner hosts
 ```
 
+`ansible/generated/ci_runner/apt-packages.txt`,
+`ansible/generated/ci_runner/pip-requirements.txt`, and
+`ansible/generated/ci_runner/vars.yaml` are generated locally and ignored by
+git. They include local checkout paths and should be regenerated instead of
+edited or committed.
+
 ### When an existing repo changes CI deps
 
 1. Edit that repo's manifest or `requirements/ci-runner-venv.txt`.

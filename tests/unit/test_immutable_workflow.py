@@ -71,15 +71,12 @@ def test_immutable_workflow_execute_build(valid_profile):
 
 def test_immutable_workflow_execute_deploy_fcos(valid_profile):
     drivers = {"build": MockDriver("build"), "deploy": MockDriver("deploy")}
-    workflow = ImmutableWorkflow(valid_profile, drivers)
+    mock_secrets = MagicMock()
+    mock_secrets.execute.side_effect = Exception("No secrets")
+    workflow = ImmutableWorkflow(valid_profile, drivers, secrets_driver=mock_secrets)
     workflow.state.state = "built" # mock state progression
     
-    with patch("homelab_gitops.immutable.transpilers.butane.ButaneTranspiler") as mock_butane, \
-         patch("homelab_gitops.drivers.secrets_driver.SecretsDriver") as mock_secrets:
-        
-        # mock secrets to throw exception so it falls back to env vars
-        mock_secrets.side_effect = Exception("No secrets")
-        
+    with patch("homelab_gitops.immutable.transpilers.butane.ButaneTranspiler") as mock_butane:
         mock_instance = MagicMock()
         mock_instance.transpile.return_value = "fcos_ignition_data"
         mock_butane.return_value = mock_instance
@@ -89,16 +86,12 @@ def test_immutable_workflow_execute_deploy_fcos(valid_profile):
 
 def test_immutable_workflow_execute_deploy_talos(talos_profile):
     drivers = {"build": MockDriver("build"), "deploy": MockDriver("deploy")}
-    workflow = ImmutableWorkflow(talos_profile, drivers)
+    mock_secrets = MagicMock()
+    mock_secrets.execute.return_value = MagicMock(output="secret")
+    workflow = ImmutableWorkflow(talos_profile, drivers, secrets_driver=mock_secrets)
     workflow.state.state = "built"
     
-    with patch("homelab_gitops.immutable.transpilers.talos.TalosTranspiler") as mock_talos, \
-         patch("homelab_gitops.drivers.secrets_driver.SecretsDriver") as mock_secrets:
-        
-        mock_secrets_instance = MagicMock()
-        mock_secrets_instance.execute.return_value = MagicMock(output="secret")
-        mock_secrets.return_value = mock_secrets_instance
-        
+    with patch("homelab_gitops.immutable.transpilers.talos.TalosTranspiler") as mock_talos:
         mock_instance = MagicMock()
         mock_instance.transpile.return_value = "talos_machine_config"
         mock_talos.return_value = mock_instance
@@ -108,17 +101,14 @@ def test_immutable_workflow_execute_deploy_talos(talos_profile):
 
 def test_immutable_workflow_config_driver_override(valid_profile):
     drivers = {"config": MockDriver("config")} # This driver should be bypassed
-    workflow = ImmutableWorkflow(valid_profile, drivers)
+    immutable_config_driver = MagicMock()
+    immutable_config_driver.execute.return_value = TaskResult(success=True, task_type="config", output="done", duration=1.0)
+    workflow = ImmutableWorkflow(valid_profile, drivers, immutable_config_driver=immutable_config_driver)
     workflow.state.state = "deployed"
     
-    with patch("homelab_gitops.immutable.drivers.immutable_driver.ImmutableDriver") as mock_imm_driver:
-        mock_instance = MagicMock()
-        mock_instance.execute.return_value = TaskResult(success=True, task_type="config", output="done", duration=1.0)
-        mock_imm_driver.return_value = mock_instance
-        
-        state = workflow.execute(["config"])
-        assert state.state == "configured"
-        mock_instance.execute.assert_called_once()
+    state = workflow.execute(["config"])
+    assert state.state == "configured"
+    immutable_config_driver.execute.assert_called_once()
 
 def test_immutable_workflow_invalid_transition(valid_profile):
     drivers = {"test": MockDriver("test")}

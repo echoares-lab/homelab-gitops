@@ -38,7 +38,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install yamllint ansible-lint flake8 pytest-cov
+          pip install -r requirements.txt
 
       - name: Run YAML linting
         run: |
@@ -79,6 +79,21 @@ jobs:
           echo "=== Coverage Check ==="
           python -m coverage report --fail-under=85 --precision=2 || (echo "Coverage below 85% threshold!" && exit 1)
 
+      - name: Build package artifacts
+        run: |
+          echo "=== Build Package Artifacts ==="
+          python -m build --sdist --wheel
+          ls -la dist/
+
+      - name: Smoke test installed package
+        run: |
+          echo "=== Clean Install Smoke Test ==="
+          python -m venv /tmp/homelab-gitops-clean-install
+          /tmp/homelab-gitops-clean-install/bin/python -m pip install --upgrade pip
+          /tmp/homelab-gitops-clean-install/bin/pip install dist/*.whl
+          /tmp/homelab-gitops-clean-install/bin/homelab-gitops --help
+          /tmp/homelab-gitops-clean-install/bin/homelab-gitops doctor --help
+
       - name: Upload coverage to artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,4 +111,5 @@ jobs:
           echo "✓ Python linting (PEP 8): Completed"
           echo "✓ Shell linting: Completed"
           echo "✓ Unit tests: Completed"
-          echo "✓ Coverage check: 50% minimum enforced"
+          echo "✓ Coverage check: 85% minimum enforced"
+          echo "✓ Package build and clean install smoke test: Completed"

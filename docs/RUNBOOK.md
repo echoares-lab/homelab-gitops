@@ -114,9 +114,9 @@ Runtime secrets are resolved through OpenBao KV v2 using `config/secrets.env`.
 ### Kubernetes GitOps layout
 
 Use the [GitOps Layout Standard](./GITOPS_LAYOUT.md) when adding Kubernetes
-platform or workload manifests. The current `k3s-01` manifests remain in place;
-future migration work should move them only under an issue that explicitly
-allows manifest path changes.
+platform or workload manifests. The `k3s-01` root Application syncs
+`kubernetes/clusters/k3s-01/`, which composes cluster config from `config/` and
+platform overlays from `kubernetes/platform/*/overlays/k3s-01/`.
 
 For tracked and local generated-file inventory, including OpenTofu state,
 generated Ignition, coverage, scratch, local env, and generated Ansible
