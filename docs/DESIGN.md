@@ -82,6 +82,7 @@ We use **Tofu Workspaces** to achieve granular state management. Each virtual ma
 Instead of maintaining static hostnames in an inventory file, Ansible queries vCenter in real-time.
 *   **Tag-Based Routing:** Ansible groups VMs based on vSphere Tags (e.g., `tag_photon`, `tag_docker`).
 *   **Automated Role Mapping:** The master playbook (`site.yml`) automatically applies relevant roles based on these discovered tags.
+*   **Role Ownership:** Role and playbook ownership categories are documented in [Ansible Role and Playbook Ownership](./ANSIBLE_ORGANIZATION.md).
 
 ## 4. Kubernetes GitOps Layout
 
