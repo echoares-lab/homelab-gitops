@@ -118,6 +118,10 @@ platform or workload manifests. The `k3s-01` root Application syncs
 `kubernetes/clusters/k3s-01/`, which composes cluster config from `config/` and
 platform overlays from `kubernetes/platform/*/overlays/k3s-01/`.
 
+For tracked and local generated-file inventory, including OpenTofu state,
+generated Ignition, coverage, scratch, local env, and generated Ansible
+artifacts, see [Artifact and State Hygiene Inventory](./ARTIFACT_STATE_HYGIENE.md).
+
 ---
 
 ## 6. Automated Testing
