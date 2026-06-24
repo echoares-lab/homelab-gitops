@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.8 - Ansible Structure Validation
+- Added `scripts/validate_ansible_structure.py` to validate playbook role references, profile playbook references, profile role references, and Ansible metadata consistency.
+- Added unit coverage for missing role directories, stale role metadata, and missing profile playbook references.
+- Documented the validator for local use and as an optional CI gate.
+
 ### v3.4.7 - GitOps Manifest Validation
 - Added `python3 scripts/validate_gitops_manifests.py` to render Kubernetes kustomizations under `kubernetes/` and catch malformed YAML, missing resource paths, and missing Kubernetes object fields.
 - Documented the local validation command for manifest authors and operators.
