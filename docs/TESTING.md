@@ -2,16 +2,16 @@
 
 This document establishes testing standards, CI configuration best practices, and procedures for maintaining test quality and reliability across the Unified GitOps Template Pipeline.
 
-## Testing Hierarchy (3 Tiers)
+## Testing Hierarchy (4 Tiers)
 
 ### Tier 1: Unit Tests (Fast, No Infrastructure)
 - **Purpose:** Validate business logic, orchestrator functions, service classes
-- **Location:** `tests/test_services/` and `tests/test_manage_cli.py`
+- **Location:** `tests/unit/` and `tests/cli/`
 - **Run Time:** < 30 seconds
 - **Dependencies:** No external services, VMs, or infrastructure
 - **Coverage Goal:** 85% minimum (enforced in CI)
 - **Trigger:** Every push/PR to any branch
-- **Command:** `pytest tests/test_services/ tests/test_manage_cli.py -v --cov=services --cov=manage.py --cov-report=term-missing`
+- **Command:** `pytest tests/ -v --cov=homelab_gitops --cov=manage.py --cov-report=term-missing --cov-report=json --cov-report=html:htmlcov`
 
 Unit tests are the foundation of quality. They should:
 - Test core logic paths, error handling, input validation
@@ -19,7 +19,17 @@ Unit tests are the foundation of quality. They should:
 - Be deterministic and repeatable
 - Run locally before pushing (see CI Validation Checklist)
 
-### Tier 2: Integration Tests (Medium Speed, Self-Hosted VM)
+### Tier 2: Package Build and Clean Install Smoke (Fast, No Infrastructure)
+- **Purpose:** Validate the Python package builds as wheel/sdist and the installed console script starts outside the source checkout
+- **Location:** `.github/workflows/lint-and-unit-tests.yml`
+- **Run Time:** < 2 minutes
+- **Dependencies:** `build` and package runtime dependencies from `pyproject.toml`
+- **Trigger:** Every push/PR to any branch
+- **Command:** `python -m build --sdist --wheel`, then install `dist/*.whl` into a fresh venv and run `homelab-gitops --help`
+
+The clean-install smoke test must use the console script from the fresh virtual environment, not `python -m` from the source tree. This proves packaging metadata includes the CLI entry point and importable package modules.
+
+### Tier 3: Integration Tests (Medium Speed, Self-Hosted VM)
 - **Purpose:** Validate orchestrator against real infrastructure (vCenter, vSphere, testinfra)
 - **Location:** `tests/integration/`
 - **Run Time:** 2-5 minutes per test
@@ -34,7 +44,7 @@ Integration tests verify that components work together. They should:
 - Validate configuration applied by roles (Docker, security, GitHub runner, etc.)
 - Be skipped gracefully if infrastructure unavailable (conftest.py handles this)
 
-### Tier 3: E2E Tests (Slow, Packer + vSphere + Full Pipeline)
+### Tier 4: E2E Tests (Slow, Packer + vSphere + Full Pipeline)
 - **Purpose:** Validate complete workflow: Build → Deploy → Configure → Test
 - **Location:** `tests/e2e/`
 - **Run Time:** 30-60 minutes per profile
@@ -66,17 +76,22 @@ E2E tests are expensive but comprehensive. They should:
 
 Required packages for CI to function:
 ```
-pytest>=7.0
-pytest-cov>=4.0
+pytest==8.4.2
+pytest-cov==7.1.0
+build==1.5.0
+yamllint==1.38.0
+ansible-lint==26.4.0
+flake8==7.3.0
+pytest-testinfra==10.2.2
 pyyaml
-paramiko
-pexpect
+paramiko==3.4.0
+pexpect==4.9.0
 typer
 rich
 ```
 
 - CI install step: `pip install -r requirements.txt`
-- Additional CI-only tools (yamllint, ansible-lint, flake8) installed separately in workflow
+- CI-only tools used by workflows must also be pinned in `requirements.txt`
 - Never assume tools are pre-installed in the runner
 - Validate dependencies locally: `pip install -r requirements.txt && pytest`
 
@@ -85,12 +100,14 @@ rich
 
 ```bash
 # Before adding to CI workflow:
-ls -la tests/test_services/
-ls -la tests/test_manage_cli.py
-pytest --collect-only tests/test_services/ tests/test_manage_cli.py
+ls -la tests/unit/
+ls -la tests/cli/
+pytest --collect-only tests/unit/ tests/cli/
 ```
 
-- Test file paths in CI: `tests/test_services/ tests/test_manage_cli.py`
+- Unit and CLI test paths in CI: `tests/`
+- Integration test path in CI: `tests/integration/`
+- E2E test path in CI: `tests/e2e/`
 - These paths are validated in the fixture and must exist
 - When adding new test tier (e.g., integration), add to a SEPARATE CI workflow job
 - Use `--collect-only` flag to verify pytest can find tests before pushing
@@ -100,9 +117,10 @@ pytest --collect-only tests/test_services/ tests/test_manage_cli.py
 
 | Setting | Value | Location(s) |
 |---------|-------|-------------|
-| Coverage threshold | 85% | CI workflow line 75 |
-| Test files (unit) | `tests/test_services/ tests/test_manage_cli.py` | CI workflow line 68 |
-| Coverage packages | `services` and `manage.py` | CI workflow lines 69-70 |
+| Coverage threshold | 85% | `.github/workflows/lint-and-unit-tests.yml` |
+| Test files (unit) | `tests/` | `.github/workflows/lint-and-unit-tests.yml` |
+| Coverage packages | `homelab_gitops` and `manage.py` | `.github/workflows/lint-and-unit-tests.yml` |
+| Package smoke | Build wheel/sdist, install wheel in clean venv, run installed CLI help | `.github/workflows/lint-and-unit-tests.yml` |
 | Test markers | `unit`, `integration`, `e2e` | pytest.ini line 11-15 |
 | Testinfra host | `localhost` (local) or `ansible@<ip>` (remote) | pytest.ini line 19, test command |
 
@@ -113,14 +131,26 @@ When updating ANY of these values, update ALL locations to maintain consistency.
 
 ```bash
 # Install local dependencies
-pip install -r requirements.txt pytest pytest-cov
+pip install -r requirements.txt
 
 # Run unit tests locally with exact coverage config
-pytest tests/test_services/ tests/test_manage_cli.py \
-  --cov=services --cov=manage.py --cov-report=term-missing
+pytest tests/ -v \
+  --cov=homelab_gitops \
+  --cov=manage.py \
+  --cov-report=term-missing \
+  --cov-report=json \
+  --cov-report=html:htmlcov
 
 # Verify coverage threshold
 python -m coverage report --fail-under=85 --precision=2
+
+# Build and smoke test the installed package
+python -m build --sdist --wheel
+python -m venv /tmp/homelab-gitops-clean-install
+/tmp/homelab-gitops-clean-install/bin/python -m pip install --upgrade pip
+/tmp/homelab-gitops-clean-install/bin/pip install dist/*.whl
+/tmp/homelab-gitops-clean-install/bin/homelab-gitops --help
+/tmp/homelab-gitops-clean-install/bin/homelab-gitops doctor --help
 
 # Validate YAML files referenced in CI
 yamllint config/profiles/*.yml config/metadata.yml
@@ -134,12 +164,13 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
 
 | Symptom | Root Cause | Fix |
 |---------|-----------|-----|
-| "pytest: command not found" in CI | `pytest` not in requirements.txt | Add `pytest>=7.0` to requirements.txt |
-| "ModuleNotFoundError: No module named 'pytest_cov'" | Coverage tool not installed | Add `pytest-cov>=4.0` to requirements.txt, run `pip install -r requirements.txt` |
+| "pytest: command not found" in CI | `pytest` not in requirements.txt | Add a pinned `pytest==...` entry to requirements.txt |
+| "ModuleNotFoundError: No module named 'pytest_cov'" | Coverage tool not installed | Add a pinned `pytest-cov==...` entry to requirements.txt, run `pip install -r requirements.txt` |
+| "No module named build" in CI | Build frontend not installed | Add a pinned `build==...` entry to requirements.txt, run `pip install -r requirements.txt` |
 | Coverage mismatch (80% locally, 75% in CI) | Different test files or coverage config | Verify test paths match in CI workflow and locally; ensure only one coverage config |
-| "No such file or directory: tests/test_services/" | Wrong path in CI workflow | Run `ls -la tests/test_services/` locally; verify path exists before pushing |
+| "No such file or directory" for tests in CI | Wrong path in CI workflow | Run `pytest --collect-only <path>` locally; verify path exists before pushing |
 | Coverage reports missing in artifact | Wrong report format in workflow | Ensure `--cov-report=html:htmlcov` and `--cov-report=json` are in pytest command |
-| "Threshold 85% not met" but tests pass locally | Local coverage differs from CI | Run with exact same command: `pytest tests/test_services/ tests/test_manage_cli.py --cov=services --cov=manage.py --cov-report=term-missing` |
+| "Threshold 85% not met" but tests pass locally | Local coverage differs from CI | Run with the exact CI pytest command from `.github/workflows/lint-and-unit-tests.yml` |
 | Integration test passes locally, fails in CI | Test requires infrastructure unavailable in CI | Use `@pytest.mark.integration` to skip in non-infrastructure CI jobs |
 
 ---
@@ -147,7 +178,7 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
 ## Safe vs Risky Changes
 
 ### Safe Changes (Low Risk)
-- ✅ Adding new unit tests in `tests/test_services/` or `tests/test_manage_cli.py`
+- ✅ Adding new unit tests in `tests/unit/` or CLI tests in `tests/cli/`
 - ✅ Updating test assertions (does not change coverage config)
 - ✅ Adding new test files with descriptive names (ensure `test_*.py` pattern)
 - ✅ Refactoring test code for clarity
@@ -178,7 +209,7 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
 
 1. **Identify the type:**
    - Code dependency (used in manage.py/services/): goes in `requirements.txt`
-   - Dev/test dependency (used in CI/tests only): install separately in CI workflow
+   - Dev/test dependency (used in CI/tests only): add a pinned entry to `requirements.txt`
 
 2. **For code dependencies:**
    ```bash
@@ -189,13 +220,13 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
    pip install -r requirements.txt
    
    # Test that code still works
-   pytest tests/test_services/ tests/test_manage_cli.py
+   pytest tests/unit/ tests/cli/
    ```
 
 3. **For CI-only dependencies (yamllint, ansible-lint, flake8):**
-   - Add to CI workflow `Install dependencies` step
+   - Add a pinned entry to `requirements.txt`
    - Document in VERSIONS_AND_UPDATES.md
-   - Do NOT add to requirements.txt
+   - Keep the CI workflow install step using `pip install -r requirements.txt`
 
 4. **Before committing:**
    - Verify `pip install -r requirements.txt` succeeds
@@ -212,7 +243,7 @@ Do NOT push CI changes without verifying they work locally first. This prevents 
 ### Removing Dependencies
 1. Verify no code imports the package: `grep -r "import package" manage.py scripts/ services/`
 2. Remove from requirements.txt
-3. Run local tests: `pytest tests/test_services/ tests/test_manage_cli.py`
+3. Run local tests: `pytest tests/unit/ tests/cli/`
 4. Document removal in VERSIONS_AND_UPDATES.md
 
 ---
@@ -271,17 +302,18 @@ Note: Skipping hooks should be rare. If hooks consistently fail on valid changes
 
 ---
 
-## CI Validation Checklist (7 Items)
+## CI Validation Checklist (8 Items)
 
 Use this checklist before every push to CI-related files (workflows, requirements.txt, pytest.ini, conftest.py):
 
 - [ ] **1. Dependencies verified:** `pip install -r requirements.txt` succeeds without errors
-- [ ] **2. Local tests pass:** `pytest tests/test_services/ tests/test_manage_cli.py -v` runs and all tests pass
+- [ ] **2. Local tests pass:** `pytest tests/unit/ tests/cli/ -v` runs and all tests pass
 - [ ] **3. Coverage meets threshold:** `python -m coverage report --fail-under=85` passes (or meets current policy)
 - [ ] **4. Test files exist:** All test paths in CI workflow exist locally and are discoverable by pytest
 - [ ] **5. YAML linting works:** `yamllint config/profiles/*.yml config/metadata.yml` completes without errors
 - [ ] **6. Config values match:** Coverage threshold, test paths, and coverage packages are identical in CI workflow and locally
-- [ ] **7. Documentation updated:** TESTING.md and VERSIONS_AND_UPDATES.md reflect the changes (if applicable)
+- [ ] **7. Package build and clean install pass:** `python -m build --sdist --wheel`, clean venv install, and installed CLI smoke commands succeed
+- [ ] **8. Documentation updated:** TESTING.md and VERSIONS_AND_UPDATES.md reflect the changes (if applicable)
 
 ---
 
