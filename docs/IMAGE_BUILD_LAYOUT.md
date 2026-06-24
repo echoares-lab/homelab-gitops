@@ -1,8 +1,8 @@
 # Image Build Source And Artifact Layout
 
-This document defines the target layout for image build inputs and generated
-outputs. It is documentation only: issue #81 does not move files, delete files,
-or change ignore rules.
+This document defines the layout for image build inputs and generated outputs.
+Source fixtures live under `packer/`; machine-created Ignition, HTTP installer
+payloads, and Packer manifests live under `build/` and are ignored by default.
 
 ## Layout Contract
 
@@ -15,20 +15,16 @@ or change ignore rules.
 | Generated HTTP installer content | `build/http/<image>/` | Generated output | Per-run installer payloads copied or rendered for Packer's HTTP server belong here. Packer can then point `http_directory` at this generated directory. |
 | Packer build manifests and logs | `build/packer/<image>/` | Generated output | Machine-created build metadata should stay outside source directories unless converted into a reviewed fixture. |
 
-## Current State To Reconcile Later
+## Reconciled State
 
-The repository currently mixes some generated-looking installer artifacts with
-source files. Future cleanup issues should classify and move or ignore these
-paths without combining that work with behavior changes:
+Issue #82 removed generated FCOS installer artifacts from source paths and
+updated Packer to serve generated installer content from `build/http/fcos/`.
+These paths are intentionally treated as generated outputs:
 
-| Current Path | Expected Future Treatment |
+| Generated Path | Treatment |
 | :--- | :--- |
-| `packer/http/fcos/installed.ign` | Looks like generated Ignition and contains SSH authorized keys. Move to generated output or replace with a sanitized fixture after `packer/fcos.pkr.hcl` is updated to serve the selected generated HTTP directory. |
-| `http/fcos/installed.ign` | Local generated HTTP payload noted by the artifact inventory. Keep out of source changes and ignore or regenerate under `build/http/fcos/`. |
-| `packer/fcos-install.ign` | Local generated FCOS install Ignition. Keep out of source changes and regenerate under `build/ignition/fcos/`. |
-| `packer/fcos-live.ign` | Local generated FCOS live Ignition. Keep out of source changes and regenerate under `build/ignition/fcos/`. |
-| `packer/fcos-live.bu` | Butane YAML may be source if human-authored and sanitized; otherwise treat as generated scratch. Review before moving it under `packer/butane/fcos/`. |
-| `packer/http/fcos/installed.bu` | Butane source candidate or generated scratch. Review before deciding whether it belongs under `packer/butane/fcos/` or `build/`. |
+| `build/http/fcos/installed.ign` | Per-run FCOS installer payload served by Packer. Regenerate locally before FCOS image builds; do not commit. |
+| `build/ignition/fcos/` | Generated FCOS Ignition JSON from Butane transpilation. Do not commit. |
 
 ## Packer And Butane Reference Points
 
@@ -36,10 +32,11 @@ paths without combining that work with behavior changes:
 with fallbacks to `packer/photon.pkr.hcl` and `packer/ubuntu2404.pkr.hcl`.
 That keeps Packer HCL under `packer/`.
 
-`packer/fcos.pkr.hcl` currently sets `http_directory = "."` and boots FCOS with
-`coreos.inst.ignition_url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/http/fcos/installed.ign`.
-That reference should eventually point at a generated HTTP directory, but issue
-#81 intentionally leaves the file in place.
+`packer/fcos.pkr.hcl` sets
+`http_directory = "${path.root}/../build/http/fcos"` and boots FCOS with
+`coreos.inst.ignition_url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/installed.ign`.
+The `installed.ign` file is a generated HTTP installer payload and should be
+created under `build/http/fcos/` before running an FCOS image build.
 
 `ButaneTranspiler` currently builds FCOS Butane YAML in Python and returns
 Ignition JSON from `butane --strict`. Until templates are extracted, its output
@@ -54,5 +51,6 @@ source.
    future issue explicitly converts a sanitized file into a fixture.
 3. When moving files in a later cleanup issue, update Packer `http_directory`
    and installer URLs in the same change.
-4. Keep ignore-rule changes in the cleanup issues that remove or relocate the
-   generated files, not in documentation-only issue #81.
+4. Keep generated `build/http/`, `build/ignition/`, and `build/packer/`
+   contents out of commits unless a later issue explicitly documents a
+   sanitized fixture.

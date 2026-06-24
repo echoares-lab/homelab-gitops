@@ -8,6 +8,9 @@ build/*.ovf
 build/*.mf
 build/cidata.iso
 build/govc
+build/http/
+build/ignition/
+build/packer/
 
 # Local config and Secrets
 config/*.env
