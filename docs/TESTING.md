@@ -163,6 +163,9 @@ python -m venv /tmp/homelab-gitops-clean-install
 
 # Validate YAML files referenced in CI
 yamllint config/profiles/*.yml config/metadata.yml
+
+# Validate Ansible role paths, playbook references, and metadata
+python3 scripts/validate_ansible_structure.py
 ```
 
 Do NOT push CI changes without verifying they work locally first. This prevents breaking the workflow for all teammates.
