@@ -82,7 +82,7 @@ jobs:
           PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops
         run: |
           echo "=== Integration Tests ==="
-          pytest tests/test_services/ tests/test_manage_cli.py -v \
+          pytest tests/integration/ -v \
             --tb=short -m "not e2e"
 
       - name: Run matrix test validation
