@@ -61,6 +61,9 @@ and workflow injection guidance are defined in
 The target source-versus-generated layout for Packer, Butane, Ignition, and
 installer HTTP payloads is defined in
 [Image Build Source And Artifact Layout](./IMAGE_BUILD_LAYOUT.md).
+The target ARC-first CI/CD stack with Nexus-on-k3s, layered cache ownership,
+runner pool separation, and version gates is documented in
+[ARC-First CI/CD Stack With Nexus On K3s](./ARC_NEXUS_CICD_STACK.md).
 
 This note is a boundary plan only. It does not require broad file moves by
 itself; moves should happen incrementally with tests and compatibility shims
@@ -117,3 +120,8 @@ Runner profiles define 400 GB disks and pass that size to OpenTofu as
 guest root partition and filesystem so the OS consumes the full virtual disk.
 Existing registered runners can be repaired with `ansible/runner-maintenance.yml`
 without using a GitHub registration token.
+
+Future CI/CD runner work should prefer the ARC-first model documented in
+[ARC-First CI/CD Stack With Nexus On K3s](./ARC_NEXUS_CICD_STACK.md). The
+existing VM runner model remains a migration fallback for jobs that cannot yet
+run safely on k3s runner scale sets.

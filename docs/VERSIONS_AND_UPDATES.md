@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.11 - ARC/Nexus CI/CD Stack Design
+- Documented the preferred ARC-first CI/CD architecture using GitHub Actions Runner Controller on k3s.
+- Chose Nexus Repository OSS on k3s as the baseline artifact and dependency cache service, with Nexus Pro/HA plus PostgreSQL as an upgrade path.
+- Defined two runner pools, layered cache ownership, GitOps-only promotion, and versioning gates that distinguish run identity from release versions.
+
 ### v3.4.10 - Image Build Smoke Validation
 - Added `scripts/validate_image_build_inputs.py` to run no-deploy Packer and Butane smoke validation for image build inputs.
 - Added unit coverage for Packer template discovery, placeholder variable handling, and Butane transpilation invocation.
