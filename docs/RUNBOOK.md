@@ -9,7 +9,10 @@ Detailed operational procedures for the unified GitOps pipeline managing high-pe
 4. [Configuration System](#4-configuration-system)
 5. [Deployment Workflow](#5-deployment-workflow)
 6. [Automated Testing](#6-automated-testing)
-7. [Troubleshooting](#7-troubleshooting)
+7. [Agent Workflow Hygiene](#7-agent-workflow-hygiene)
+8. [Post-Deployment: Technitium DNS](#8-post-deployment-technitium-dns)
+9. [Troubleshooting](#9-troubleshooting)
+10. [Observability Setup](#10-observability-setup)
 
 ---
 
@@ -121,6 +124,10 @@ platform overlays from `kubernetes/platform/*/overlays/k3s-01/`.
 For tracked and local generated-file inventory, including OpenTofu state,
 generated Ignition, coverage, scratch, local env, and generated Ansible
 artifacts, see [Artifact and State Hygiene Inventory](./ARTIFACT_STATE_HYGIENE.md).
+Agents working in this repository should also follow
+[Agent Working-Tree and PR Hygiene](./AGENT_WORKFLOW_HYGIENE.md) for claim
+comments, dirty worktrees, generated artifacts, one-issue/one-PR flow, and
+auto-merge expectations.
 
 Validate GitOps manifests locally before opening a PR:
 
@@ -159,12 +166,22 @@ workflow.
 
 ---
 
-## 7. Post-Deployment: Technitium DNS
+## 7. Agent Workflow Hygiene
+
+Agents should follow the mandatory standards in [`AGENTS.md`](../AGENTS.md) and
+the focused [Agent Working-Tree and PR Hygiene](./AGENT_WORKFLOW_HYGIENE.md)
+runbook before opening a PR. In short: claim the issue, isolate dirty
+worktrees, avoid committing generated local state, keep one issue per PR, and
+enable auto-merge when branch protection allows it.
+
+---
+
+## 8. Post-Deployment: Technitium DNS
 Once your DNS server is deployed, you can manage its zones, records, and DHCP settings using the specialized **Technitium Manager**.
 
 See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed instructions on using the interactive wizard and Universal CSV.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### vCenter REST API 500 Error
 *   **Cause:** Hardware mismatch in the OVF template.
@@ -176,7 +193,7 @@ See the [DNS & DHCP Management Runbook](./DNS_DHCP_MANAGEMENT.md) for detailed i
 
 ---
 
-## 9. Observability Setup
+## 10. Observability Setup
 
 ### Monitoring Agents (Alloy)
 
