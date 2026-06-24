@@ -29,6 +29,15 @@ Unit tests are the foundation of quality. They should:
 
 The clean-install smoke test must use the console script from the fresh virtual environment, not `python -m` from the source tree. This proves packaging metadata includes the CLI entry point and importable package modules.
 
+### GitOps Manifest Validation (Fast, No Infrastructure)
+- **Purpose:** Render checked-in Kubernetes kustomizations and catch malformed YAML, missing local resource paths, and missing basic Kubernetes object fields
+- **Location:** `scripts/validate_gitops_manifests.py`
+- **Run Time:** < 10 seconds
+- **Dependencies:** Python and `pyyaml` from `requirements.txt`; no cluster, `kubectl`, or standalone `kustomize` binary required
+- **Command:** `python3 scripts/validate_gitops_manifests.py`
+
+Run this command locally after changing files under `kubernetes/`. It validates repository manifest structure only; it does not perform API-server admission checks.
+
 ### Tier 3: Integration Tests (Medium Speed, Self-Hosted VM)
 - **Purpose:** Validate orchestrator against real infrastructure (vCenter, vSphere, testinfra)
 - **Location:** `tests/integration/`
