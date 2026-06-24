@@ -1,0 +1,74 @@
+# ansible/roles/storage_benchmark/tasks/phase1_nfs_backend.yml
+---
+- name: "Phase1 NFS {{ dataset.name }} | Skip if complete"
+  ansible.builtin.set_fact:
+    _skip_nfs: "{{ dataset.name + '-nfs4-phase1' in completed_backends }}"
+
+- name: "Phase1 NFS {{ dataset.name }} | Create mount point"
+  ansible.builtin.file:
+    path: "{{ nfs_mount_base }}/{{ dataset.name }}"
+    state: directory
+    mode: "0755"
+  become: true
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Mount NFS v4 share"
+  ansible.posix.mount:
+    path: "{{ nfs_mount_base }}/{{ dataset.name }}"
+    src: "{{ truenas_host }}:{{ dataset.nfs_path }}"
+    fstype: nfs4
+    opts: "rw,hard,intr,timeo=600,retrans=2,_netdev"
+    state: mounted
+  become: true
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Write fio job file"
+  ansible.builtin.template:
+    src: fio-jobs.ini.j2
+    dest: "/tmp/fio-nfs-{{ dataset.name }}.ini"
+    mode: "0644"
+  vars:
+    fio_target_path: "{{ nfs_mount_base }}/{{ dataset.name }}"
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Run fio (async)"
+  ansible.builtin.command: "fio /tmp/fio-nfs-{{ dataset.name }}.ini --output-format=json"
+  register: fio_nfs_result
+  become: true
+  async: 900
+  poll: 30
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Save result"
+  ansible.builtin.copy:
+    dest: "{{ benchmark_run_dir }}/{{ dataset.name }}-nfs4-phase1.json"
+    content: "{{ {'backend': dataset.name, 'protocol': 'nfs4', 'phase': 'phase1', 'run_id': benchmark_run_id, 'secrets_source': secrets_source, 'fio': fio_nfs_result.stdout | from_json} | to_json(indent=2) }}"
+    mode: "0644"
+  delegate_to: localhost
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Update state"
+  ansible.builtin.copy:
+    dest: "{{ benchmark_run_dir }}/state.json"
+    content: "{{ (lookup('file', benchmark_run_dir + '/state.json') | from_json) | combine({'completed': completed_backends + [dataset.name + '-nfs4-phase1']}) | to_json(indent=2) }}"
+    mode: "0600"
+  delegate_to: localhost
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Set completed"
+  ansible.builtin.set_fact:
+    completed_backends: "{{ completed_backends + [dataset.name + '-nfs4-phase1'] }}"
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Interim report"
+  ansible.builtin.include_tasks: report.yml
+  vars:
+    report_mode: "interim"
+  when: not _skip_nfs
+
+- name: "Phase1 NFS {{ dataset.name }} | Unmount"
+  ansible.posix.mount:
+    path: "{{ nfs_mount_base }}/{{ dataset.name }}"
+    state: unmounted
+  become: true
+  when: not _skip_nfs
