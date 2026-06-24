@@ -1,0 +1,12 @@
+# STANDARD TIER — platform services (monitoring, logging, ArgoCD state)
+# UPDATE: set provisioner to second-best db_p99_us backend from report-final.md
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: storage-standard
+provisioner: org.democratic-csi.nfs
+parameters:
+  fsType: nfs
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true

@@ -7,3 +7,5 @@ resources:
   - ../../platform/cert-manager/overlays/k3s-01
   - ../../platform/external-secrets/overlays/k3s-01
   - ../../platform/external-dns/overlays/k3s-01
+  - ../../platform/democratic-csi/overlays/k3s-01
+  - ../../platform/storage/overlays/k3s-01
