@@ -25,6 +25,9 @@ ansible/generated/ci_runner/*
 # Terraform/OpenTofu
 *.tfstate
 *.tfstate.backup
+*.tfplan
+crash.log
+crash.*.log
 .terraform/
 .terraform.lock.hcl
 tofu/workspaces/
@@ -32,12 +35,19 @@ tofu/.terraform/
 tofu/.terraform.lock.hcl
 tofu/terraform.tfstate*
 tofu/terraform.tfstate.d/
+tofu/dns/records.tf.json
 tofu/dns/terraform.tfvars
 .worktrees/
 __pycache__/
 
 __pycache__
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.json
+htmlcov/
 
 # Python virtualenv
 venv./
@@ -46,6 +56,10 @@ venv/
 
 # Packer build artifacts (contain local passwords at build time)
 packer/http/ubuntu2404/meta-data
+packer/fcos-install.ign
+packer/fcos-live.ign
+packer/fcos-live.bu
+packer/http/fcos/installed.bu
 
 # 1Password mock binary (local dev only)
 build/govc.mock
