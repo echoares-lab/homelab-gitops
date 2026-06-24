@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.6 - k3s-01 GitOps Layout Migration
+- Moved k3s-01 Kubernetes manifests into the standard bootstrap, cluster config, and platform overlay directories.
+- Preserved the Argo CD root Application source path at `kubernetes/clusters/k3s-01` while updating that kustomization to compose the moved overlays.
+- Added a checked-in bootstrap root Application manifest for the k3s-01 cluster entrypoint.
+
 ### v3.4.5 - GitOps Directory Standard
 - Documented the target Kubernetes GitOps layout for cluster directories, platform apps, workloads, and bootstrap/root apps.
 - Added naming and ownership rules for GitOps directories, Argo CD apps, secret references, and cross-directory reviews.

@@ -1,15 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - namespaces.yaml
-  - openbao/rbac.yaml
-  - helmcharts/argocd.yaml
-  - helmcharts/cert-manager.yaml
-  - helmcharts/external-secrets.yaml
-  - helmcharts/external-dns.yaml
-  - external-secrets/cluster-secret-store.yaml
-  - cert-manager/cloudflare-api-token.yaml
-  - cert-manager/letsencrypt-cloudflare.yaml
-  - external-dns/technitium-token.yaml
-  - argocd/cmd-params.yaml
-  - argocd/ingress.yaml
+  - config/namespaces.yaml
+  - ../../platform/openbao/overlays/k3s-01
+  - ../../platform/argocd/overlays/k3s-01
+  - ../../platform/cert-manager/overlays/k3s-01
+  - ../../platform/external-secrets/overlays/k3s-01
+  - ../../platform/external-dns/overlays/k3s-01

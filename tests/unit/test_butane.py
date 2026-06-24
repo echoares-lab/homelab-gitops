@@ -4,6 +4,7 @@ from homelab_gitops.immutable.transpilers.butane import ButaneTranspiler
 from homelab_gitops.drivers.exceptions import ExecutionError
 import json
 import yaml
+from pathlib import Path
 
 def test_butane_transpiler_network(monkeypatch):
     profile = NodeProfile(
@@ -93,3 +94,45 @@ def test_butane_transpiler_no_network(monkeypatch):
     
     nm_file = next((f for f in files if f.get("path") == "/etc/NetworkManager/system-connections/ens192.nmconnection"), None)
     assert nm_file is None
+
+def test_butane_root_app_targets_gitops_cluster_entrypoint(monkeypatch):
+    profile = NodeProfile(
+        name="fcos-test",
+        vcenter={"datacenter": "DC", "cluster": "C", "datastore": "DS", "network": "N"},
+        vm_specs={"cpu": 4, "memory": 8192, "disk": 80},
+        deployment={"tags": ["fcos", "k3s_server"]},
+    )
+
+    transpiler = ButaneTranspiler()
+
+    captured_yaml = None
+
+    def mock_run(args, input, capture_output):
+        nonlocal captured_yaml
+        captured_yaml = yaml.safe_load(input.decode("utf-8"))
+
+        class MockResult:
+            returncode = 0
+            stdout = b'{"mocked": "json"}'
+
+        return MockResult()
+
+    def mock_which(cmd):
+        return "/usr/bin/butane"
+
+    monkeypatch.setattr("subprocess.run", mock_run)
+    monkeypatch.setattr("shutil.which", mock_which)
+
+    transpiler.transpile(profile)
+
+    files = captured_yaml.get("storage", {}).get("files", [])
+    root_app = next(
+        (f for f in files if f.get("path") == "/var/lib/rancher/k3s/server/manifests/argocd-root-app.yaml"),
+        None,
+    )
+
+    assert root_app is not None
+    generated_app = yaml.safe_load(root_app["contents"]["inline"])
+    bootstrap_app = yaml.safe_load(Path("kubernetes/bootstrap/k3s-01/root-apps/k3s-01.yaml").read_text())
+    assert generated_app == bootstrap_app
+    assert generated_app["spec"]["source"]["path"] == "kubernetes/clusters/k3s-01"
