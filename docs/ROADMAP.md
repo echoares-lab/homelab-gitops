@@ -22,6 +22,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **GitOps Directory Standard:** [DONE] Documented the target Kubernetes layout for bootstrap/root apps, cluster composition, platform apps, workloads, naming, and ownership.
 *   **k3s-01 GitOps Layout Migration:** [DONE] Moved k3s-01 manifests into the standard bootstrap, cluster config, and platform overlay directories while preserving the cluster root sync path.
 *   **GitOps Manifest Validation:** [DONE] Added a local validation command that renders Kubernetes kustomizations and checks YAML plus basic Kubernetes object schema before manifests are applied.
+*   **Image Build Asset Layout:** [DONE] Moved generated FCOS installer payloads out of Packer source paths and updated Packer to serve generated HTTP content from `build/http/fcos`.
 *   **Ansible Structure Validation:** [DONE] Added local validation for playbook role paths, profile playbook references, and role/tag metadata consistency.
 
 ### Phase 4: Production Maturity & AI Integration

@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.9 - Image Build Asset Layout
+- Updated FCOS Packer HTTP serving to use generated installer payloads under `build/http/fcos`.
+- Removed the generated FCOS `installed.ign` payload from tracked Packer source fixtures.
+- Documented generated image-build output hygiene for HTTP payloads, Ignition output, and Packer manifests.
+
 ### v3.4.8 - Ansible Structure Validation
 - Added `scripts/validate_ansible_structure.py` to validate playbook role references, profile playbook references, profile role references, and Ansible metadata consistency.
 - Added unit coverage for missing role directories, stale role metadata, and missing profile playbook references.

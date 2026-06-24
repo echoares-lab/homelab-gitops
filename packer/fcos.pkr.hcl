@@ -81,12 +81,12 @@ source "vsphere-iso" "fcos" {
 
   # Boot command for UEFI
   boot_wait      = "3s"
-  http_directory = "."
+  http_directory = "${path.root}/../build/http/fcos"
 
   boot_command = [
     "e<down><down><end>",
     " coreos.inst.install_dev=/dev/sda",
-    " coreos.inst.ignition_url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/http/fcos/installed.ign",
+    " coreos.inst.ignition_url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/installed.ign",
     " coreos.inst.platform_id=vmware",
     "<F10>"
   ]

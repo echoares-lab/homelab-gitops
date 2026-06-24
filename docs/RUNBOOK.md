@@ -124,6 +124,10 @@ platform overlays from `kubernetes/platform/*/overlays/k3s-01/`.
 For tracked and local generated-file inventory, including OpenTofu state,
 generated Ignition, coverage, scratch, local env, and generated Ansible
 artifacts, see [Artifact and State Hygiene Inventory](./ARTIFACT_STATE_HYGIENE.md).
+For image build source paths and generated output paths, see
+[Image Build Source And Artifact Layout](./IMAGE_BUILD_LAYOUT.md). FCOS Packer
+builds serve generated installer Ignition from `build/http/fcos/installed.ign`;
+regenerate that file locally before building and do not commit it.
 Agents working in this repository should also follow
 [Agent Working-Tree and PR Hygiene](./AGENT_WORKFLOW_HYGIENE.md) for claim
 comments, dirty worktrees, generated artifacts, one-issue/one-PR flow, and
