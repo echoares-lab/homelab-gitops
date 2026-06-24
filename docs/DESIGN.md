@@ -58,6 +58,9 @@ core/domain logic depends on capabilities, not concrete drivers.
 Minimal provider adapter responsibilities, read-only methods, mutating methods,
 and workflow injection guidance are defined in
 [Provider Adapter Boundaries](./PROVIDER_ADAPTERS.md).
+The target source-versus-generated layout for Packer, Butane, Ignition, and
+installer HTTP payloads is defined in
+[Image Build Source And Artifact Layout](./IMAGE_BUILD_LAYOUT.md).
 
 This note is a boundary plan only. It does not require broad file moves by
 itself; moves should happen incrementally with tests and compatibility shims
