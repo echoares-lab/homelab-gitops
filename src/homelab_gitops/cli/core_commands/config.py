@@ -7,6 +7,7 @@ from typing import Optional
 from homelab_gitops.domain.models import NodeProfile
 from homelab_gitops.domain.workflows import Workflow
 from homelab_gitops.drivers.ansible_driver import AnsibleDriver
+from homelab_gitops.drivers.secrets_driver import SecretsDriver
 from homelab_gitops.domain.exceptions import DomainError
 from homelab_gitops.cli.utils import print_success, print_error, print_info
 
@@ -35,7 +36,7 @@ def config_command(
             "config": AnsibleDriver(),
         }
 
-        workflow = Workflow(profile_obj, drivers=drivers)
+        workflow = Workflow(profile_obj, drivers=drivers, secrets_driver=SecretsDriver())
 
         print_info(f"Configuring {profile} {index or 'all instances'} ...")
         state = workflow.execute(["config"])
