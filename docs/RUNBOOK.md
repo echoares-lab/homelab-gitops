@@ -111,6 +111,10 @@ Runtime secrets are resolved through OpenBao KV v2 using `config/secrets.env`.
 2.  **Hardware Alignment:** The pipeline enforces **PVSCSI** and **VMXNET3** for performance.
 3.  **Connectivity:** The pipeline automatically detects Static IPs or DHCP assignments and waits for SSH before configuration.
 
+For tracked and local generated-file inventory, including OpenTofu state,
+generated Ignition, coverage, scratch, local env, and generated Ansible
+artifacts, see [Artifact and State Hygiene Inventory](./ARTIFACT_STATE_HYGIENE.md).
+
 ---
 
 ## 6. Automated Testing
