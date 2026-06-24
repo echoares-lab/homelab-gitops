@@ -141,6 +141,22 @@ The pipeline uses `pytest-testinfra` to verify the "Final State":
 *   **Ubuntu:** UFW status, package integrity.
 *   **Photon:** Docker service status.
 
+### Ansible Structure Validation
+
+Run the structure validator before changing playbooks, roles, profile
+playbook references, or `config/metadata.yml`:
+
+```bash
+python3 scripts/validate_ansible_structure.py
+```
+
+The validator checks that playbook role references resolve to directories under
+`ansible/roles/`, profile `deployment.playbooks` entries resolve under
+`ansible/`, profile `deployment.roles` entries have matching role directories,
+and role/profile tag metadata stays consistent. It is safe to run locally and
+can be used as a CI gate if Ansible structure changes become part of the CI
+workflow.
+
 ---
 
 ## 7. Post-Deployment: Technitium DNS
