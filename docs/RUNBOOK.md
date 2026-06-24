@@ -111,6 +111,13 @@ Runtime secrets are resolved through OpenBao KV v2 using `config/secrets.env`.
 2.  **Hardware Alignment:** The pipeline enforces **PVSCSI** and **VMXNET3** for performance.
 3.  **Connectivity:** The pipeline automatically detects Static IPs or DHCP assignments and waits for SSH before configuration.
 
+### Kubernetes GitOps layout
+
+Use the [GitOps Layout Standard](./GITOPS_LAYOUT.md) when adding Kubernetes
+platform or workload manifests. The current `k3s-01` manifests remain in place;
+future migration work should move them only under an issue that explicitly
+allows manifest path changes.
+
 ---
 
 ## 6. Automated Testing
