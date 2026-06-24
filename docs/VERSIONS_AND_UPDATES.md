@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.5 - GitOps Directory Standard
+- Documented the target Kubernetes GitOps layout for cluster directories, platform apps, workloads, and bootstrap/root apps.
+- Added naming and ownership rules for GitOps directories, Argo CD apps, secret references, and cross-directory reviews.
+- Confirmed the existing `kubernetes/clusters/k3s-01/` manifests can map to the standard without moving manifests in this change.
+
 ### v3.4.4 - K3s ExternalDNS RFC-2136 DNS Registration
 - Switched external-dns deployment on k3s-01 from webhook sidecar to native RFC-2136 provider.
 - Configured external-dns to target the 'infra.plexplease.com' zone on Technitium DNS to support the cluster's hostnames.

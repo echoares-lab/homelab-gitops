@@ -19,6 +19,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **Fleet Status Dashboard:** [DONE] Added a read-only orchestrator command (`python3 manage.py status`) that queries vCenter and Tofu Workspaces to print a formatted terminal table detailing VM IP, power state, assigned tags, and drift status.
 *   **GitHub Runner for CI/Testing:** [DONE] Added high-performance runner profile (20 cores, 20GB RAM, 400GB disk), automated registration token retrieval, passwordless sudo support, token-free maintenance, and Ansible root filesystem expansion to consume the full runner disk.
 *   **Profile-Owned Log Retention:** [DONE] Added reusable `log_retention` role plus profile-level log policies for bounded logrotate and journald retention.
+*   **GitOps Directory Standard:** [DONE] Documented the target Kubernetes layout for bootstrap/root apps, cluster composition, platform apps, workloads, naming, and ownership.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.

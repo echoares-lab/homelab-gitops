@@ -83,6 +83,13 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 *   **Tag-Based Routing:** Ansible groups VMs based on vSphere Tags (e.g., `tag_photon`, `tag_docker`).
 *   **Automated Role Mapping:** The master playbook (`site.yml`) automatically applies relevant roles based on these discovered tags.
 
+## 4. Kubernetes GitOps Layout
+
+Kubernetes manifests follow the target directory model documented in
+[GitOps Layout Standard](./GITOPS_LAYOUT.md). The standard separates cluster
+composition, platform apps, workload apps, and bootstrap/root apps so ownership
+and sync responsibility remain clear as more clusters and services are added.
+
 ---
 
 ## 5. Operational Excellence
