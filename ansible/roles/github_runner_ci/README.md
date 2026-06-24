@@ -35,4 +35,6 @@ make apply-ci-runners
 - `ansible/generated/ci_runner/pip-requirements.txt`
 - `ansible/generated/ci_runner/vars.yaml`
 
-Regenerate with `make sync-ci-runners`.
+These files are ignored by git because they include local checkout paths.
+Regenerate them with `make sync-ci-runners`; `make apply-ci-runners` runs that
+step before applying the role.
