@@ -33,7 +33,35 @@ graph TD
 
 ---
 
-## 2. Infrastructure Standards
+## 2. Python Module Boundary Plan
+
+The Python package is moving toward explicit module ownership before any broad
+file moves occur. Until that refactor begins, new code should follow these
+target boundaries and avoid adding new cross-layer shortcuts.
+
+| Target area | Intended ownership |
+| :--- | :--- |
+| `cli` | Typer/Rich command surfaces, prompt flow, argument parsing, presentation, and translation of user input into application calls. CLI modules should not own deployment policy or provider API details. |
+| `core` | Shared domain models, validation, state transitions, errors, configuration loading, and pure orchestration primitives that do not call external systems directly. |
+| `workflows` | Lifecycle sequencing for build, deploy, config, test, status, certificates, migration, backup, and observability. Workflows coordinate core models and provider interfaces, but should not embed provider-specific API behavior. |
+| `providers` | Concrete adapters for external systems such as vCenter, OpenTofu, Ansible, Packer, Technitium, OPNsense, ACME, OpenBao, and 1Password. Providers own subprocess calls, SDK/API clients, retries, credential handoff, and provider-specific error translation. |
+| `immutable/images` | Image-build and immutable OS concerns, including Packer image flows, Butane/Talos transpilation, ignition or machine-config generation, and immutable deployment verification. |
+| GitOps helpers | Repository-shaping utilities such as profile, role, playbook, metadata, documentation, and scaffold generators. These helpers should update source-of-truth files without reaching into provider clients. |
+
+The current code still has direct domain-to-driver coupling in several services
+and workflows. For example, domain modules construct or import concrete drivers
+for vCenter, OpenTofu, Ansible, Technitium, OPNsense, secrets, and immutable
+verification. That coupling is an explicit cleanup target: future refactors
+should introduce provider interfaces or factories at workflow boundaries so
+core/domain logic depends on capabilities, not concrete drivers.
+
+This note is a boundary plan only. It does not require broad file moves by
+itself; moves should happen incrementally with tests and compatibility shims
+when implementation work begins.
+
+---
+
+## 3. Infrastructure Standards
 
 ### Golden Image Remediation
 To prevent deployment conflicts and ensure maximum performance, all images in the `GOLDEN` content library are standardized with:
@@ -49,7 +77,7 @@ We use **Tofu Workspaces** to achieve granular state management. Each virtual ma
 
 ---
 
-## 3. Dynamic Configuration (Ansible)
+## 4. Dynamic Configuration (Ansible)
 
 Instead of maintaining static hostnames in an inventory file, Ansible queries vCenter in real-time.
 *   **Tag-Based Routing:** Ansible groups VMs based on vSphere Tags (e.g., `tag_photon`, `tag_docker`).
@@ -57,7 +85,7 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 
 ---
 
-## 4. Operational Excellence
+## 5. Operational Excellence
 
 *   **Idempotency:** Every layer (Tofu, Ansible) is designed to be re-run safely. If the desired state is already reached, no changes are made.
 *   **Fail-Fast Validation:** Pre-deployment linting and post-deployment connectivity tests prevent wasting time on malformed configs or network issues.
