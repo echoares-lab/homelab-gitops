@@ -3,6 +3,12 @@
 Self-hosted GitHub Actions runners are provisioned by **homelab-gitops** Ansible.
 Each application repo declares what it needs; homelab-gitops **aggregates** manifests and applies them to runner hosts.
 
+This page documents the existing VM-based runner path. The target architecture
+for new CI/CD work is the ARC-first stack documented in
+[ARC-First CI/CD Stack With Nexus On K3s](./ARC_NEXUS_CICD_STACK.md): GitHub
+Actions Runner Controller on k3s, two runner scale sets, Nexus Repository OSS on
+k3s, layered caching, and GitOps-only promotion.
+
 Runner profiles allocate a 400 GB virtual disk. During runner baseline provisioning,
 `github_runner_base` expands the root partition and filesystem so `/` can use the
 full disk exposed by OpenTofu/vSphere instead of remaining at the golden template

@@ -25,6 +25,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **Image Build Asset Layout:** [DONE] Moved generated FCOS installer payloads out of Packer source paths and updated Packer to serve generated HTTP content from `build/http/fcos`.
 *   **Image Build Smoke Validation:** [DONE] Added no-deploy Packer and Butane validation for image build inputs.
 *   **Ansible Structure Validation:** [DONE] Added local validation for playbook role paths, profile playbook references, and role/tag metadata consistency.
+*   **ARC/Nexus CI/CD Stack Design:** [DONE] Documented the preferred ARC-first CI/CD model with Nexus Repository OSS on k3s, layered cache ownership, two runner pools, GitOps-only promotion, and release version gates.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.
