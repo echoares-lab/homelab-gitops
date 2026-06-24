@@ -24,7 +24,7 @@ deployment:
   vm_name_domain: "mgmt.plexplease.com"
 
 network:
-  ipv4_address: "10.10.10.101"
+  ipv4_address: "10.10.10.105"
   ipv4_netmask: 24
   ipv4_gateway: "10.10.10.1"
   dns_servers:
