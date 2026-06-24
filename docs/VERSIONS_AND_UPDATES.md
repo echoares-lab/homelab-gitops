@@ -13,6 +13,13 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.12 - K3s Storage Tier Benchmarking
+- Added a `benchmark-storage` VM profile and `storage_benchmark` Ansible role for raw VM fio tests plus k3s CSI-path fio pod tests.
+- Added `scripts/storage_benchmark_report.py` with unit coverage for markdown reports, live summaries, and storage tier assignment.
+- Added `python3 manage.py config <profile> --background` to run long benchmark configuration in tmux with a nohup-style fallback.
+- Added democratic-csi NFS/iSCSI HelmChart manifests and initial `storage-fast`, `storage-standard`, and `storage-bulk` StorageClass skeletons for k3s-01.
+- Updated matrix testing to validate the active profile schema (`cpu`, `memory`, `disk`) and explicit VM-name profiles.
+
 ### v3.4.11 - ARC/Nexus CI/CD Stack Design
 - Documented the preferred ARC-first CI/CD architecture using GitHub Actions Runner Controller on k3s.
 - Chose Nexus Repository OSS on k3s as the baseline artifact and dependency cache service, with Nexus Pro/HA plus PostgreSQL as an upgrade path.

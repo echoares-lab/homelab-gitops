@@ -51,14 +51,11 @@ REQUIRED_PROFILE_KEYS = [
     ("vcenter",         "datastore"),
     ("vcenter",         "network"),
     ("vm_specs",        "cpu"),
-    ("vm_specs",        "ram_gb"),
-    ("vm_specs",        "disk_size_gb"),
-    ("vm_specs",        "guest_id"),
+    ("vm_specs",        "memory"),
+    ("vm_specs",        "disk"),
     ("content_library", "name"),
     ("content_library", "template"),
     ("deployment",      "tags"),
-    ("deployment",      "vm_name_prefix"),
-    ("deployment",      "vm_name_domain"),
 ]
 
 
@@ -235,6 +232,17 @@ def test_all_profiles_valid_yaml():
         for section, key in REQUIRED_PROFILE_KEYS:
             if section not in data or key not in (data.get(section) or {}):
                 errors.append(f"{fname}: missing {section}.{key}")
+        deployment = data.get("deployment") or {}
+        has_name_parts = (
+            "vm_name_prefix" in deployment
+            and "vm_name_domain" in deployment
+        )
+        has_explicit_name = "vm_name" in deployment
+        if not has_name_parts and not has_explicit_name:
+            errors.append(
+                f"{fname}: missing deployment.vm_name or "
+                "deployment.vm_name_prefix + deployment.vm_name_domain"
+            )
     if errors:
         fail("Profile validation errors:\n  " + "\n  ".join(errors))
     log("Profile YAML integrity test PASSED.")
@@ -249,7 +257,7 @@ def test_all_profiles_positive_specs():
         with open(os.path.join(profiles_dir, fname)) as f:
             data = yaml.safe_load(f)
         specs = data.get("vm_specs", {})
-        for field in ("cpu", "ram_gb", "disk_size_gb"):
+        for field in ("cpu", "memory", "disk"):
             val = specs.get(field)
             if not isinstance(val, int) or val <= 0:
                 errors.append(f"{fname}: vm_specs.{field} = {val!r} (must be positive int)")

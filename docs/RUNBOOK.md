@@ -49,6 +49,7 @@ Provisions the virtual hardware via OpenTofu. Supports runtime overrides for IP,
 Applies post-deployment OS configuration. Targeting is **Automatic**:
 *   **Specific VM:** `python3 manage.py config ubuntu-base 04` (Targets only the 04 node).
 *   **Whole Group:** `python3 manage.py config ubuntu-base` (Targets all VMs with the `ubuntu` tag).
+*   **Long-running background run:** `python3 manage.py config benchmark-storage --background` (Runs in tmux when available, otherwise writes an Ansible log under `results/storage-benchmark/<run-id>/`.)
 
 ### `test`
 Executes Pytest-Testinfra validation.
@@ -142,6 +143,27 @@ python3 scripts/validate_gitops_manifests.py
 The validator renders every `kustomization.yaml` under `kubernetes/`, follows
 referenced resource paths, parses rendered YAML, and checks that each Kubernetes
 object has `apiVersion`, `kind`, and `metadata.name`.
+
+### K3s storage benchmark workflow
+
+Use the `benchmark-storage` profile to provision a dedicated VM for storage
+profiling, then run the storage benchmark role through the normal config
+workflow. The role runs fio directly against VM-mounted backends and then runs
+fio pods through k3s StorageClasses.
+
+```bash
+python3 manage.py deploy benchmark-storage 01 --host 10.10.10.11
+python3 manage.py config benchmark-storage --background
+watch cat results/storage-benchmark/<run-id>/summary.txt
+python3 manage.py config benchmark-storage -e benchmark_run_id=<run-id>
+python3 manage.py destroy bench-storage-01
+```
+
+After `report-final.md` is generated, update the `storage-fast`,
+`storage-standard`, and `storage-bulk` manifests under
+`kubernetes/platform/storage/overlays/k3s-01/` with the measured winners. Also
+update the relevant democratic-csi dataset settings under
+`kubernetes/platform/democratic-csi/overlays/k3s-01/`.
 
 Validate image build inputs locally after changing Packer templates, Packer
 HTTP fixtures, or Butane transpilation logic:

@@ -26,6 +26,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **Image Build Smoke Validation:** [DONE] Added no-deploy Packer and Butane validation for image build inputs.
 *   **Ansible Structure Validation:** [DONE] Added local validation for playbook role paths, profile playbook references, and role/tag metadata consistency.
 *   **ARC/Nexus CI/CD Stack Design:** [DONE] Documented the preferred ARC-first CI/CD model with Nexus Repository OSS on k3s, layered cache ownership, two runner pools, GitOps-only promotion, and release version gates.
+*   **K3s Storage Tier Benchmarking:** [DONE] Added the benchmark VM profile, two-phase fio benchmark role, resumable report generation, background config execution, democratic-csi manifests, and initial `storage-fast`, `storage-standard`, and `storage-bulk` StorageClass skeletons.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.

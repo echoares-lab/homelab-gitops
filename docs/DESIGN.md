@@ -29,6 +29,9 @@ graph TD
     L -->|Health Checks| M[Infrastructure Fleet]
     B -->|Grafana Alloy| N[Observability Service]
     N -->|Telemetry| O[Prometheus/Grafana Stack]
+    B -->|Storage Benchmark Role| P[Benchmark VM]
+    P -->|fio raw + CSI pod results| Q[Storage Benchmark Reports]
+    Q -->|Tier recommendations| R[K3s StorageClasses]
 ```
 
 ---
@@ -101,6 +104,11 @@ Kubernetes manifests follow the target directory model documented in
 composition, platform apps, workload apps, and bootstrap/root apps so ownership
 and sync responsibility remain clear as more clusters and services are added.
 
+The k3s-01 cluster composes democratic-csi platform overlays and storage tier
+overlays from `kubernetes/platform/`. Storage tiers begin as skeleton
+StorageClasses (`storage-fast`, `storage-standard`, and `storage-bulk`) and are
+updated after benchmark results identify the best backend/protocol mapping.
+
 ---
 
 ## 5. Operational Excellence
@@ -112,6 +120,7 @@ and sync responsibility remain clear as more clusters and services are added.
 *   **Centralized Secrets:** Runtime secret references use `bao://` URIs in `config/secrets.env` and resolve from OpenBao KV v2. 1Password is retained only as a legacy migration source.
 *   **Read-Only Fleet Visibility:** `python3 manage.py status` compares managed Tofu workspaces with vCenter VM facts so operators can see power state, IP, host placement, profile tags, and likely workspace drift before making lifecycle changes.
 *   **Profile-Owned Retention:** The `log_retention` role is assigned to profile playbooks and consumes profile `logging:` policy. Generic journald retention is bounded globally; application file rotation is declared by the profile that owns the application path.
+*   **Measured Storage Tiers:** The `storage_benchmark` role produces raw protocol and k3s CSI-path fio reports before storage tier defaults are finalized.
 
 ## Runner Storage
 
