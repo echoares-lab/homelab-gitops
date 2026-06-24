@@ -84,6 +84,13 @@ Instead of maintaining static hostnames in an inventory file, Ansible queries vC
 *   **Automated Role Mapping:** The master playbook (`site.yml`) automatically applies relevant roles based on these discovered tags.
 *   **Role Ownership:** Role and playbook ownership categories are documented in [Ansible Role and Playbook Ownership](./ANSIBLE_ORGANIZATION.md).
 
+## 4. Kubernetes GitOps Layout
+
+Kubernetes manifests follow the target directory model documented in
+[GitOps Layout Standard](./GITOPS_LAYOUT.md). The standard separates cluster
+composition, platform apps, workload apps, and bootstrap/root apps so ownership
+and sync responsibility remain clear as more clusters and services are added.
+
 ---
 
 ## 5. Operational Excellence
