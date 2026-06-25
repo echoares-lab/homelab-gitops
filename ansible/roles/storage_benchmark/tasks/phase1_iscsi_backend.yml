@@ -23,8 +23,10 @@
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Login to target"
   ansible.builtin.command: "iscsiadm -m node -T {{ iscsi_target_iqn }} -p {{ truenas_host }} --login"
+  register: _iscsi_login
   become: true
-  changed_when: true
+  changed_when: _iscsi_login.rc == 0
+  failed_when: _iscsi_login.rc not in [0, 15]
   when: not _skip_iscsi
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Wait for block device"
