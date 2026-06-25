@@ -14,36 +14,17 @@ spec:
   valuesContent: |-
     csiDriver:
       name: "org.democratic-csi.iscsi"
+
+    storageClasses: []
+    volumeSnapshotClasses: []
+
     controller:
       driver:
         image: democraticcsi/democratic-csi:v1.9.3
+
     node:
       driver:
         image: democraticcsi/democratic-csi:v1.9.3
+
     driver:
-      config:
-        driver: freenas-api-iscsi
-        httpConnection:
-          protocol: http
-          host: 10.10.10.20
-          port: 80
-          apiVersion: 2
-          apiKey: "${TRUENAS_API_KEY}"
-        zfs:
-          datasetParentName: K3S_HDD/k3s-iscsi
-          detachedSnapshotsDatasetParentName: K3S_HDD/k3s-iscsi-snapshots
-        iscsi:
-          targetPortal: "10.10.10.20:3260"
-          interface: ""
-          namePrefix: "k3s-"
-          nameSuffix: ""
-          targetGroups:
-            - targetGroupPortalGroup: 1
-              targetGroupInitiatorGroup: 1
-              targetGroupAuthType: None
-          extentInsecureTpc: true
-          extentXenCompat: false
-          extentDisablePhysicalBlocksize: true
-          extentBlocksize: 512
-          extentRpm: "SSD"
-          extentAvailThreshold: 0
+      existingConfigSecret: democratic-csi-truenas-iscsi-config

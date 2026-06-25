@@ -1,12 +1,14 @@
 # BULK TIER — backups, large media artifacts, infrequent access
-# UPDATE: set provisioner to highest-capacity backend from report-final.md
+# Backend: TrueNAS K3S_HDD NFS (phase1: seq=1897MB/s, db_p99=507µs)
+# Best sequential throughput of all backends; cost-effective for large volumes
+# Requires: democratic-csi-truenas-nfs-config Secret (populated by OpenBao ExternalSecret)
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: storage-bulk
 provisioner: org.democratic-csi.nfs
 parameters:
-  fsType: nfs
+  csi.storage.k8s.io/fstype: nfs
 reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
