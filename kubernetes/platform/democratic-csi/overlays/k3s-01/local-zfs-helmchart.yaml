@@ -20,8 +20,18 @@ spec:
     volumeSnapshotClasses: []
 
     controller:
+      hostPID: true
       driver:
         image: democraticcsi/democratic-csi:v1.9.3
+        extraVolumeMounts:
+          - name: host-dir
+            mountPath: /host
+            mountPropagation: Bidirectional
+      extraVolumes:
+        - name: host-dir
+          hostPath:
+            path: /
+            type: Directory
 
     node:
       hostPID: true
@@ -33,6 +43,15 @@ spec:
           capabilities:
             add:
               - SYS_ADMIN
+        extraVolumeMounts:
+          - name: host-dir
+            mountPath: /host
+            mountPropagation: Bidirectional
+      extraVolumes:
+        - name: host-dir
+          hostPath:
+            path: /
+            type: Directory
 
     driver:
       config:
