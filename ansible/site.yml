@@ -4,7 +4,7 @@
   gather_facts: true
   serial: 0
 - name: Configure 1Password Connect Integration
-  hosts: all
+  hosts: all:!tag_benchmark
   become: true
   roles:
     - op_connect_integration
@@ -86,3 +86,9 @@
     - base
     - security
     - engenius_epc
+
+- name: Run storage benchmarks
+  hosts: tag_benchmark
+  become: true
+  roles:
+    - storage_benchmark

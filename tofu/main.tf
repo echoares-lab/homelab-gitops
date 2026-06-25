@@ -40,6 +40,8 @@ module "vm" {
   mac_address      = var.mac_address
   vm_tags          = var.vm_tags
   host             = var.host
+  firmware         = var.firmware
+
 }
 
 output "vm_ip" {

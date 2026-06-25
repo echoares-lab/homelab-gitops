@@ -1,0 +1,47 @@
+; ansible/roles/storage_benchmark/templates/fio-jobs.ini.j2
+[global]
+ioengine=libaio
+direct=1
+runtime={{ fio_runtime_sec }}
+ramp_time={{ fio_ramp_sec }}
+time_based=1
+group_reporting=1
+size={{ fio_file_size }}
+filename={{ fio_filename }}
+
+[rand-read-4k]
+rw=randread
+bs=4k
+iodepth=32
+name=rand-read-4k
+
+[rand-write-4k]
+stonewall
+rw=randwrite
+bs=4k
+iodepth=32
+name=rand-write-4k
+
+[seq-read-1m]
+stonewall
+rw=read
+bs=1m
+iodepth=8
+name=seq-read-1m
+
+[mixed-7030-4k]
+stonewall
+rw=randrw
+rwmixread=70
+bs=4k
+iodepth=32
+name=mixed-7030-4k
+
+[db-pattern-8k]
+stonewall
+rw=randrw
+rwmixread=75
+bs=8k
+iodepth=1
+fsync=1
+name=db-pattern-8k

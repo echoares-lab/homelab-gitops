@@ -104,6 +104,12 @@ variable "os_type" {
   default = "ubuntu"
 }
 
+variable "firmware" {
+  type    = string
+  default = "bios"
+}
+
+
 variable "ignition_data" {
   type    = string
   default = null

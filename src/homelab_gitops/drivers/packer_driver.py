@@ -42,6 +42,7 @@ class PackerDriver(Driver):
         cmd = [
             self.packer_path,
             "build",
+            "-force",
             "-var", f"name={task.profile.name}",
         ]
         

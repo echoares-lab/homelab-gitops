@@ -25,3 +25,10 @@ metadata:
   name: external-dns
   labels:
     app.kubernetes.io/managed-by: argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: democratic-csi
+  labels:
+    app.kubernetes.io/managed-by: argocd

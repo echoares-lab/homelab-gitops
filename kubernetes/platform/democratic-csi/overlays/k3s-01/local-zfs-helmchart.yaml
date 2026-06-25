@@ -1,0 +1,85 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: democratic-csi-local-zfs
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  repo: https://democratic-csi.github.io/charts
+  chart: democratic-csi
+  version: 0.14.6
+  targetNamespace: democratic-csi
+  createNamespace: true
+  valuesContent: |-
+    csiDriver:
+      name: "org.democratic-csi.local-zfs"
+      attachRequired: false
+
+    storageClasses: []
+    volumeSnapshotClasses: []
+
+    controller:
+      hostPID: true
+      driver:
+        image: democraticcsi/democratic-csi:v1.9.3
+        securityContext:
+          privileged: true
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+              - SYS_ADMIN
+        extraVolumeMounts:
+          - name: host-dir
+            mountPath: /host
+            mountPropagation: Bidirectional
+          - name: zfs-data
+            mountPath: /var/lib/k3s-data
+            mountPropagation: HostToContainer
+      extraVolumes:
+        - name: host-dir
+          hostPath:
+            path: /
+            type: Directory
+        - name: zfs-data
+          hostPath:
+            path: /var/lib/k3s-data
+            type: Directory
+
+    node:
+      hostPID: true
+      driver:
+        image: democraticcsi/democratic-csi:v1.9.3
+        securityContext:
+          privileged: true
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+              - SYS_ADMIN
+        extraVolumeMounts:
+          - name: host-dir
+            mountPath: /host
+            mountPropagation: Bidirectional
+      extraVolumes:
+        - name: host-dir
+          hostPath:
+            path: /
+            type: Directory
+
+    driver:
+      config:
+        driver: zfs-local-dataset
+        zfs:
+          datasetParentName: k3s-data/k8s
+          detachedSnapshotsDatasetParentName: k3s-data/k8s-snapshots
+          datasetEnableQuotas: true
+          datasetEnableReservation: false
+          datasetPermissionsMode: "0777"
+          datasetPermissionsUser: 0
+          datasetPermissionsGroup: 0
+          datasetProperties:
+            compression: lz4
+            atime: "off"
+          zvolCompression: "lz4"
+          zvolDedup: "off"
+          zvolEnableReservation: false

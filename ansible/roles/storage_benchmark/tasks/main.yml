@@ -1,0 +1,55 @@
+---
+- name: Ensure local results directory exists
+  ansible.builtin.file:
+    path: "{{ benchmark_run_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+
+- name: Check if state file exists
+  ansible.builtin.stat:
+    path: "{{ benchmark_run_dir }}/state.json"
+  register: state_file_stat
+  delegate_to: localhost
+  become: false
+
+- name: Initialize state file if missing
+  ansible.builtin.copy:
+    dest: "{{ benchmark_run_dir }}/state.json"
+    content: '{"run_id": "{{ benchmark_run_id }}", "completed": []}'
+    mode: "0644"
+  when: not state_file_stat.stat.exists
+  delegate_to: localhost
+  become: false
+
+- name: Load completed backends from state file (resume support)
+  ansible.builtin.set_fact:
+    completed_backends: "{{ (lookup('file', benchmark_run_dir + '/state.json') | from_json).completed | default([]) }}"
+  delegate_to: localhost
+  become: false
+
+- name: Resolve storage credentials
+  ansible.builtin.include_tasks: resolve_secrets.yml
+
+- name: Install benchmark prerequisites on VM
+  ansible.builtin.apt:
+    name:
+      - fio
+      - nfs-common
+      - open-iscsi
+      - jq
+    state: present
+    update_cache: true
+  become: true
+
+- name: Run Phase 1 — raw protocol benchmarks on VM
+  ansible.builtin.include_tasks: phase1_vm.yml
+
+- name: Run Phase 2 — CSI path benchmarks via k3s pods
+  ansible.builtin.include_tasks: phase2_k3s.yml
+
+- name: Generate final report
+  ansible.builtin.include_tasks: report.yml
+  vars:
+    report_mode: "final"

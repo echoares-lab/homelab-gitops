@@ -1,0 +1,30 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: democratic-csi-nfs
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  repo: https://democratic-csi.github.io/charts
+  chart: democratic-csi
+  version: 0.14.6
+  targetNamespace: democratic-csi
+  createNamespace: true
+  valuesContent: |-
+    csiDriver:
+      name: "org.democratic-csi.nfs"
+
+    storageClasses: []
+    volumeSnapshotClasses: []
+
+    controller:
+      driver:
+        image: democraticcsi/democratic-csi:v1.9.3
+
+    node:
+      driver:
+        image: democraticcsi/democratic-csi:v1.9.3
+
+    driver:
+      existingConfigSecret: democratic-csi-truenas-nfs-config

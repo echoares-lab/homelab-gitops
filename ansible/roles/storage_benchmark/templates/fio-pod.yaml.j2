@@ -1,0 +1,48 @@
+# ansible/roles/storage_benchmark/templates/fio-pod.yaml.j2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bench-pvc-{{ backend_key }}
+  namespace: default
+spec:
+  storageClassName: bench-sc-{{ backend_key }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-fio-{{ backend_key }}
+  namespace: default
+spec:
+  restartPolicy: Never
+  containers:
+    - name: fio
+      image: nixery.dev/fio
+      command:
+        - fio
+        - /jobs/fio-jobs.ini
+        - --output-format=json
+        - --output=/results/fio-output.json
+      volumeMounts:
+        - name: bench-volume
+          mountPath: /mnt/bench
+        - name: jobs
+          mountPath: /jobs
+        - name: results
+          mountPath: /results
+      securityContext:
+        runAsUser: 0
+  volumes:
+    - name: bench-volume
+      persistentVolumeClaim:
+        claimName: bench-pvc-{{ backend_key }}
+    - name: jobs
+      configMap:
+        name: bench-fio-jobs-{{ backend_key }}
+    - name: results
+      emptyDir: {}

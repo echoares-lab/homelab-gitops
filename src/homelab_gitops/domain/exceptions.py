@@ -34,6 +34,11 @@ class TestError(DomainError):
     pass
 
 
+class SecretResolutionError(DomainError):
+    """Required secret could not be resolved from configured sources."""
+    pass
+
+
 class InsufficientResourcesError(ProvisioningError):
     """Cluster has insufficient resources."""
     pass
