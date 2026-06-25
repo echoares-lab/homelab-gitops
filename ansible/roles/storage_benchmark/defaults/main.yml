@@ -1,6 +1,6 @@
 ---
 benchmark_run_id: "{{ lookup('pipe', 'date +%Y-%m-%dT%H%M') }}"
-benchmark_results_base: "results/storage-benchmark"
+benchmark_results_base: "{{ playbook_dir }}/../results/storage-benchmark"
 benchmark_run_dir: "{{ benchmark_results_base }}/{{ benchmark_run_id }}"
 
 fio_runtime_sec: 60
@@ -18,6 +18,11 @@ truenas_datasets:
     nfs_path: "/mnt/vmstore"
   - name: "WHITEBOX"
     nfs_path: "/mnt/WHITEBOX"
+
+iscsi_target_map:
+  K3S_HDD: "k3s-hdd"
+  vmstore: "iqn.2026-06.truenas"
+  WHITEBOX: "nexus"
 
 nvme_fio_dir: "/tmp/fio-nvme-bench"
 nfs_mount_base: "/mnt/bench-nfs"

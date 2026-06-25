@@ -130,6 +130,8 @@ class Workflow:
         # Deployment
         tags = self.profile.deployment.get("tags", [])
         overrides["vm_tags"] = ",".join(tags) if tags else ""
+        overrides["firmware"] = "efi" if "fcos" in tags or "coreos" in tags else "bios"
+
 
         if "mac_address" in self.profile.deployment:
             overrides["mac_address"] = self.profile.deployment["mac_address"]

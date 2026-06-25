@@ -5,12 +5,29 @@
     state: directory
     mode: "0755"
   delegate_to: localhost
+  become: false
+
+- name: Check if state file exists
+  ansible.builtin.stat:
+    path: "{{ benchmark_run_dir }}/state.json"
+  register: state_file_stat
+  delegate_to: localhost
+  become: false
+
+- name: Initialize state file if missing
+  ansible.builtin.copy:
+    dest: "{{ benchmark_run_dir }}/state.json"
+    content: '{"run_id": "{{ benchmark_run_id }}", "completed": []}'
+    mode: "0644"
+  when: not state_file_stat.stat.exists
+  delegate_to: localhost
+  become: false
 
 - name: Load completed backends from state file (resume support)
   ansible.builtin.set_fact:
     completed_backends: "{{ (lookup('file', benchmark_run_dir + '/state.json') | from_json).completed | default([]) }}"
-  failed_when: false
   delegate_to: localhost
+  become: false
 
 - name: Resolve storage credentials
   ansible.builtin.include_tasks: resolve_secrets.yml

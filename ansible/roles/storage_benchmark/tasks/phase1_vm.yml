@@ -26,7 +26,6 @@
   async: 900
   poll: 30
   changed_when: false
-  failed_when: false
   when: "'nvme-local-phase1' not in completed_backends"
 
 - name: "Phase1 NVMe | Save result"
@@ -35,14 +34,16 @@
     content: "{{ {'backend': 'nvme-local', 'protocol': 'local', 'phase': 'phase1', 'run_id': benchmark_run_id, 'secrets_source': secrets_source, 'fio': fio_nvme.stdout | from_json} | to_json(indent=2) }}"
     mode: "0644"
   delegate_to: localhost
-  when: "'nvme-local-phase1' not in completed_backends and fio_nvme.rc == 0"
+  become: false
+  when: "'nvme-local-phase1' not in completed_backends"
 
 - name: "Phase1 NVMe | Update state"
   ansible.builtin.copy:
     dest: "{{ benchmark_run_dir }}/state.json"
     content: "{{ (lookup('file', benchmark_run_dir + '/state.json') | from_json) | combine({'completed': completed_backends + ['nvme-local-phase1']}) | to_json(indent=2) }}"
-    mode: "0600"
+    mode: "0644"
   delegate_to: localhost
+  become: false
   when: "'nvme-local-phase1' not in completed_backends"
 
 - name: "Phase1 NVMe | Set completed"

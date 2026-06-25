@@ -8,6 +8,7 @@
   args:
     chdir: "{{ playbook_dir | dirname }}"
   delegate_to: localhost
+  become: false
   changed_when: true
   register: report_output
 

@@ -36,8 +36,8 @@ def parse_job_metrics(result: dict) -> dict:
 
     def lat_avg_us(job_name: str) -> float:
         j = jobs.get(job_name, {})
-        r_ns = j.get("read", {}).get("lat_ns", {}).get("percentile", {}).get("99.000000", 0)
-        w_ns = j.get("write", {}).get("lat_ns", {}).get("percentile", {}).get("99.000000", 0)
+        r_ns = j.get("read", {}).get("lat_ns", j.get("read", {}).get("clat_ns", {})).get("percentile", {}).get("99.000000", 0)
+        w_ns = j.get("write", {}).get("lat_ns", j.get("write", {}).get("clat_ns", {})).get("percentile", {}).get("99.000000", 0)
         return ((r_ns + w_ns) / 2) / 1000
 
     return {
@@ -108,7 +108,7 @@ def run_report(run_dir: Path, mode: str) -> None:
     for f in result_files:
         try:
             data = json.loads(f.read_text())
-            key = f.stem
+            key = f.stem.lower()
             loaded[key] = data
         except (json.JSONDecodeError, KeyError):
             continue
@@ -116,7 +116,11 @@ def run_report(run_dir: Path, mode: str) -> None:
     rows = []
     summary_lines = []
     for backend, protocol, phase in ALL_BACKENDS:
-        key = f"{backend}-{protocol}-{phase}"
+        if backend == "nvme-local" and protocol == "local":
+            key = f"nvme-local-{phase}"
+        else:
+            key = f"{backend}-{protocol}-{phase}"
+        key = key.lower()
         result = loaded.get(key)
         metrics = parse_job_metrics(result) if result else None
         rows.append({"backend": backend, "protocol": protocol, "phase": phase, "metrics": metrics})
