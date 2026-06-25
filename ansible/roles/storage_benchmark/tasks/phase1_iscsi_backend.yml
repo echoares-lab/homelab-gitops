@@ -13,7 +13,7 @@
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Extract target IQN for dataset"
   ansible.builtin.set_fact:
-    iscsi_target_iqn: "{{ iscsi_discovery.stdout_lines | select('search', dataset.name | lower) | first | regex_replace('^.*\\s+', '') }}"
+    iscsi_target_iqn: "{{ iscsi_discovery.stdout_lines | select('search', iscsi_target_map[dataset.name]) | first | regex_replace('^.*\\s+', '') }}"
   when: not _skip_iscsi and iscsi_discovery is defined
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Fail if IQN not found"
@@ -28,11 +28,15 @@
   when: not _skip_iscsi
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Wait for block device"
-  ansible.builtin.shell: "ls /dev/disk/by-path/*{{ iscsi_target_iqn | regex_replace(':', '.') }}* 2>/dev/null | head -1"
+  ansible.builtin.shell: >
+    iscsiadm -m session -P 3 2>/dev/null |
+    grep -A10 "{{ iscsi_target_iqn }}" |
+    grep "Attached scsi disk" |
+    awk '{print "/dev/" $4}'
   register: iscsi_dev_path
   retries: 10
   delay: 3
-  until: iscsi_dev_path.stdout != ''
+  until: iscsi_dev_path.stdout | trim | length > 0
   become: true
   changed_when: false
   when: not _skip_iscsi
@@ -52,6 +56,8 @@
   become: true
   async: 900
   poll: 30
+  changed_when: false
+  failed_when: false
   when: not _skip_iscsi
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Save result"
@@ -60,14 +66,16 @@
     content: "{{ {'backend': dataset.name, 'protocol': 'iscsi', 'phase': 'phase1', 'run_id': benchmark_run_id, 'secrets_source': secrets_source, 'fio': fio_iscsi_result.stdout | from_json} | to_json(indent=2) }}"
     mode: "0644"
   delegate_to: localhost
-  when: not _skip_iscsi
+  become: false
+  when: not _skip_iscsi and fio_iscsi_result.rc == 0
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Update state"
   ansible.builtin.copy:
     dest: "{{ benchmark_run_dir }}/state.json"
     content: "{{ (lookup('file', benchmark_run_dir + '/state.json') | from_json) | combine({'completed': completed_backends + [dataset.name + '-iscsi-phase1']}) | to_json(indent=2) }}"
-    mode: "0600"
+    mode: "0644"
   delegate_to: localhost
+  become: false
   when: not _skip_iscsi
 
 - name: "Phase1 iSCSI {{ dataset.name }} | Set completed"
