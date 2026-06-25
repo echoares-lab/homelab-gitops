@@ -23,14 +23,27 @@ spec:
       hostPID: true
       driver:
         image: democraticcsi/democratic-csi:v1.9.3
+        securityContext:
+          privileged: true
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+              - SYS_ADMIN
         extraVolumeMounts:
           - name: host-dir
             mountPath: /host
             mountPropagation: Bidirectional
+          - name: zfs-data
+            mountPath: /var/lib/k3s-data
+            mountPropagation: HostToContainer
       extraVolumes:
         - name: host-dir
           hostPath:
             path: /
+            type: Directory
+        - name: zfs-data
+          hostPath:
+            path: /var/lib/k3s-data
             type: Directory
 
     node:
