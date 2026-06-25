@@ -32,8 +32,9 @@
 - name: "Phase1 iSCSI {{ dataset.name }} | Wait for block device"
   ansible.builtin.shell: >
     iscsiadm -m session -P 3 2>/dev/null |
-    grep -A10 "{{ iscsi_target_iqn }}" |
+    grep -A100 "{{ iscsi_target_iqn }}" |
     grep "Attached scsi disk" |
+    head -1 |
     awk '{print "/dev/" $4}'
   register: iscsi_dev_path
   retries: 10
