@@ -22,6 +22,14 @@ def kustomization_resources(path: Path) -> set[str]:
     return set(document.get("resources", []))
 
 
+def velero_helm_values() -> dict:
+    documents = load_yaml_documents(
+        PLATFORM_ROOT / "velero" / "overlays" / "k3s-01" / "helmchart.yaml"
+    )
+    helmchart = next(document for document in documents if document.get("kind") == "HelmChart")
+    return yaml.safe_load(helmchart["spec"]["valuesContent"])
+
+
 def test_k3s_cluster_wires_required_platform_epics() -> None:
     resources = kustomization_resources(K3S_ROOT / "kustomization.yaml")
 
@@ -189,3 +197,27 @@ def test_alertmanager_webhook_targets_apprise_alerts_tag() -> None:
     server_source = document["data"]["server.py"]
 
     assert '"tag": "alerts"' in server_source
+
+
+def test_velero_metrics_are_scraped_by_platform_prometheus() -> None:
+    metrics = velero_helm_values()["metrics"]
+
+    assert metrics["serviceMonitor"]["enabled"] is True
+    assert metrics["serviceMonitor"]["additionalLabels"]["release"] == "kube-prometheus-stack"
+
+
+def test_velero_has_failure_and_stale_backup_alerts() -> None:
+    prometheus_rule = velero_helm_values()["metrics"]["prometheusRule"]
+    alerts = {rule["alert"]: rule for rule in prometheus_rule["spec"]}
+
+    assert prometheus_rule["enabled"] is True
+    assert prometheus_rule["additionalLabels"]["release"] == "kube-prometheus-stack"
+    assert {"VeleroBackupFailed", "VeleroBackupStale"}.issubset(alerts)
+    assert "velero_backup_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_partial_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_validation_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_last_successful_timestamp" in alerts["VeleroBackupStale"]["expr"]
+    assert 'schedule="platform-namespace-daily"' in alerts["VeleroBackupStale"]["expr"]
+    assert "absent(" in alerts["VeleroBackupStale"]["expr"]
+    assert "90000" in alerts["VeleroBackupStale"]["expr"]
+    assert alerts["VeleroBackupStale"]["for"] == "1h"

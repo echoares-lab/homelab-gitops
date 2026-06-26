@@ -14,3 +14,5 @@ The default `BackupStorageLocation` is configured through Helm values for a True
 No `VolumeSnapshotLocation` is configured because the S3 target is object storage, not a volume snapshot provider. Persistent volume contents are handled by Velero node-agent filesystem backups with Kopia.
 
 The overlay also defines `platform-namespace-daily`, a Velero `Schedule` that backs up the `platform` namespace daily at `03:17` and retains backups for seven days.
+
+The Velero Helm release exposes its metrics through a `ServiceMonitor` selected by the platform Prometheus instance. It also owns `PrometheusRule` alerts for failed or partially failed backups and for the daily platform backup becoming stale; both alerts link to the backup and restore runbook.

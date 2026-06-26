@@ -24,6 +24,41 @@ spec:
     credentials:
       existingSecret: velero-object-store
 
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        additionalLabels:
+          release: kube-prometheus-stack
+      prometheusRule:
+        enabled: true
+        additionalLabels:
+          release: kube-prometheus-stack
+        spec:
+          - alert: VeleroBackupFailed
+            expr: |-
+              increase(velero_backup_failure_total[15m]) > 0
+              or increase(velero_backup_partial_failure_total[15m]) > 0
+              or increase(velero_backup_validation_failure_total[15m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: Velero backup failed
+              description: Velero reported a failed, partially failed, or invalid backup in the last 15 minutes.
+              runbook_url: https://github.com/echoares-lab/homelab-gitops/blob/master/docs/RUNBOOK.md#velero-backup-and-restore
+          - alert: VeleroBackupStale
+            expr: |-
+              (time() - velero_backup_last_successful_timestamp{schedule="platform-namespace-daily"}) > 90000
+              or absent(velero_backup_last_successful_timestamp{schedule="platform-namespace-daily"})
+            for: 1h
+            labels:
+              severity: critical
+            annotations:
+              summary: Scheduled Velero backup is stale
+              description: platform-namespace-daily has no successful backup newer than 25 hours.
+              runbook_url: https://github.com/echoares-lab/homelab-gitops/blob/master/docs/RUNBOOK.md#velero-backup-and-restore
+
     configuration:
       backupStorageLocation:
         - name: truenas-s3

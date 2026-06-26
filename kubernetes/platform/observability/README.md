@@ -24,3 +24,6 @@ Alertmanager is configured to send alert webhooks to the Apprise Alertmanager
 webhook service in the `notifications` namespace. That service transforms the
 Alertmanager payload and posts into Apprise, so Apprise remains the notification
 fanout layer.
+
+Backup alerts are sourced from the `velero` Helm release's `PrometheusRule` and
+routed by Alertmanager through the same common Apprise receiver.
