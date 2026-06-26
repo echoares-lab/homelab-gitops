@@ -281,8 +281,9 @@ ssh core@10.10.10.50 'sudo k3s kubectl -n notifications logs deploy/apprise-aler
 ```
 
 For a non-destructive end-to-end notification test, port-forward the webhook
-and send a synthetic alert. This tests Alertmanager's receiver payload path
-without creating a failed Backup:
+and send a synthetic alert. This tests the Apprise webhook contract and
+downstream Apprise/ntfy delivery without exercising Alertmanager routing or
+creating a failed Backup:
 
 ```bash
 ssh -L 3000:127.0.0.1:3000 core@10.10.10.50 \
