@@ -13,6 +13,12 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.14 - Velero Backup And Restore Validation
+- Completed a disposable Kubernetes namespace restore drill through Velero and TrueNAS S3/MinIO, verifying restored objects, Secret wiring, and persistent-volume marker data.
+- Verified that `platform-namespace-daily` creates a completed schedule-owned Backup and updates its last-backup status.
+- Added Velero metrics discovery plus `VeleroBackupFailed` and `VeleroBackupStale` alerts routed through the platform Alertmanager and Apprise notification path.
+- Documented reusable backup, restore, alert test, and credential-rotation procedures that avoid exposing secret values.
+
 ### v3.4.13 - K3s Platform Readiness Baseline
 - Added k3s-01 platform namespaces and cluster composition for backup, observability, notifications, databases, identity, and sample workloads.
 - Added Velero with OpenBao-managed TrueNAS S3/MinIO credentials and an initial platform namespace backup schedule.
