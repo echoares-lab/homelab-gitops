@@ -31,7 +31,7 @@ These high-impact features are prioritized for near-term development to further 
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.
-*   **Automated Backup & DR Service:** [DONE] Orchestrated config export for OPNsense and Technitium with secure storage in 1Password.
+*   **Automated Backup & DR Service:** [DONE] Orchestrated config export for OPNsense and Technitium with secure storage in 1Password, and validated Kubernetes recovery with a completed Velero namespace and PVC restore drill backed by TrueNAS S3/MinIO.
 *   **Model Context Protocol (MCP) Server:** [DONE] Exposed homelab capabilities as AI tools.
 
 ---
