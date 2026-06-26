@@ -61,7 +61,7 @@ temporary failure fixture afterward.
 Keep reusable desired state in Git and operational drill fixtures ephemeral.
 Expected repository changes are limited to:
 
-- the observability `PrometheusRule` and overlay wiring;
+- the Velero Helm metrics and `PrometheusRule` configuration;
 - focused manifest regression tests;
 - Velero and observability component documentation;
 - `RUNBOOK.md` backup, restore, alert test, and OpenBao credential rotation
