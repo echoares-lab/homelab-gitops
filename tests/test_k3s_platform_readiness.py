@@ -91,3 +91,69 @@ def test_observability_uses_standard_storage_tier_for_prometheus() -> None:
     volume_claim = values["prometheus"]["prometheusSpec"]["storageSpec"]["volumeClaimTemplate"]
 
     assert volume_claim["spec"]["storageClassName"] == "storage-standard"
+
+
+def observability_helmchart(name: str) -> dict:
+    for path in (PLATFORM_ROOT / "observability" / "overlays" / "k3s-01").glob("*.yaml"):
+        for document in load_yaml_documents(path):
+            if document.get("kind") == "HelmChart" and document.get("metadata", {}).get("name") == name:
+                return document
+    raise AssertionError(f"Missing observability HelmChart: {name}")
+
+
+def helmchart_values(name: str) -> dict:
+    return yaml.safe_load(observability_helmchart(name)["spec"]["valuesContent"])
+
+
+def test_observability_kustomization_includes_loki_and_alloy() -> None:
+    resources = kustomization_resources(
+        PLATFORM_ROOT / "observability" / "overlays" / "k3s-01" / "kustomization.yaml"
+    )
+
+    assert "loki-helmchart.yaml" in resources
+    assert "alloy-helmchart.yaml" in resources
+
+
+def test_loki_uses_pvc_storage_and_seven_day_retention() -> None:
+    helmchart = observability_helmchart("loki")
+    values = yaml.safe_load(helmchart["spec"]["valuesContent"])
+
+    assert helmchart["spec"]["repo"] == "https://grafana-community.github.io/helm-charts"
+    assert helmchart["spec"]["chart"] == "loki"
+    assert helmchart["spec"]["targetNamespace"] == "observability"
+    assert values["deploymentMode"] == "Monolithic"
+    assert values["loki"]["storage"]["type"] == "filesystem"
+    assert values["loki"]["limits_config"]["retention_period"] == "7d"
+    assert values["loki"]["compactor"]["retention_enabled"] is True
+    assert values["singleBinary"]["replicas"] == 1
+    assert values["singleBinary"]["persistence"]["storageClass"] == "storage-standard"
+    assert values["singleBinary"]["persistence"]["size"] == "20Gi"
+
+
+def test_alloy_collects_pod_logs_and_kubernetes_events() -> None:
+    helmchart = observability_helmchart("alloy")
+    values = yaml.safe_load(helmchart["spec"]["valuesContent"])
+    config = values["alloy"]["configMap"]["content"]
+
+    assert helmchart["spec"]["repo"] == "https://grafana.github.io/helm-charts"
+    assert helmchart["spec"]["chart"] == "alloy"
+    assert helmchart["spec"]["targetNamespace"] == "observability"
+    assert values["controller"]["type"] == "deployment"
+    assert 'discovery.kubernetes "pods"' in config
+    assert 'loki.source.kubernetes "pods"' in config
+    assert 'loki.source.kubernetes_events "cluster_events"' in config
+    assert 'loki.write "default"' in config
+    assert "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push" in config
+
+
+def test_grafana_has_loki_datasource() -> None:
+    values = helmchart_values("kube-prometheus-stack")
+
+    datasources = values["grafana"]["additionalDataSources"]
+
+    assert {
+        "name": "Loki",
+        "type": "loki",
+        "access": "proxy",
+        "url": "http://loki-gateway.observability.svc.cluster.local",
+    } in datasources
