@@ -8,7 +8,8 @@ OSS on k3s, layered caching, and GitOps-only promotion.
 
 Use k3s as the CI/CD platform substrate and keep Git as the deployment gate.
 GitHub Actions validates changes, Nexus caches and stores build inputs/outputs,
-and Argo CD reconciles approved cluster state after merge.
+and Argo CD reconciles approved cluster state from the protected `production`
+branch after merge/promotion.
 
 ```mermaid
 flowchart LR
@@ -22,8 +23,8 @@ flowchart LR
     Priv --> Infra[image, OpenTofu, vSphere, E2E validation]
     Checks --> PRGate[required PR checks]
     Infra --> PRGate
-    PRGate --> Merge[merge to master]
-    Merge --> Argo[Argo CD]
+    PRGate --> Merge[merge to production]
+    Merge --> Argo[Argo CD tracks production]
     Argo --> K3s[k3s desired state]
 ```
 
@@ -196,8 +197,8 @@ flowchart TD
     ArtifactID --> Checks[required checks]
     Checks --> Merge{Merged?}
     Merge -->|No| Trace[Keep run metadata only]
-    Merge -->|Yes| Main[main/master build identity]
-    Main --> Gate{Release or promotion gate?}
+    Merge -->|Yes| Prod[production build identity]
+    Prod --> Gate{Release or promotion gate?}
     Gate -->|No| GitSHA[deployable Git revision only]
     Gate -->|Yes| Version[Mint SemVer or CalVer release]
     Version --> Tag[Git tag, Nexus artifact, release notes]
@@ -208,7 +209,7 @@ Recommended identities:
 | Event | Identity | Creates Git tag? | Creates release version? |
 | :--- | :--- | :--- | :--- |
 | PR run | `pr-<number>-run-<run_number>-<short_sha>` | No | No |
-| Merge run | `main-<run_number>-<short_sha>` | No | No |
+| Merge run | `production-<run_number>-<short_sha>` | No | No |
 | Release candidate | `vX.Y.Z-rc.N` or `YYYY.MM.DD-rc.N` | Optional | Yes, gated |
 | Release/promotion | `vX.Y.Z` or `YYYY.MM.DD.N` | Yes | Yes |
 
@@ -233,8 +234,8 @@ live cluster's desired state outside Git.
 flowchart LR
     PR[Pull request] --> Validate[CI validation]
     Validate --> Review[review and branch protection]
-    Review --> Merge[merge to master]
-    Merge --> Argo[Argo CD detects Git revision]
+    Review --> Merge[merge to production]
+    Merge --> Argo[Argo CD detects production revision]
     Argo --> Sync[apply manifests]
     Sync --> Health[health and drift checks]
 ```

@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.14 - Production Default Branch Preparation
+- Added `production` to CI push triggers while retaining `master`, `main`, and `develop` during the transition window.
+- Pinned the k3s-01 Argo CD root Application to the explicit `production` Git revision instead of the repository default `HEAD`.
+- Documented the branch-governance model for GitOps promotion and default-branch migration.
+
 ### v3.4.13 - K3s Platform Readiness Baseline
 - Added k3s-01 platform namespaces and cluster composition for backup, observability, notifications, databases, identity, and sample workloads.
 - Added Velero with OpenBao-managed TrueNAS S3/MinIO credentials and an initial platform namespace backup schedule.

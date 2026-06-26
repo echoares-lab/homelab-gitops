@@ -259,6 +259,22 @@ runbook before opening a PR. In short: claim the issue, isolate dirty
 worktrees, avoid committing generated local state, keep one issue per PR, and
 enable auto-merge when branch protection allows it.
 
+### Production Branch Governance
+
+The protected live GitOps branch is `production`. Argo CD should reconcile
+k3s-01 from `targetRevision: production`, not from an implicit `HEAD` value.
+During migration, `master` can remain available for compatibility, but live
+cluster promotion should happen by merging or fast-forwarding reviewed changes
+into `production`.
+
+Before switching GitHub's repository default branch to `production`, verify:
+
+- the `production` branch exists and is protected with required CI checks;
+- workflow push triggers include `production`;
+- the k3s-01 root Application points at `targetRevision: production`;
+- open PRs target the intended base branch;
+- local clones update their default upstream after the GitHub setting changes.
+
 ---
 
 ## 8. Post-Deployment: Technitium DNS
