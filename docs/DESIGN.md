@@ -141,6 +141,7 @@ cluster desired state should be promoted by updating `production`.
 *   **Profile-Owned Retention:** The `log_retention` role is assigned to profile playbooks and consumes profile `logging:` policy. Generic journald retention is bounded globally; application file rotation is declared by the profile that owns the application path.
 *   **Measured Storage Tiers:** The `storage_benchmark` role produces raw protocol and k3s CSI-path fio reports before storage tier defaults are finalized.
 *   **Workload Readiness Gate:** k3s workloads should use the sample workload template and declare DNS, ingress, SSO, storage, secret, backup, alert, and restore expectations before being added to the cluster composition.
+*   **Backup Readiness Gate:** Kubernetes backup readiness requires a completed Velero restore drill that verifies objects and persistent data, plus monitoring that alerts when the scheduled backup's last-success timestamp becomes stale.
 
 ## Runner Storage
 

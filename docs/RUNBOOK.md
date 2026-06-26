@@ -223,6 +223,131 @@ curl -X POST http://127.0.0.1:3000 \
 Expected result: the webhook returns `apprise_status=<2xx or 3xx>` and Apprise
 forwards the message to the configured `ntfy` topic.
 
+### Velero backup and restore
+
+Run Velero operations on `k3s-01` through the node's bundled kubectl. Keep
+Velero Backup and Restore resource names fully qualified: CloudNativePG also
+installs a `backup` resource, so an unqualified name can select the wrong CRD.
+
+```bash
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get pods'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get externalsecret velero-object-store'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup wait --for=condition=Ready externalsecret/velero-object-store --timeout=120s'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get backupstoragelocations.velero.io truenas-s3'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get schedules.velero.io platform-namespace-daily'
+ssh core@10.10.10.50 "sudo k3s kubectl -n backup get backups.velero.io -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,CREATED:.metadata.creationTimestamp'"
+ssh core@10.10.10.50 "sudo k3s kubectl -n backup get schedule platform-namespace-daily -o jsonpath='{.status.lastBackup}{\"\\n\"}'"
+```
+
+For a destructive restore drill, first create a disposable namespace containing
+a Secret, `storage-bulk` PVC, and a pod or Deployment that writes a private
+marker to the PVC. The unprivileged drill pod must set
+`spec.securityContext.fsGroup: 101`; otherwise it cannot write to a newly
+provisioned volume. Keep the expected marker in the operator shell and compare
+it without printing either the value or its digest.
+
+Create an explicitly namespace-scoped Backup CR. Replace the generic names for
+each drill; do not reuse a Backup or Restore name.
+
+```bash
+ssh core@10.10.10.50 'sudo k3s kubectl apply -f -' <<'EOF'
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: restore-drill-manual
+  namespace: backup
+spec:
+  includedNamespaces:
+    - velero-restore-drill
+  storageLocation: truenas-s3
+  defaultVolumesToFsBackup: true
+  snapshotVolumes: false
+  ttl: 168h0m0s
+EOF
+
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup wait --for=jsonpath={.status.phase}=Completed backups.velero.io/restore-drill-manual --timeout=15m'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get podvolumebackups.velero.io -l velero.io/backup-name=restore-drill-manual -o custom-columns=NAME:.metadata.name,PHASE:.status.phase'
+```
+
+After the Backup and its PodVolumeBackup report `Completed`, delete the
+disposable namespace and restore it from the preserved Backup:
+
+```bash
+ssh core@10.10.10.50 'sudo k3s kubectl delete namespace velero-restore-drill --wait=true --timeout=180s'
+ssh core@10.10.10.50 'sudo k3s kubectl apply -f -' <<'EOF'
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-drill-manual-restore
+  namespace: backup
+spec:
+  backupName: restore-drill-manual
+  includedNamespaces:
+    - velero-restore-drill
+EOF
+
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup wait --for=jsonpath={.status.phase}=Completed restores.velero.io/restore-drill-manual-restore --timeout=15m'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup get podvolumerestores.velero.io -l velero.io/restore-name=restore-drill-manual-restore -o custom-columns=NAME:.metadata.name,PHASE:.status.phase'
+ssh core@10.10.10.50 'sudo k3s kubectl -n velero-restore-drill get deployment,service,secret,pvc,pod'
+ssh core@10.10.10.50 'sudo k3s kubectl -n velero-restore-drill get deploy/restore-drill -o jsonpath="{.spec.template.spec.volumes[?(@.secret.secretName==\"restore-drill-marker\")].secret.secretName}{\"\\n\"}"'
+RESTORED_MARKER="$(ssh core@10.10.10.50 'sudo k3s kubectl -n velero-restore-drill exec deploy/restore-drill -- cat /data/marker')"
+test -n "$RESTORED_MARKER" && test "$RESTORED_MARKER" = "$EXPECTED_MARKER"
+unset RESTORED_MARKER EXPECTED_MARKER
+```
+
+Every PodVolumeBackup and PodVolumeRestore row must be `Completed`, the Secret
+reference must be `restore-drill-marker`, and an in-shell comparison against
+the pre-backup marker must succeed. Inspect Restore warnings before cleanup;
+warnings about Endpoints annotations or the already-created `kube-root-ca.crt`
+can be non-fatal when all objects and marker data are verified. Delete the
+restored drill namespace when verification finishes.
+
+To inspect backup alerting, confirm Prometheus loaded `VeleroBackupFailed` and
+`VeleroBackupStale`, then check Alertmanager and the Apprise webhook:
+
+```bash
+ssh core@10.10.10.50 'sudo k3s kubectl -n observability exec prometheus-kube-prometheus-stack-prometheus-0 -c prometheus -- wget -qO- http://127.0.0.1:9090/api/v1/rules' | grep -E 'VeleroBackupFailed|VeleroBackupStale'
+ssh core@10.10.10.50 'sudo k3s kubectl -n observability exec alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- wget -qO- http://127.0.0.1:9093/api/v2/alerts' | grep -E 'VeleroBackupFailed|VeleroBackupStale'
+ssh core@10.10.10.50 'sudo k3s kubectl -n notifications logs deploy/apprise-alertmanager-webhook --since=10m' | grep -E 'VeleroBackup(Failed|Stale)|apprise_status=2[0-9][0-9]'
+```
+
+For a non-destructive end-to-end notification test, port-forward the webhook
+and send a synthetic alert. This tests the Apprise webhook contract and
+downstream Apprise/ntfy delivery without exercising Alertmanager routing or
+creating a failed Backup:
+
+```bash
+ssh -L 3000:127.0.0.1:3000 core@10.10.10.50 \
+  'sudo k3s kubectl -n notifications port-forward svc/apprise-alertmanager-webhook 3000:3000'
+curl --fail-with-body -X POST http://127.0.0.1:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"SyntheticVeleroTest","severity":"info"},"annotations":{"summary":"Velero notification path test"}}]}'
+```
+
+Confirm a 2xx Apprise status in the webhook logs and receipt in the configured
+`ntfy` topic. Do not include secret material in alert payloads or logs.
+
+To rotate Velero object-store credentials, update only the
+`prod/platform/velero` OpenBao keys through the approved secret-writing
+workflow. Never read or print their values. Force External Secrets to reconcile,
+wait for readiness, restart Velero, and verify storage availability without
+displaying the generated Secret:
+
+```bash
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup annotate externalsecret velero-object-store force-sync=$(date +%s) --overwrite'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup wait --for=condition=Ready externalsecret/velero-object-store --timeout=120s'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup rollout restart deployment/velero'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup rollout status deployment/velero --timeout=180s'
+ssh core@10.10.10.50 'sudo k3s kubectl -n backup wait --for=jsonpath={.status.phase}=Available backupstoragelocations.velero.io/truenas-s3 --timeout=180s'
+```
+
+Evidence from the 2026-06-26 validation: Backup
+`restore-drill-20260626215208` and Restore
+`restore-drill-20260626215208-restore` completed, including Kopia volume backup
+and restore. The schedule created completed Backup
+`platform-namespace-daily-20260626220141` and set `status.lastBackup` to
+`2026-06-26T22:01:41Z`.
+
 ### K3s storage benchmark workflow
 
 Use the `benchmark-storage` profile to provision a dedicated VM for storage
