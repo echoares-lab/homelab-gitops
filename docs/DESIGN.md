@@ -120,6 +120,12 @@ Prometheus, Alertmanager, and Grafana; Alertmanager sends notifications through
 Apprise, whose first configured destination is `ntfy`; CloudNativePG owns the
 platform PostgreSQL primitive used by authentik.
 
+The live GitOps promotion branch is `production`. The k3s-01 Argo CD root
+Application pins `targetRevision: production` so live reconciliation is explicit
+and does not depend on the repository's default branch pointer. During branch
+migration, `master` may remain as an integration compatibility branch, but live
+cluster desired state should be promoted by updating `production`.
+
 ---
 
 ## 5. Operational Excellence

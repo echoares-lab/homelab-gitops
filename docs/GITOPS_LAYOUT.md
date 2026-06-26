@@ -117,6 +117,10 @@ The `k3s-01` manifests follow the standard layout. Argo CD should continue to
 sync the cluster entrypoint at `kubernetes/clusters/k3s-01/`, which composes the
 cluster config and selected platform overlays.
 
+The bootstrap root Application should track the protected `production` branch
+explicitly. Do not rely on `HEAD` or the GitHub default branch for live cluster
+reconciliation; default-branch changes should not silently redirect Argo CD.
+
 | Current path | Ownership |
 | --- | --- |
 | `kubernetes/bootstrap/k3s-01/root-apps/` | Bootstrap root Application manifests |
