@@ -60,7 +60,12 @@ data:
                 payload = json.loads(self.rfile.read(length) or b"{}")
                 title, body, notify_type = build_notification(payload)
                 data = urllib.parse.urlencode(
-                    {"title": title, "body": body, "type": notify_type}
+                    {
+                        "title": title,
+                        "body": body,
+                        "type": notify_type,
+                        "tag": "alerts",
+                    }
                 ).encode()
                 request = urllib.request.Request(
                     f"{APPRISE_URL}/{APPRISE_KEY}",

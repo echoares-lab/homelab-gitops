@@ -175,3 +175,17 @@ def test_grafana_has_loki_datasource() -> None:
         "access": "proxy",
         "url": "http://loki-gateway.observability.svc.cluster.local",
     } in datasources
+
+
+def test_alertmanager_webhook_targets_apprise_alerts_tag() -> None:
+    document = load_yaml_documents(
+        PLATFORM_ROOT
+        / "apprise"
+        / "overlays"
+        / "k3s-01"
+        / "alertmanager-webhook-config.yaml"
+    )[0]
+
+    server_source = document["data"]["server.py"]
+
+    assert '"tag": "alerts"' in server_source
