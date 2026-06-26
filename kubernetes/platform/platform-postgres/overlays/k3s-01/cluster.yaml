@@ -1,0 +1,36 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: platform-postgres
+  namespace: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  storage:
+    size: 20Gi
+    storageClass: storage-fast
+  bootstrap:
+    initdb:
+      database: authentik
+      owner: authentik
+      secret:
+        name: platform-postgres-authentik
+  backup:
+    retentionPolicy: 14d
+    barmanObjectStore:
+      destinationPath: s3://k3s-platform-postgres/
+      endpointURL: http://10.10.10.20:30000
+      s3Credentials:
+        accessKeyId:
+          name: platform-postgres-backup-credentials
+          key: AWS_ACCESS_KEY_ID
+        secretAccessKey:
+          name: platform-postgres-backup-credentials
+          key: AWS_SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip

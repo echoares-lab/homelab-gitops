@@ -32,6 +32,10 @@ graph TD
     B -->|Storage Benchmark Role| P[Benchmark VM]
     P -->|fio raw + CSI pod results| Q[Storage Benchmark Reports]
     Q -->|Tier recommendations| R[K3s StorageClasses]
+    R -->|GitOps Platform| S[K3s Platform Services]
+    S -->|Metrics + Alerts| T[Prometheus/Grafana + Apprise]
+    S -->|Backups| U[Velero + TrueNAS S3]
+    S -->|Identity + Data| V[authentik + CloudNativePG]
 ```
 
 ---
@@ -109,6 +113,13 @@ overlays from `kubernetes/platform/`. Storage tiers begin as skeleton
 StorageClasses (`storage-fast`, `storage-standard`, and `storage-bulk`) and are
 updated after benchmark results identify the best backend/protocol mapping.
 
+The k3s-01 platform baseline also composes backup, observability,
+notifications, database, identity, and sample workload overlays. Velero stores
+cluster backups in the TrueNAS S3/MinIO target; kube-prometheus-stack provides
+Prometheus, Alertmanager, and Grafana; Alertmanager sends notifications through
+Apprise, whose first configured destination is `ntfy`; CloudNativePG owns the
+platform PostgreSQL primitive used by authentik.
+
 ---
 
 ## 5. Operational Excellence
@@ -121,6 +132,7 @@ updated after benchmark results identify the best backend/protocol mapping.
 *   **Read-Only Fleet Visibility:** `python3 manage.py status` compares managed Tofu workspaces with vCenter VM facts so operators can see power state, IP, host placement, profile tags, and likely workspace drift before making lifecycle changes.
 *   **Profile-Owned Retention:** The `log_retention` role is assigned to profile playbooks and consumes profile `logging:` policy. Generic journald retention is bounded globally; application file rotation is declared by the profile that owns the application path.
 *   **Measured Storage Tiers:** The `storage_benchmark` role produces raw protocol and k3s CSI-path fio reports before storage tier defaults are finalized.
+*   **Workload Readiness Gate:** k3s workloads should use the sample workload template and declare DNS, ingress, SSO, storage, secret, backup, alert, and restore expectations before being added to the cluster composition.
 
 ## Runner Storage
 

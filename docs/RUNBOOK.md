@@ -144,6 +144,54 @@ The validator renders every `kustomization.yaml` under `kubernetes/`, follows
 referenced resource paths, parses rendered YAML, and checks that each Kubernetes
 object has `apiVersion`, `kind`, and `metadata.name`.
 
+### K3s platform readiness baseline
+
+The `k3s-01` cluster composition includes the platform services required before
+routine workloads are added:
+
+- `velero` in `backup`, using OpenBao-managed TrueNAS S3/MinIO credentials.
+- `kube-prometheus-stack` in `observability`, with Prometheus using
+  `storage-standard`.
+- `apprise` in `notifications`, with Alertmanager forwarding to Apprise and
+  `ntfy` configured inside the OpenBao `APPRISE_CONFIG` value.
+- `cloudnative-pg` and `platform-postgres` in `database`, using
+  `storage-fast` and S3 backups.
+- `authentik` in `identity`, backed by `platform-postgres` and exposed through
+  Traefik/cert-manager ingress.
+- `workloads/home/sample-app`, which documents the minimum workload onboarding
+  contract for future services.
+
+Required OpenBao paths:
+
+- `prod/platform/velero`: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- `prod/platform/truenas-s3`: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- `prod/platform/notifications`: `APPRISE_CONFIG`
+- `prod/platform/authentik`: `AUTHENTIK_SECRET_KEY`,
+  `AUTHENTIK_BOOTSTRAP_EMAIL`, `AUTHENTIK_BOOTSTRAP_PASSWORD_HASH`,
+  `AUTHENTIK_BOOTSTRAP_TOKEN`, `AUTHENTIK_POSTGRESQL_PASSWORD`
+
+After Argo CD syncs the baseline, verify the platform with:
+
+```bash
+kubectl -n backup get pods
+kubectl -n observability get pods
+kubectl -n notifications get pods
+kubectl -n database get clusters.postgresql.cnpg.io
+kubectl -n identity get pods
+```
+
+Send a synthetic Alertmanager alert to confirm the path:
+
+```bash
+kubectl -n notifications port-forward svc/apprise-alertmanager-webhook 3000:3000
+curl -X POST http://127.0.0.1:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"SyntheticTest","severity":"info"},"annotations":{"summary":"Apprise ntfy path test"}}]}'
+```
+
+Expected result: the webhook returns `apprise_status=<2xx or 3xx>` and Apprise
+forwards the message to the configured `ntfy` topic.
+
 ### K3s storage benchmark workflow
 
 Use the `benchmark-storage` profile to provision a dedicated VM for storage

@@ -13,6 +13,13 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.13 - K3s Platform Readiness Baseline
+- Added k3s-01 platform namespaces and cluster composition for backup, observability, notifications, databases, identity, and sample workloads.
+- Added Velero with OpenBao-managed TrueNAS S3/MinIO credentials and an initial platform namespace backup schedule.
+- Added kube-prometheus-stack plus Apprise notification fanout, with Alertmanager forwarding to Apprise and `ntfy` configured through OpenBao-managed Apprise config.
+- Added CloudNativePG, a `storage-fast` backed platform PostgreSQL cluster with S3 backups, and authentik SSO behind Traefik/cert-manager ingress.
+- Added a sample workload overlay and readiness regression tests for required platform wiring and Helm values.
+
 ### v3.4.12 - K3s Storage Tier Benchmarking
 - Added a `benchmark-storage` VM profile and `storage_benchmark` Ansible role for raw VM fio tests plus k3s CSI-path fio pod tests.
 - Added `scripts/storage_benchmark_report.py` with unit coverage for markdown reports, live summaries, and storage tier assignment.
