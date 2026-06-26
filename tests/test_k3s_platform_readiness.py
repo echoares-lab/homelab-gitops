@@ -146,6 +146,24 @@ def test_alloy_collects_pod_logs_and_kubernetes_events() -> None:
     assert "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push" in config
 
 
+def test_alloy_relabels_pod_logs_for_service_queries() -> None:
+    values = helmchart_values("alloy")
+    config = values["alloy"]["configMap"]["content"]
+
+    assert 'discovery.relabel "pod_logs"' in config
+    assert "targets    = discovery.relabel.pod_logs.output" in config
+    assert 'target_label  = "namespace"' in config
+    assert 'target_label  = "pod"' in config
+    assert 'target_label  = "container"' in config
+    assert 'target_label  = "app"' in config
+    assert 'target_label  = "service"' in config
+    assert 'target_label  = "component"' in config
+    assert 'target_label  = "part_of"' in config
+    assert "__meta_kubernetes_pod_label_app_kubernetes_io_name" in config
+    assert "__meta_kubernetes_pod_label_app_kubernetes_io_component" in config
+    assert "__meta_kubernetes_pod_label_app_kubernetes_io_part_of" in config
+
+
 def test_grafana_has_loki_datasource() -> None:
     values = helmchart_values("kube-prometheus-stack")
 
