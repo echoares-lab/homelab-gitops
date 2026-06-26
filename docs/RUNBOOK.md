@@ -152,6 +152,8 @@ routine workloads are added:
 - `velero` in `backup`, using OpenBao-managed TrueNAS S3/MinIO credentials.
 - `kube-prometheus-stack` in `observability`, with Prometheus using
   `storage-standard`.
+- `loki` and `alloy` in `observability`, with Alloy forwarding pod logs and
+  Kubernetes events into Loki.
 - `apprise` in `notifications`, with Alertmanager forwarding to Apprise and
   `ntfy` configured inside the OpenBao `APPRISE_CONFIG` value.
 - `cloudnative-pg` and `platform-postgres` in `database`, using
@@ -178,6 +180,26 @@ kubectl -n observability get pods
 kubectl -n notifications get pods
 kubectl -n database get clusters.postgresql.cnpg.io
 kubectl -n identity get pods
+```
+
+Verify the logging path after the observability sync:
+
+```bash
+kubectl -n observability get pods -l app.kubernetes.io/name=loki
+kubectl -n observability get pods -l app.kubernetes.io/name=alloy
+kubectl -n observability port-forward svc/kube-prometheus-stack-grafana 3000:80
+```
+
+In Grafana Explore, use the `Loki` datasource and run:
+
+```logql
+{namespace="observability"}
+```
+
+For Kubernetes events collected by Alloy, run:
+
+```logql
+{job="kubernetes-events"} | json
 ```
 
 Send a synthetic Alertmanager alert to confirm the path:
@@ -317,6 +339,22 @@ skip_alloy: true  # Opt-out for ephemeral runners
 - `alloy_scrape_interval` — how often to scrape metrics
 - `alloy_central_prometheus_url` / `alloy_central_loki_url` — where to send data
 - Per-profile: `alloy_extra_scrape_targets` to add custom exporters
+
+### K3s Cluster Logging
+
+The k3s observability overlay deploys a separate in-cluster Grafana Alloy
+collector for Kubernetes logs. This is independent from the VM-level Ansible
+Alloy role above.
+
+Cluster log flow:
+
+```text
+pod logs and Kubernetes events -> Alloy -> Loki -> Grafana
+```
+
+Loki runs with a `storage-standard` 20Gi PVC and 7-day retention. Grafana uses
+the in-cluster Loki gateway at
+`http://loki-gateway.observability.svc.cluster.local`.
 
 ### Profile Log Retention
 

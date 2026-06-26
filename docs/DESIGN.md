@@ -116,9 +116,11 @@ updated after benchmark results identify the best backend/protocol mapping.
 The k3s-01 platform baseline also composes backup, observability,
 notifications, database, identity, and sample workload overlays. Velero stores
 cluster backups in the TrueNAS S3/MinIO target; kube-prometheus-stack provides
-Prometheus, Alertmanager, and Grafana; Alertmanager sends notifications through
-Apprise, whose first configured destination is `ntfy`; CloudNativePG owns the
-platform PostgreSQL primitive used by authentik.
+Prometheus, Alertmanager, and Grafana; Loki stores Kubernetes logs on a
+`storage-standard` PVC; Grafana Alloy forwards pod logs and Kubernetes events
+to Loki; Alertmanager sends notifications through Apprise, whose first
+configured destination is `ntfy`; CloudNativePG owns the platform PostgreSQL
+primitive used by authentik.
 
 The live GitOps promotion branch is `production`. The k3s-01 Argo CD root
 Application pins `targetRevision: production` so live reconciliation is explicit
