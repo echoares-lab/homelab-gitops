@@ -28,3 +28,5 @@ spec:
 
     driver:
       existingConfigSecret: democratic-csi-truenas-nfs-config
+      config:
+        driver: freenas-api-nfs
