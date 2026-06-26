@@ -404,6 +404,11 @@ Expected: no whitespace errors and only #116 documentation changes are present.
 
 ### Task 5: Reconcile and verify alert delivery in production
 
+**Execution ordering:** Run Task 6 Steps 1-3 (final repository verification,
+scope review, and PR publication) before this task. After production
+verification succeeds, finish with Task 6 Step 4. This split is required
+because Argo CD cannot reconcile the alert configuration until the PR merges.
+
 **Files:**
 - No additional repository files
 
