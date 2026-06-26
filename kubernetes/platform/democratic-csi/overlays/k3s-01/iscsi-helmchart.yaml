@@ -28,3 +28,5 @@ spec:
 
     driver:
       existingConfigSecret: democratic-csi-truenas-iscsi-config
+      config:
+        driver: freenas-api-iscsi
