@@ -11,6 +11,11 @@ certificates issued by the `letsencrypt-cloudflare` ClusterIssuer. Grafana has
 both Prometheus and Loki datasources so metrics and logs can be queried from the
 same UI.
 
+Alloy relabels pod logs with `namespace`, `pod`, `container`, `app`, `service`,
+`component`, and `part_of`. The `app`, `service`, `component`, and `part_of`
+labels come from the standard `app.kubernetes.io/*` pod labels used by the
+workload templates.
+
 Loki runs in monolithic mode for the k3s-01 homelab footprint. It uses a
 `storage-standard` 20Gi PVC and keeps logs for 7 days. Object storage is left for
 a later migration if log volume or retention requirements grow.

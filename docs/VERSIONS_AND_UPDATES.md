@@ -17,6 +17,7 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 - Added Loki in monolithic mode for k3s-01 log storage with `storage-standard`, 20Gi persistence, and 7-day retention.
 - Added Grafana Alloy as the in-cluster Kubernetes log collector for pod logs and Kubernetes events.
 - Added a Loki datasource to the existing kube-prometheus-stack Grafana deployment and documented log verification queries.
+- Added Alloy pod-log relabeling for service/app-oriented Loki queries.
 
 ### v3.4.14 - Production Default Branch Preparation
 - Added `production` to CI push triggers while retaining `master`, `main`, and `develop` during the transition window.

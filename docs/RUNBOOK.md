@@ -196,6 +196,15 @@ In Grafana Explore, use the `Loki` datasource and run:
 {namespace="observability"}
 ```
 
+For app/service-oriented queries, use the labels that Alloy maps from standard
+Kubernetes pod metadata:
+
+```logql
+{namespace="sample-app", service="sample-app"}
+{app="sample-app", component="web"}
+{part_of="home-workloads"}
+```
+
 For Kubernetes events collected by Alloy, run:
 
 ```logql
@@ -351,6 +360,10 @@ Cluster log flow:
 ```text
 pod logs and Kubernetes events -> Alloy -> Loki -> Grafana
 ```
+
+Alloy relabels pod logs with `namespace`, `pod`, `container`, `app`, `service`,
+`component`, and `part_of` so dashboards can group logs by workload rather than
+only by pod name.
 
 Loki runs with a `storage-standard` 20Gi PVC and 7-day retention. Grafana uses
 the in-cluster Loki gateway at
