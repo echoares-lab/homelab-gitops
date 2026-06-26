@@ -33,6 +33,8 @@ As established in `GEMINI.md`, any significant feature change must be reflected 
 4.  `DESIGN.md` (Update architectural diagrams if workflow changes).
 
 ## 4. Pull Request Submission
+All issue implementation work MUST be submitted through a pull request. Agents must not treat a local merge as the default completion path or offer it in place of the required pull request unless the user explicitly overrides this policy.
+
 Agents submitting a pull request MUST enable auto-merge for that PR whenever repository permissions and branch protection allow it. Auto-merge must still respect required reviews, required status checks, and branch protection rules; agents must not bypass or weaken those protections to merge faster.
 
 ## 4.1 Working-Tree and PR Hygiene
