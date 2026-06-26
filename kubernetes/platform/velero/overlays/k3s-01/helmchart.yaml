@@ -1,0 +1,47 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: velero
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  repo: https://vmware-tanzu.github.io/helm-charts
+  chart: velero
+  version: 12.1.0
+  targetNamespace: backup
+  createNamespace: false
+  valuesContent: |-
+    initContainers:
+      - name: velero-plugin-for-aws
+        image: velero/velero-plugin-for-aws:v1.13.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /target
+            name: plugins
+
+    credentials:
+      existingSecret: velero-object-store
+
+    configuration:
+      backupStorageLocation:
+        - name: truenas-s3
+          provider: aws
+          bucket: velero
+          prefix: k3s-01
+          default: true
+          credential:
+            name: velero-object-store
+            key: cloud
+          config:
+            region: us-east-1
+            s3ForcePathStyle: "true"
+            s3Url: http://10.10.10.20:30000
+      volumeSnapshotLocation: []
+      defaultBackupStorageLocation: truenas-s3
+      defaultVolumesToFsBackup: true
+      uploaderType: kopia
+
+    snapshotsEnabled: false
+    deployNodeAgent: true
