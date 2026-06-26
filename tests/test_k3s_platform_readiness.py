@@ -116,5 +116,10 @@ def test_velero_has_failure_and_stale_backup_alerts() -> None:
     assert prometheus_rule["additionalLabels"]["release"] == "kube-prometheus-stack"
     assert {"VeleroBackupFailed", "VeleroBackupStale"}.issubset(alerts)
     assert "velero_backup_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_partial_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_validation_failure_total" in alerts["VeleroBackupFailed"]["expr"]
     assert "velero_backup_last_successful_timestamp" in alerts["VeleroBackupStale"]["expr"]
+    assert 'schedule="platform-namespace-daily"' in alerts["VeleroBackupStale"]["expr"]
+    assert "absent(" in alerts["VeleroBackupStale"]["expr"]
+    assert "90000" in alerts["VeleroBackupStale"]["expr"]
     assert alerts["VeleroBackupStale"]["for"] == "1h"

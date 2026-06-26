@@ -41,8 +41,9 @@ monitoring.
 
 ## Alerting
 
-Add a GitOps-managed `PrometheusRule` in the observability overlay. The rule
-will alert on:
+Configure the Velero Helm release to generate a GitOps-managed
+`PrometheusRule` in the backup namespace. The platform Prometheus instance
+will discover the rule through its release label. The rule will alert on:
 
 - a Velero backup reporting a failed or partially failed phase; and
 - absence of a successful backup created by `platform-namespace-daily` within
