@@ -22,6 +22,14 @@ def kustomization_resources(path: Path) -> set[str]:
     return set(document.get("resources", []))
 
 
+def velero_helm_values() -> dict:
+    documents = load_yaml_documents(
+        PLATFORM_ROOT / "velero" / "overlays" / "k3s-01" / "helmchart.yaml"
+    )
+    helmchart = next(document for document in documents if document.get("kind") == "HelmChart")
+    return yaml.safe_load(helmchart["spec"]["valuesContent"])
+
+
 def test_k3s_cluster_wires_required_platform_epics() -> None:
     resources = kustomization_resources(K3S_ROOT / "kustomization.yaml")
 
@@ -91,3 +99,22 @@ def test_observability_uses_standard_storage_tier_for_prometheus() -> None:
     volume_claim = values["prometheus"]["prometheusSpec"]["storageSpec"]["volumeClaimTemplate"]
 
     assert volume_claim["spec"]["storageClassName"] == "storage-standard"
+
+
+def test_velero_metrics_are_scraped_by_platform_prometheus() -> None:
+    metrics = velero_helm_values()["metrics"]
+
+    assert metrics["serviceMonitor"]["enabled"] is True
+    assert metrics["serviceMonitor"]["additionalLabels"]["release"] == "kube-prometheus-stack"
+
+
+def test_velero_has_failure_and_stale_backup_alerts() -> None:
+    prometheus_rule = velero_helm_values()["metrics"]["prometheusRule"]
+    alerts = {rule["alert"]: rule for rule in prometheus_rule["spec"]}
+
+    assert prometheus_rule["enabled"] is True
+    assert prometheus_rule["additionalLabels"]["release"] == "kube-prometheus-stack"
+    assert {"VeleroBackupFailed", "VeleroBackupStale"}.issubset(alerts)
+    assert "velero_backup_failure_total" in alerts["VeleroBackupFailed"]["expr"]
+    assert "velero_backup_last_successful_timestamp" in alerts["VeleroBackupStale"]["expr"]
+    assert alerts["VeleroBackupStale"]["for"] == "1h"
