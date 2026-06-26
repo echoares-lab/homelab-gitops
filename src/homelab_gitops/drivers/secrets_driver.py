@@ -98,6 +98,7 @@ class SecretsDriver(Driver):
         self.connect_host = os.getenv("OP_CONNECT_HOST")
         self.connect_token = os.getenv("OP_CONNECT_TOKEN")
         self.connect_client = None
+        self._bao_kv_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
         
         if self.connect_host and self.connect_token:
             self.connect_client = ConnectClient(self.connect_host, self.connect_token)
@@ -288,27 +289,48 @@ class SecretsDriver(Driver):
             raise ExecutionError(f"Invalid bao:// URI format: {secret_ref}")
         return m.groups()
 
-    def _get_bao_secret(self, secret_ref: str) -> str:
-        """Fetch a single OpenBao KV v2 field."""
-        if not self.bao_path:
-            raise ExecutionError("'bao' CLI required for OpenBao secret references")
-
-        mount, path, field = self._parse_bao_uri(secret_ref)
+    def _get_bao_document(self, mount: str, path: str, secret_ref: str) -> Dict[str, Any]:
+        """Fetch and cache a full OpenBao KV v2 document for one driver instance."""
+        cache_key = (mount, path)
+        if cache_key in self._bao_kv_cache:
+            return self._bao_kv_cache[cache_key]
 
         try:
             result = subprocess.run(
-                [self.bao_path, "kv", "get", f"-mount={mount}", f"-field={field}", path],
+                [self.bao_path, "kv", "get", f"-mount={mount}", "-format=json", path],
                 capture_output=True,
                 text=True,
                 timeout=10
             )
             if result.returncode != 0:
                 raise ExecutionError(f"OpenBao read failed for {secret_ref}: {result.stderr}")
-            return result.stdout.rstrip("\n")
+
+            payload = json.loads(result.stdout)
+            fields = payload.get("data", {}).get("data")
+            if not isinstance(fields, dict):
+                raise ExecutionError(f"OpenBao read failed for {secret_ref}: malformed KV v2 response")
+
+            self._bao_kv_cache[cache_key] = fields
+            return fields
+        except json.JSONDecodeError as e:
+            raise ExecutionError(f"OpenBao read failed for {secret_ref}: invalid JSON response: {e}")
         except subprocess.TimeoutExpired:
             raise ExecutionError(f"OpenBao read timed out for {secret_ref}")
         except subprocess.SubprocessError as e:
             raise ExecutionError(f"OpenBao execution failed: {str(e)}")
+
+    def _get_bao_secret(self, secret_ref: str) -> str:
+        """Fetch a single OpenBao KV v2 field."""
+        if not self.bao_path:
+            raise ExecutionError("'bao' CLI required for OpenBao secret references")
+
+        mount, path, field = self._parse_bao_uri(secret_ref)
+        fields = self._get_bao_document(mount, path, secret_ref)
+        if field not in fields:
+            raise ExecutionError(f"OpenBao field '{field}' not found for {secret_ref}")
+
+        value = fields[field]
+        return "" if value is None else str(value)
 
     def _resolve_file(self, file_path: Optional[str]) -> str:
         """Resolve secret references in an env file."""

@@ -90,16 +90,107 @@ def test_secrets_driver_execute_get_bao(node_profile):
         driver = SecretsDriver()
 
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="bao-value\n")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=_bao_json_stdout({"VCENTER_PASSWORD": "bao-value"}),
+            stderr="",
+        )
         task = Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD", profile=node_profile)
         result = driver.execute(task)
 
     assert result.success is True
     assert result.output == "bao-value"
     mock_run.assert_called_with(
-        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json", "prod/platform/vcenter"],
         capture_output=True, text=True, timeout=10
     )
+
+
+def _bao_json_stdout(fields):
+    return json.dumps({"data": {"data": fields}})
+
+
+def test_secrets_driver_caches_bao_document_for_same_mount_and_path(node_profile):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
+        driver = SecretsDriver()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=_bao_json_stdout({
+                "VCENTER_USERNAME": "administrator@vsphere.local",
+                "VCENTER_PASSWORD": "secret-password",
+            }),
+            stderr="",
+        )
+
+        username = driver.execute(
+            Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_USERNAME", profile=node_profile)
+        ).output
+        password = driver.execute(
+            Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD", profile=node_profile)
+        ).output
+
+    assert username == "administrator@vsphere.local"
+    assert password == "secret-password"
+    mock_run.assert_called_once_with(
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json", "prod/platform/vcenter"],
+        capture_output=True, text=True, timeout=10
+    )
+
+
+def test_secrets_driver_fetches_distinct_bao_paths_separately(node_profile):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
+        driver = SecretsDriver()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=_bao_json_stdout({"VCENTER_SERVER": "vcenter.local"}), stderr=""),
+            MagicMock(returncode=0, stdout=_bao_json_stdout({"TECHNITIUM_HOST": "dns.local"}), stderr=""),
+        ]
+
+        vcenter = driver.execute(
+            Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_SERVER", profile=node_profile)
+        ).output
+        technitium = driver.execute(
+            Task(type="get", target="bao://kv/prod/platform/technitium/TECHNITIUM_HOST", profile=node_profile)
+        ).output
+
+    assert vcenter == "vcenter.local"
+    assert technitium == "dns.local"
+    assert mock_run.call_count == 2
+    assert mock_run.call_args_list[0].args[0] == [
+        "/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json", "prod/platform/vcenter"
+    ]
+    assert mock_run.call_args_list[1].args[0] == [
+        "/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json", "prod/platform/technitium"
+    ]
+
+
+def test_secrets_driver_missing_bao_field_fails_loudly(node_profile):
+    def which(name):
+        return {"op": "/usr/bin/op", "bao": "/usr/bin/bao"}.get(name)
+
+    with patch("shutil.which", side_effect=which):
+        driver = SecretsDriver()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=_bao_json_stdout({"VCENTER_SERVER": "vcenter.local"}),
+            stderr="",
+        )
+
+        with pytest.raises(ExecutionError, match="field 'VCENTER_PASSWORD' not found"):
+            driver.execute(
+                Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD", profile=node_profile)
+            )
 
 def test_secrets_driver_execute_get_op_constructed(secrets_driver, node_profile):
     with patch("subprocess.run") as mock_run:
@@ -163,14 +254,18 @@ def test_secrets_driver_resolve_file_bao_refs(tmp_path):
     )
 
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="bao-password\n")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=_bao_json_stdout({"VCENTER_PASSWORD": "bao-password"}),
+            stderr="",
+        )
         result_json = driver._resolve_file(str(env_file))
 
     result = json.loads(result_json)
     assert result["VCENTER_PASSWORD"] == "bao-password"
     assert result["STATIC_VALUE"] == "literal"
     mock_run.assert_called_once_with(
-        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json", "prod/platform/vcenter"],
         capture_output=True, text=True, timeout=10
     )
 
@@ -324,10 +419,58 @@ def test_secrets_driver_resolve_file_inject_failure(secrets_driver):
                 secrets_driver._resolve_file("path")
 
 def test_secrets_driver_resolve_file_default(secrets_driver):
+    def bao_response(args, **kwargs):
+        fields_by_path = {
+            "prod/platform/vcenter": {
+                "VCENTER_SERVER": "server",
+                "VCENTER_USERNAME": "user",
+                "VCENTER_PASSWORD": "password",
+                "VCENTER_DATACENTER": "dc",
+                "VCENTER_CLUSTER": "cluster",
+                "VCENTER_DATASTORE": "datastore",
+                "VCENTER_NETWORK": "network",
+                "VCENTER_BUILD_FOLDER": "build",
+                "VCENTER_TEMPLATE_FOLDER": "template",
+                "VCENTER_BUILD_TEST_FOLDER": "build-test",
+                "VCENTER_DEPLOY_PROD_FOLDER": "deploy-prod",
+                "VCENTER_DEPLOY_TEST_FOLDER": "deploy-test",
+                "CONTENT_LIBRARY_NAME": "library",
+                "CONTENT_LIBRARY_ITEM_NAME": "item",
+            },
+            "prod/repo/homelab-gitops": {
+                "SSH_ADMIN_USERNAME": "ssh-user",
+                "SSH_ADMIN_PASSWORD": "ssh-password",
+                "SSH_ADMIN_SSH_PUBKEY": "ssh-rsa public",
+                "SSH_PRIVATE_KEY_PATH": "/home/dev/.ssh/id_ed25519",
+                "UBUNTU_2404_ISO_URL": "https://example.invalid/ubuntu.iso",
+                "UBUNTU_2404_ISO_CHECKSUM": "sha256:abc",
+                "UBUNTU_2604_ISO_URL": "https://example.invalid/ubuntu-2604.iso",
+                "UBUNTU_2604_ISO_CHECKSUM": "sha256:def",
+                "PHOTON_ISO_URL": "https://example.invalid/photon.iso",
+                "PHOTON_ISO_CHECKSUM": "sha256:ghi",
+                "PACKER_FIRMWARE": "efi",
+                "TEMPLATE_CPU_COUNT": "2",
+                "TEMPLATE_MEMORY_MB": "4096",
+                "TEMPLATE_DISK_SIZE_MB": "40960",
+            },
+            "prod/platform/technitium": {
+                "TECHNITIUM_HOST": "http://dns.local",
+                "TECHNITIUM_TOKEN": "token",
+            },
+            "prod/platform/opnsense": {
+                "OPNSENSE_URL": "https://opnsense.local",
+                "OPNSENSE_KEY": "key",
+                "OPNSENSE_SECRET": "secret",
+            },
+            "prod/platform/github-runners": {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_token",
+            },
+        }
+        return MagicMock(returncode=0, stdout=_bao_json_stdout(fields_by_path[args[-1]]), stderr="")
+
     with patch("os.path.exists", return_value=True):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="K=V")
+        with patch("subprocess.run", side_effect=bao_response) as mock_run:
             secrets_driver._resolve_file(None)
             assert mock_run.call_count > 0
             first_call = mock_run.call_args_list[0]
-            assert first_call.args[0][:3] == ["/usr/bin/bao", "kv", "get"]
+            assert first_call.args[0][:5] == ["/usr/bin/bao", "kv", "get", "-mount=kv", "-format=json"]
