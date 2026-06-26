@@ -13,6 +13,12 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.4.16 - Velero Backup And Restore Validation
+- Completed a disposable Kubernetes namespace restore drill through Velero and TrueNAS S3/MinIO, verifying restored objects, Secret wiring, and persistent-volume marker data.
+- Verified that `platform-namespace-daily` creates a completed schedule-owned Backup and updates its last-backup status.
+- Added Velero metrics discovery plus `VeleroBackupFailed` and `VeleroBackupStale` alerts routed through the platform Alertmanager and Apprise notification path.
+- Documented reusable backup, restore, alert test, and credential-rotation procedures that avoid exposing secret values.
+
 ### v3.4.15 - K3s Logging Platform
 - Added Loki in monolithic mode for k3s-01 log storage with `storage-standard`, 20Gi persistence, and 7-day retention.
 - Added Grafana Alloy as the in-cluster Kubernetes log collector for pod logs and Kubernetes events.
@@ -23,12 +29,6 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 - Added `production` to CI push triggers while retaining `master`, `main`, and `develop` during the transition window.
 - Pinned the k3s-01 Argo CD root Application to the explicit `production` Git revision instead of the repository default `HEAD`.
 - Documented the branch-governance model for GitOps promotion and default-branch migration.
-
-### v3.4.16 - Velero Backup And Restore Validation
-- Completed a disposable Kubernetes namespace restore drill through Velero and TrueNAS S3/MinIO, verifying restored objects, Secret wiring, and persistent-volume marker data.
-- Verified that `platform-namespace-daily` creates a completed schedule-owned Backup and updates its last-backup status.
-- Added Velero metrics discovery plus `VeleroBackupFailed` and `VeleroBackupStale` alerts routed through the platform Alertmanager and Apprise notification path.
-- Documented reusable backup, restore, alert test, and credential-rotation procedures that avoid exposing secret values.
 
 ### v3.4.13 - K3s Platform Readiness Baseline
 - Added k3s-01 platform namespaces and cluster composition for backup, observability, notifications, databases, identity, and sample workloads.
