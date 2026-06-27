@@ -1,0 +1,15 @@
+---
+extends: default
+
+rules:
+  document-start: disable
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  line-length:
+    max: 500
+    level: warning
+  truthy: disable
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1

@@ -1,0 +1,32 @@
+content_library:
+  name: GOLDEN
+  template: ubuntu-24.04-lts-golden
+deployment:
+  dhcp_scope: 10.10.10.0
+  dns_servers:
+  - 10.10.10.2
+  - 1.1.1.1
+  ip_address: 10.10.10.12
+  ipv4_gateway: 10.10.10.1
+  mac_address: 00:50:56:0d:25:2e
+  tags:
+  - ubuntu
+  - ubuntu-2404
+  - k3s
+  - k3s_server
+  vm_name: k3s-01.mgmt.plexplease.com
+  vm_name_domain: mgmt.plexplease.com
+  vm_name_prefix: k3s
+vcenter:
+  cluster: Primary
+  datacenter: HOMELAB
+  datastore: ds-nfs-prod
+  host: 10.10.10.11
+  network: VM Network
+vm_specs:
+  cpu: 4
+  disk: 80
+  disk_size_gb: 80
+  guest_id: ubuntu64Guest
+  memory: 8192
+  ram_gb: 8

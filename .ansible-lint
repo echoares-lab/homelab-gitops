@@ -1,0 +1,13 @@
+warn_list:
+  - var-naming
+  - command-instead-of-module
+  - risky-shell-pipe
+  - partial-become
+  - fqcn
+  - yaml
+  - name
+  - no-changed-when
+  - risky-file-permissions
+  - package-latest
+  - no-handler
+  - ignore-errors
