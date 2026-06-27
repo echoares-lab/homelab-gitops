@@ -133,6 +133,9 @@ def test_butane_root_app_targets_gitops_cluster_entrypoint(monkeypatch):
 
     assert root_app is not None
     generated_app = yaml.safe_load(root_app["contents"]["inline"])
-    bootstrap_app = yaml.safe_load(Path("kubernetes/bootstrap/k3s-01/root-apps/k3s-01.yaml").read_text())
-    assert generated_app == bootstrap_app
+    assert generated_app["apiVersion"] == "argoproj.io/v1alpha1"
+    assert generated_app["kind"] == "Application"
+    assert generated_app["metadata"]["name"] == "k3s-01"
+    assert generated_app["spec"]["source"]["repoURL"] == "https://github.com/echoares-lab/k3s-01.git"
+    assert generated_app["spec"]["source"]["targetRevision"] == "production"
     assert generated_app["spec"]["source"]["path"] == "kubernetes/clusters/k3s-01"

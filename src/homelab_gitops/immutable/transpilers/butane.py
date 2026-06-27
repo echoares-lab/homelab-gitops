@@ -94,7 +94,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/echoares-lab/homelab-gitops.git
+    repoURL: https://github.com/echoares-lab/k3s-01.git
     targetRevision: production
     path: kubernetes/clusters/k3s-01
   destination:

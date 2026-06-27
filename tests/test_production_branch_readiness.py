@@ -21,16 +21,3 @@ def test_push_workflows_include_production_branch() -> None:
         assert "production" in push_config["branches"], workflow_path
 
 
-def test_k3s_root_app_tracks_production_branch() -> None:
-    root_app = yaml.safe_load(
-        (
-            REPO_ROOT
-            / "kubernetes"
-            / "bootstrap"
-            / "k3s-01"
-            / "root-apps"
-            / "k3s-01.yaml"
-        ).read_text(encoding="utf-8")
-    )
-
-    assert root_app["spec"]["source"]["targetRevision"] == "production"

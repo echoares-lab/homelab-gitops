@@ -1,0 +1,26 @@
+{
+  "ignition": {
+    "version": "3.4.0"
+  },
+  "storage": {
+    "files": [
+      {
+        "path": "/tmp/installed.ign",
+        "contents": {
+          "compression": "gzip",
+          "source": "data:;base64,H4sIAAAAAAAC/4SNy06DQBiF9z4F+bf2hoBN2U2htS1mYsJlUdPFFH5laMvAXDSF8O4GfQB3J985OV8P/LPmmosa/B6+UKrfCM7MmS1gmEDDlPouxtIolAr89x5qdkPwIRcSYQJKlcToUkjeYRHhfdyMcIrFk+fZK4sQQgKHdiywr8dwb9Nk441sH0Vbnb7adNOlbm6CuD3OafqcLTM3zBf0TIK6FaGpsjhJrYblF5TTs+HX4k/6//+b1s3qQ8flxYm2692BkdbBx0ju5lVDknipjKAH7VYh4dYL1iiZxsJa360E5Y0bBafhNAwPPwEAAP//+rnNJyQBAAA="
+        },
+        "mode": 420
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "contents": "[Unit]\nDescription=Run coreos-installer\nRequires=coreos-installer-pre.target\nAfter=coreos-installer-pre.target\nOnFailure=emergency.target\nOnFailureJobMode=isolate\n[Service]\nType=oneshot\nExecStart=/usr/bin/coreos-installer install /dev/sda --ignition-file /tmp/installed.ign\nExecStartPost=/usr/bin/systemctl poweroff\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "coreos-installer.service"
+      }
+    ]
+  }
+}

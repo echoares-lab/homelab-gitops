@@ -1,0 +1,8 @@
+---
+argocd_namespace: argocd
+argocd_install_manifest_url: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+argocd_repo_url: https://github.com/echoares-lab/k3s-01.git
+argocd_target_revision: HEAD
+argocd_app_name: homelab-k3s-01
+argocd_app_path: kubernetes/clusters/k3s-01
+argocd_project: default

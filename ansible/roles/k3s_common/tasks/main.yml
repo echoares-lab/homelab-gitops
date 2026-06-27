@@ -1,0 +1,41 @@
+---
+- name: Load k3s kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ k3s_common_kernel_modules }}"
+
+- name: Persist k3s kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k3s.conf
+    content: |
+      {% for module in k3s_common_kernel_modules %}
+      {{ module }}
+      {% endfor %}
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure k3s sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop: "{{ k3s_common_sysctl | dict2items }}"
+
+- name: Install k3s host prerequisites
+  ansible.builtin.apt:
+    name: "{{ k3s_common_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Allow k3s control plane and ingress ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop: "{{ k3s_common_ufw_rules }}"
+  when: ansible_facts['distribution'] == 'Ubuntu'
