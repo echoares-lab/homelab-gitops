@@ -27,6 +27,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **Ansible Structure Validation:** [DONE] Added local validation for playbook role paths, profile playbook references, and role/tag metadata consistency.
 *   **ARC/Nexus CI/CD Stack Design:** [DONE] Documented the preferred ARC-first CI/CD model with Nexus Repository OSS on k3s, layered cache ownership, two runner pools, GitOps-only promotion, and release version gates.
 *   **K3s Storage Tier Benchmarking:** [DONE] Added the benchmark VM profile, two-phase fio benchmark role, resumable report generation, background config execution, democratic-csi manifests, and initial `storage-fast`, `storage-standard`, and `storage-bulk` StorageClass skeletons.
+*   **K3s Platform Readiness Baseline:** [DONE] Added GitOps-managed backup, observability, Apprise-to-ntfy notifications, CloudNativePG, platform PostgreSQL, authentik SSO, and a sample workload onboarding template for k3s-01.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.

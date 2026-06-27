@@ -1,0 +1,13 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: cloudnative-pg
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  repo: https://cloudnative-pg.github.io/charts
+  chart: cloudnative-pg
+  version: 0.28.3
+  targetNamespace: database
+  createNamespace: false

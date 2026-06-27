@@ -128,9 +128,11 @@ cluster config and selected platform overlays.
 | `kubernetes/platform/external-dns/overlays/k3s-01/` | external-dns platform overlay |
 | `kubernetes/platform/openbao/overlays/k3s-01/` | OpenBao platform integration |
 
-No workload directories are present today. Future application services should be
-added under `kubernetes/workloads/<owner>/<app>/` and then referenced by
-`kubernetes/clusters/k3s-01/`.
+The sample workload template lives under
+`kubernetes/workloads/home/sample-app/` and demonstrates the expected overlay
+shape for future services. New application services should be added under
+`kubernetes/workloads/<owner>/<app>/` and then referenced by
+`kubernetes/clusters/k3s-01/` after their platform contract is documented.
 
 ## Manifest Validation
 
