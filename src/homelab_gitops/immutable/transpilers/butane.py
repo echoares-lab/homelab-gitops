@@ -95,7 +95,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/echoares-lab/homelab-gitops.git
-    targetRevision: HEAD
+    targetRevision: production
     path: kubernetes/clusters/k3s-01
   destination:
     server: https://kubernetes.default.svc

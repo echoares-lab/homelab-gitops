@@ -17,6 +17,11 @@ spec:
     grafana:
       enabled: true
       defaultDashboardsTimezone: browser
+      additionalDataSources:
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki-gateway.observability.svc.cluster.local
       service:
         type: ClusterIP
         port: 80
@@ -65,4 +70,6 @@ spec:
     kubeControllerManager:
       enabled: false
     kubeScheduler:
+      enabled: false
+    kubeProxy:
       enabled: false

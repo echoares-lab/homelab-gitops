@@ -57,7 +57,7 @@ CI only on runners that explicitly install Packer and Butane.
 - **Run Time:** 2-5 minutes per test
 - **Dependencies:** Self-hosted runner with access to vCenter, test VM, Ansible
 - **Coverage Goal:** Coverage as percentage of integration test files (tracked separately)
-- **Trigger:** Post-merge to develop/master, or manual trigger on PR
+- **Trigger:** Post-merge to `production`, `develop`, or `master` during the branch transition window; manual trigger on PR
 - **Command:** `pytest tests/integration/ -v --hosts='ansible@<vm-ip>' --sudo`
 
 Integration tests verify that components work together. They should:

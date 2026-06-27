@@ -28,6 +28,8 @@ These high-impact features are prioritized for near-term development to further 
 *   **ARC/Nexus CI/CD Stack Design:** [DONE] Documented the preferred ARC-first CI/CD model with Nexus Repository OSS on k3s, layered cache ownership, two runner pools, GitOps-only promotion, and release version gates.
 *   **K3s Storage Tier Benchmarking:** [DONE] Added the benchmark VM profile, two-phase fio benchmark role, resumable report generation, background config execution, democratic-csi manifests, and initial `storage-fast`, `storage-standard`, and `storage-bulk` StorageClass skeletons.
 *   **K3s Platform Readiness Baseline:** [DONE] Added GitOps-managed backup, observability, Apprise-to-ntfy notifications, CloudNativePG, platform PostgreSQL, authentik SSO, and a sample workload onboarding template for k3s-01.
+*   **Production Default Branch:** [DONE] Prepared the repository for `production` as the protected GitOps/default branch by adding CI triggers and pinning k3s-01 Argo CD reconciliation to the `production` ref.
+*   **K3s Logging Platform:** [DONE] Added Loki plus Grafana Alloy to collect pod logs and Kubernetes events into Grafana while retaining kube-prometheus-stack for metrics and alerts.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.
