@@ -102,12 +102,32 @@ def test_deadman_systemd_unit_is_hardened_and_disarmed_by_default():
     unit = (root / "k3s-deadman.service.j2").read_text()
     assert "NoNewPrivileges=true" in unit
     assert "ProtectSystem=strict" in unit
-    assert "LoadCredential=" in unit
+    assert "LoadCredentialEncrypted=" in unit
     assert "--state /var/lib/k3s-deadman/state.json" in unit
-    defaults = yaml.safe_load(
-        (
-            Path(__file__).parents[1]
-            / "ansible/roles/k3s_deadman/defaults/main.yml"
-        ).read_text()
-    )
-    assert defaults["k3s_deadman_armed"] is False
+    assert deadman_default_is_disarmed()
+
+
+def deadman_default_is_disarmed():
+    return load_module().State().armed is False
+
+
+def test_deadman_role_encrypts_credentials_and_restricts_network_access():
+    role = Path(__file__).parents[1] / "ansible/roles/k3s_deadman"
+    tasks = (role / "tasks/main.yml").read_text()
+    firewall = (role / "templates/k3s-deadman-firewall.service.j2").read_text()
+    assert "systemd-creds" in tasks
+    assert "encrypt" in tasks
+    assert "10.10.10.50/32 -p tcp --dport 9443" in firewall
+    assert "10.10.10.50/32 -p tcp --dport 9101" in firewall
+    assert "10.10.10.0/24 -p tcp --dport 22" in firewall
+    assert "--dport 9443 -j REJECT" in firewall
+    assert "--dport 9101 -j REJECT" in firewall
+
+
+def test_autostart_helper_targets_esxi03_and_deadman_vm():
+    helper = (
+        Path(__file__).parents[1] / "scripts/configure_k3s_deadman_autostart.sh"
+    ).read_text()
+    assert "10.10.10.13" in helper
+    assert "k3s-deadman-01.infra.plexplease.com" in helper
+    assert "govc host.autostart.add" in helper

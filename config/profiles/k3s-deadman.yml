@@ -2,6 +2,8 @@ vcenter:
   datacenter: HOMELAB
   cluster: Primary
   host: 10.10.10.13
+  # Despite the legacy name, vCenter confirms this is datastore-7004, mounted
+  # and accessible on ESXi-03 with ~188 GiB free.
   datastore: ESXI-01-LOCAL-SSD-01
   network: VM Network
 content_library:

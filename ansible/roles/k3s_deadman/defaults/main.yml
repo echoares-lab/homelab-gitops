@@ -1,3 +1,1 @@
 ---
-k3s_deadman_armed: false
-k3s_deadman_credentials_dir: /etc/k3s-deadman/credentials
