@@ -121,6 +121,13 @@ def test_deadman_network_reservation_does_not_enable_guest_static_customization(
     assert "ip_address" not in profile.deployment
 
 
+def test_vm_module_enables_manual_mac_when_profile_supplies_one():
+    module = (
+        Path(__file__).parents[1] / "tofu/modules/vm/main.tf"
+    ).read_text()
+    assert 'use_static_mac = var.mac_address != ""' in module
+
+
 def test_deadman_systemd_unit_is_hardened_and_disarmed_by_default():
     root = Path(__file__).parents[1] / "ansible/roles/k3s_deadman/templates"
     unit = (root / "k3s-deadman.service.j2").read_text()
