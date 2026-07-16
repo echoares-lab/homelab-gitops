@@ -163,5 +163,5 @@ def test_autostart_helper_targets_esxi03_and_deadman_vm():
         Path(__file__).parents[1] / "scripts/configure_k3s_deadman_autostart.sh"
     ).read_text()
     assert "10.10.10.13" in helper
-    assert "k3s-deadman-01.infra.plexplease.com" in helper
+    assert "VM=/HOMELAB/vm/k3s-deadman" in helper
     assert "govc host.autostart.add" in helper

@@ -12,6 +12,10 @@
     - SES_SMTP_PASSWORD
   no_log: true
 
+- name: Set dead-man host name
+  ansible.builtin.hostname:
+    name: "{{ k3s_deadman_hostname }}"
+
 - name: Create dead-man service group
   ansible.builtin.group:
     name: k3s-deadman
