@@ -28,6 +28,16 @@ Ensure the orchestration host has the following:
 *   **jq** — JSON query tool for parsing responses
 *   **docker-compose** or **docker compose** — Container orchestration
 
+### Independent k3s dead-man credentials
+
+Before configuring `k3s-deadman`, export `K3S_DEADMAN_CA_CERT`,
+`K3S_DEADMAN_SERVER_CERT`, `K3S_DEADMAN_SERVER_KEY`, `SES_SMTP_USERNAME`, and
+`SES_SMTP_PASSWORD` from OpenBao. Deploy with
+`python3 manage.py all k3s-deadman 01 --host 10.10.10.13`. The receiver starts
+disarmed; after a valid heartbeat and `test-email`, arm it with
+`sudo /usr/local/libexec/k3s-deadman --state /var/lib/k3s-deadman/state.json arm`.
+Use the corresponding `status` and `disarm` commands during maintenance.
+
 ---
 
 ## 2. Command Reference (`manage.py`)

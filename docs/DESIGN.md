@@ -2,6 +2,11 @@
 
 High-level design and technical principles for the synthesized GitOps pipeline.
 
+The `k3s-deadman` profile deliberately places a minimal Photon VM on ESXi-03,
+outside the k3s host failure domain. Its systemd receiver evaluates the
+Alertmanager Watchdog deadline and sends SES mail from local durable state;
+Prometheus scraping is supplemental and never controls the alert decision.
+
 ## 1. High-Level Workflow
 
 The pipeline utilizes a tiered "Build-Provision-Configure" model to ensure consistent, secure deployments across diverse OS distributions.

@@ -13,6 +13,11 @@ This project uses [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## Version History
 
+### v3.5.0 - Independent K3s Dead-Man
+- Added the `k3s-deadman` Photon profile for ESXi-03 with 1 vCPU, 512 MiB RAM, and an 8 GiB thin disk.
+- Added a hardened systemd receiver for mutual-TLS Alertmanager Watchdog heartbeats, durable 10-minute deadlines, hourly reminders, recovery mail, health, and Prometheus metrics.
+- Added Technitium DHCP/DNS declarations and OpenBao-fed credential installation without committing secret values.
+
 ### v3.4.16 - Velero Backup And Restore Validation
 - Completed a disposable Kubernetes namespace restore drill through Velero and TrueNAS S3/MinIO, verifying restored objects, Secret wiring, and persistent-volume marker data.
 - Verified that `platform-namespace-daily` creates a completed schedule-owned Backup and updates its last-backup status.

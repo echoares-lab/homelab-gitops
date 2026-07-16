@@ -39,3 +39,6 @@ record,argocd,infra.plexplease.com,A,10.10.10.50,900,,,,,,,,Argo CD ingress on k
 dhcp_lease,benchmark-storage-01,10.10.10.0,,10.10.10.105,,00:50:56:33:98:00,,,,,,Auto-generated for benchmark-storage-01,,
 record,benchmark-storage-01,mgmt.plexplease.com,A,10.10.10.105,,,,,,,,Auto-generated for benchmark-storage-01,,
 record,105.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,benchmark-storage-01.mgmt.plexplease.com,,,,,,,,Auto-generated for benchmark-storage-01,,
+dhcp_lease,k3s-deadman-01,10.10.10.0,,10.10.10.51,,00:50:56:2d:55:01,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
+record,k3s-deadman-01,infra.plexplease.com,A,10.10.10.51,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
+record,51.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,k3s-deadman-01.infra.plexplease.com,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
