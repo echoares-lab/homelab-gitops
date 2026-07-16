@@ -121,6 +121,13 @@ def test_deadman_network_reservation_does_not_enable_guest_static_customization(
     assert "ip_address" not in profile.deployment
 
 
+def test_vm_module_enables_manual_mac_when_profile_supplies_one():
+    module = (
+        Path(__file__).parents[1] / "tofu/modules/vm/main.tf"
+    ).read_text()
+    assert 'use_static_mac = var.mac_address != ""' in module
+
+
 def test_deadman_systemd_unit_is_hardened_and_disarmed_by_default():
     root = Path(__file__).parents[1] / "ansible/roles/k3s_deadman/templates"
     unit = (root / "k3s-deadman.service.j2").read_text()
@@ -142,6 +149,8 @@ def test_deadman_role_encrypts_credentials_and_restricts_network_access():
     assert "systemd-creds" in tasks
     assert "encrypt" in tasks
     assert "Disable inherited application services" in tasks
+    assert "path: /usr/local/libexec" in tasks
+    assert "Create dead-man service group" in tasks
     assert "10.10.10.50/32 -p tcp --dport 9443" in firewall
     assert "10.10.10.50/32 -p tcp --dport 9101" in firewall
     assert "10.10.10.0/24 -p tcp --dport 22" in firewall
@@ -154,5 +163,5 @@ def test_autostart_helper_targets_esxi03_and_deadman_vm():
         Path(__file__).parents[1] / "scripts/configure_k3s_deadman_autostart.sh"
     ).read_text()
     assert "10.10.10.13" in helper
-    assert "k3s-deadman-01.infra.plexplease.com" in helper
+    assert "VM=/HOMELAB/vm/k3s-deadman" in helper
     assert "govc host.autostart.add" in helper
