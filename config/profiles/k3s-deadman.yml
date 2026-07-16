@@ -1,0 +1,25 @@
+vcenter:
+  datacenter: HOMELAB
+  cluster: Primary
+  host: 10.10.10.13
+  datastore: ESXI-01-LOCAL-SSD-01
+  network: VM Network
+content_library:
+  name: GOLDEN
+  template: photon-test-base
+vm_specs:
+  cpu: 1
+  memory: 512
+  disk: 8
+deployment:
+  tags:
+    - photon
+    - k3s_deadman
+  vm_name: k3s-deadman-01.infra.plexplease.com
+  vm_name_prefix: k3s-deadman
+  vm_name_domain: infra.plexplease.com
+  mac_address: "00:50:56:2d:55:01"
+  ip_address: 10.10.10.51
+  ipv4_gateway: 10.10.10.1
+  dns_servers: 10.10.10.2
+  ansible_user: ansible

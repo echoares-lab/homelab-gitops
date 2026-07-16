@@ -1,0 +1,29 @@
+[Unit]
+Description=Independent k3s dead-man heartbeat receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=k3s-deadman
+Group=k3s-deadman
+ExecStart=/usr/local/libexec/k3s-deadman --state /var/lib/k3s-deadman/state.json serve
+Restart=always
+RestartSec=5s
+StateDirectory=k3s-deadman
+LoadCredential=ca_crt:{{ k3s_deadman_credentials_dir }}/ca.crt
+LoadCredential=server_crt:{{ k3s_deadman_credentials_dir }}/server.crt
+LoadCredential=server_key:{{ k3s_deadman_credentials_dir }}/server.key
+LoadCredential=ses_username:{{ k3s_deadman_credentials_dir }}/ses_username
+LoadCredential=ses_password:{{ k3s_deadman_credentials_dir }}/ses_password
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/k3s-deadman
+
+[Install]
+WantedBy=multi-user.target

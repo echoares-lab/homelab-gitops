@@ -30,6 +30,7 @@ These high-impact features are prioritized for near-term development to further 
 *   **K3s Platform Readiness Baseline:** [DONE] Added GitOps-managed backup, observability, Apprise-to-ntfy notifications, CloudNativePG, platform PostgreSQL, authentik SSO, and a sample workload onboarding template for k3s-01.
 *   **Production Default Branch:** [DONE] Prepared the repository for `production` as the protected GitOps/default branch by adding CI triggers and pinning k3s-01 Argo CD reconciliation to the `production` ref.
 *   **K3s Logging Platform:** [DONE] Added Loki plus Grafana Alloy to collect pod logs and Kubernetes events into Grafana while retaining kube-prometheus-stack for metrics and alerts.
+*   **Independent K3s Dead-Man:** [DONE] Added a minimal Photon VM profile and hardened mTLS heartbeat receiver that sends directly through AWS SES when the cluster Watchdog disappears.
 
 ### Phase 4: Production Maturity & AI Integration
 *   **85% Unit Test Coverage:** [DONE] Exhaustive driver edge-case testing, Pydantic model validation, and 92% project-wide coverage.

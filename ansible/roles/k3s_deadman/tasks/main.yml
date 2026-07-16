@@ -1,0 +1,69 @@
+---
+- name: Validate required dead-man credentials
+  ansible.builtin.assert:
+    that:
+      - lookup('env', item) | length > 0
+    fail_msg: "Required secret environment variable {{ item }} is missing"
+  loop:
+    - K3S_DEADMAN_CA_CERT
+    - K3S_DEADMAN_SERVER_CERT
+    - K3S_DEADMAN_SERVER_KEY
+    - SES_SMTP_USERNAME
+    - SES_SMTP_PASSWORD
+  no_log: true
+
+- name: Create dead-man service account
+  ansible.builtin.user:
+    name: k3s-deadman
+    system: true
+    shell: /sbin/nologin
+    home: /var/lib/k3s-deadman
+
+- name: Create credential directory
+  ansible.builtin.file:
+    path: "{{ k3s_deadman_credentials_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install dead-man credentials
+  ansible.builtin.copy:
+    dest: "{{ k3s_deadman_credentials_dir }}/{{ item.name }}"
+    content: "{{ lookup('env', item.env) }}\n"
+    owner: root
+    group: root
+    mode: "0400"
+  loop:
+    - {name: ca.crt, env: K3S_DEADMAN_CA_CERT}
+    - {name: server.crt, env: K3S_DEADMAN_SERVER_CERT}
+    - {name: server.key, env: K3S_DEADMAN_SERVER_KEY}
+    - {name: ses_username, env: SES_SMTP_USERNAME}
+    - {name: ses_password, env: SES_SMTP_PASSWORD}
+  no_log: true
+  notify: Restart k3s deadman
+
+- name: Install dead-man receiver
+  ansible.builtin.copy:
+    src: k3s_deadman.py
+    dest: /usr/local/libexec/k3s-deadman
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart k3s deadman
+
+- name: Install dead-man systemd unit
+  ansible.builtin.template:
+    src: k3s-deadman.service.j2
+    dest: /etc/systemd/system/k3s-deadman.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart k3s deadman
+
+- name: Enable dead-man receiver
+  ansible.builtin.systemd:
+    name: k3s-deadman.service
+    enabled: true
+    state: started
+    daemon_reload: true
