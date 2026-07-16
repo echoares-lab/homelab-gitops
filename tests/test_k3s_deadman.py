@@ -92,11 +92,11 @@ def test_deadman_profile_is_minimal_and_pinned_to_esxi03():
     )
     assert profile["vcenter"]["host"] == "10.10.10.13"
     assert profile["vcenter"]["network"] == "VM Network"
-    assert profile["content_library"]["template"] == "photon-test-base"
+    assert profile["content_library"]["template"] == "photon-mcp"
     assert profile["vm_specs"] == {
         "cpu": 1,
-        "memory": 512,
-        "disk": 16,
+        "memory": 1024,
+        "disk": 50,
         "guest_id": "vmwarePhoton64Guest",
     }
     assert profile["deployment"]["tags"] == ["photon", "k3s_deadman"]
@@ -125,6 +125,7 @@ def test_deadman_role_encrypts_credentials_and_restricts_network_access():
     firewall = (role / "templates/k3s-deadman-firewall.service.j2").read_text()
     assert "systemd-creds" in tasks
     assert "encrypt" in tasks
+    assert "Disable inherited application services" in tasks
     assert "10.10.10.50/32 -p tcp --dport 9443" in firewall
     assert "10.10.10.50/32 -p tcp --dport 9101" in firewall
     assert "10.10.10.0/24 -p tcp --dport 22" in firewall

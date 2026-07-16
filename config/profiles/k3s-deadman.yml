@@ -8,11 +8,14 @@ vcenter:
   network: VM Network
 content_library:
   name: GOLDEN
-  template: photon-test-base
+  # The former photon-test-base registration points at a deleted VMDK. This
+  # powered-off Photon source has a valid thin backing disk and is hardened by
+  # the dedicated role immediately after cloning.
+  template: photon-mcp
 vm_specs:
   cpu: 1
-  memory: 512
-  disk: 16
+  memory: 1024
+  disk: 50
   guest_id: vmwarePhoton64Guest
 deployment:
   tags:
