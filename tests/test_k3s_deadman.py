@@ -95,6 +95,9 @@ def test_deadman_profile_is_minimal_and_pinned_to_esxi03():
     assert profile["content_library"]["template"] == "photon-test-base"
     assert profile["vm_specs"] == {"cpu": 1, "memory": 512, "disk": 8}
     assert profile["deployment"]["tags"] == ["photon", "k3s_deadman"]
+    assert "ip_address" not in profile["deployment"]
+    dns = (Path(__file__).parents[1] / "config/dns_records.csv").read_text()
+    assert "dhcp_lease,k3s-deadman-01,10.10.10.0,,10.10.10.51" in dns
 
 
 def test_deadman_systemd_unit_is_hardened_and_disarmed_by_default():

@@ -21,7 +21,4 @@ deployment:
   vm_name_prefix: k3s-deadman
   vm_name_domain: infra.plexplease.com
   mac_address: "00:50:56:2d:55:01"
-  ip_address: 10.10.10.51
-  ipv4_gateway: 10.10.10.1
-  dns_servers: 10.10.10.2
   ansible_user: ansible
