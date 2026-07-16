@@ -18,6 +18,7 @@ vm_specs:
   disk: 50
   guest_id: vmwarePhoton64Guest
 deployment:
+  dhcp_only: true
   tags:
     - photon
     - k3s_deadman

@@ -5,6 +5,9 @@ import sys
 import pytest
 import yaml
 
+from homelab_gitops.domain.models import NodeProfile
+from homelab_gitops.domain.network import NetworkService
+
 
 MODULE_PATH = (
     Path(__file__).parents[1]
@@ -101,8 +104,21 @@ def test_deadman_profile_is_minimal_and_pinned_to_esxi03():
     }
     assert profile["deployment"]["tags"] == ["photon", "k3s_deadman"]
     assert "ip_address" not in profile["deployment"]
+    assert profile["deployment"]["dhcp_only"] is True
     dns = (Path(__file__).parents[1] / "config/dns_records.csv").read_text()
     assert "dhcp_lease,k3s-deadman-01,10.10.10.0,,10.10.10.51" in dns
+
+
+def test_deadman_network_reservation_does_not_enable_guest_static_customization():
+    root = Path(__file__).parents[1]
+    data = yaml.safe_load((root / "config/profiles/k3s-deadman.yml").read_text())
+    data["name"] = "k3s-deadman"
+    profile = NodeProfile(**data)
+
+    NetworkService(str(root / "config/dns_records.csv")).ensure_network(profile, "01")
+
+    assert profile.deployment["mac_address"] == "00:50:56:2d:55:01"
+    assert "ip_address" not in profile.deployment
 
 
 def test_deadman_systemd_unit_is_hardened_and_disarmed_by_default():
