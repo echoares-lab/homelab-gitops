@@ -19,6 +19,17 @@
     shell: /sbin/nologin
     home: /var/lib/k3s-deadman
 
+- name: Disable inherited application services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - docker.service
+    - docker.socket
+    - mcp-gateway.service
+  failed_when: false
+
 - name: Create encrypted credential directory
   ansible.builtin.file:
     path: /etc/credstore.encrypted
