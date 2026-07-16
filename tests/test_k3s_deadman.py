@@ -96,7 +96,7 @@ def test_deadman_profile_is_minimal_and_pinned_to_esxi03():
     assert profile["vm_specs"] == {
         "cpu": 1,
         "memory": 512,
-        "disk": 8,
+        "disk": 16,
         "guest_id": "vmwarePhoton64Guest",
     }
     assert profile["deployment"]["tags"] == ["photon", "k3s_deadman"]
