@@ -122,12 +122,17 @@ class StateManager:
 
     def update(self, operation):
         with self.lock:
+            # CLI commands run in a separate process. Reload the atomic state
+            # file before every transition so the long-running server observes
+            # arm/disarm changes instead of overwriting them from stale memory.
+            self.state = load_state(self.path)
             self.state = operation(self.state)
             save_state(self.path, self.state)
             return self.state
 
     def snapshot(self) -> State:
         with self.lock:
+            self.state = load_state(self.path)
             return self.state
 
 
