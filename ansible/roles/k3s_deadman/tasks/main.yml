@@ -12,9 +12,15 @@
     - SES_SMTP_PASSWORD
   no_log: true
 
+- name: Create dead-man service group
+  ansible.builtin.group:
+    name: k3s-deadman
+    system: true
+
 - name: Create dead-man service account
   ansible.builtin.user:
     name: k3s-deadman
+    group: k3s-deadman
     system: true
     shell: /sbin/nologin
     home: /var/lib/k3s-deadman
