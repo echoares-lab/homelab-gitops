@@ -69,6 +69,14 @@
   no_log: true
   notify: Restart k3s deadman
 
+- name: Create local executable directory
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Install dead-man receiver
   ansible.builtin.copy:
     src: k3s_deadman.py

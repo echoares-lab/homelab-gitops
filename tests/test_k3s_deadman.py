@@ -149,6 +149,7 @@ def test_deadman_role_encrypts_credentials_and_restricts_network_access():
     assert "systemd-creds" in tasks
     assert "encrypt" in tasks
     assert "Disable inherited application services" in tasks
+    assert "path: /usr/local/libexec" in tasks
     assert "10.10.10.50/32 -p tcp --dport 9443" in firewall
     assert "10.10.10.50/32 -p tcp --dport 9101" in firewall
     assert "10.10.10.0/24 -p tcp --dport 22" in firewall
