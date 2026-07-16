@@ -73,6 +73,15 @@ def test_disarmed_state_never_alerts(deadman):
     assert deadman.transition(state, 10_000.0) == (state, None)
 
 
+def test_running_manager_observes_cli_state_changes(deadman, tmp_path):
+    state_path = tmp_path / "state.json"
+    manager = deadman.StateManager(state_path)
+    deadman.save_state(state_path, deadman.State(armed=True, last_heartbeat=123.0))
+
+    assert manager.snapshot().armed is True
+    assert manager.snapshot().last_heartbeat == 123.0
+
+
 def test_metrics_report_heartbeat_age_and_counters(deadman):
     state = deadman.State(
         armed=True,
