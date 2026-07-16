@@ -93,7 +93,12 @@ def test_deadman_profile_is_minimal_and_pinned_to_esxi03():
     assert profile["vcenter"]["host"] == "10.10.10.13"
     assert profile["vcenter"]["network"] == "VM Network"
     assert profile["content_library"]["template"] == "photon-test-base"
-    assert profile["vm_specs"] == {"cpu": 1, "memory": 512, "disk": 8}
+    assert profile["vm_specs"] == {
+        "cpu": 1,
+        "memory": 512,
+        "disk": 8,
+        "guest_id": "vmwarePhoton64Guest",
+    }
     assert profile["deployment"]["tags"] == ["photon", "k3s_deadman"]
     assert "ip_address" not in profile["deployment"]
     dns = (Path(__file__).parents[1] / "config/dns_records.csv").read_text()

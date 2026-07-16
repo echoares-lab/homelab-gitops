@@ -13,6 +13,7 @@ vm_specs:
   cpu: 1
   memory: 512
   disk: 8
+  guest_id: vmwarePhoton64Guest
 deployment:
   tags:
     - photon
