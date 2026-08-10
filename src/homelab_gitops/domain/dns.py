@@ -8,6 +8,39 @@ from homelab_gitops.domain.models import NodeProfile, Task, TaskResult
 logger = logging.getLogger(__name__)
 
 
+def calculate_ptr(ip: str) -> tuple[str, str]:
+    """Return ``(ptr_zone, ptr_domain)`` for *ip*, the canonical implementation.
+
+    Without a prefix the zone is the record's parent -- for IPv4 that is the /24
+    reverse zone (``10.10.10.in-addr.arpa`` for ``10.10.10.5``), which is what
+    Technitium is authoritative for here. Slicing a fixed number of labels off
+    the end instead yields ``10.in-addr.arpa``, a zone that does not exist, and
+    every record written into it silently fails to resolve.
+    """
+    try:
+        if "/" in ip:
+            iface = ipaddress.ip_interface(ip)
+            addr = iface.ip
+            prefix = iface.network.prefixlen
+        else:
+            addr = ipaddress.ip_address(ip)
+            prefix = None
+
+        ptr_domain = addr.reverse_pointer
+        parts = ptr_domain.split(".")
+
+        if prefix is not None:
+            bits_per_label = 8 if isinstance(addr, ipaddress.IPv4Address) else 4
+            num_labels_to_keep = (prefix // bits_per_label) + 2  # +2 for in-addr/ip6 + arpa
+            ptr_zone = ".".join(parts[-num_labels_to_keep:])
+        else:
+            ptr_zone = ".".join(parts[1:])
+
+        return ptr_zone, ptr_domain
+    except ValueError as e:
+        raise ValueError(f"Invalid IP address for PTR calculation: {ip}") from e
+
+
 class DNSService:
     """Orchestrate Technitium DNS record lifecycle operations within the Domain layer."""
 
@@ -242,37 +275,5 @@ class DNSService:
         return []
 
     def _calculate_ptr(self, ip: str) -> tuple[str, str]:
-        """Calculate PTR zone and domain name from an IP address.
-
-        Uses the ipaddress library for robust reverse DNS calculation.
-        Supports both IPv4 and IPv6. If a CIDR is provided (e.g. '10.0.0.1/16'),
-        it uses that to determine the zone.
-        """
-        try:
-            if '/' in ip:
-                iface = ipaddress.ip_interface(ip)
-                addr = iface.ip
-                prefix = iface.network.prefixlen
-            else:
-                addr = ipaddress.ip_address(ip)
-                prefix = None
-
-            ptr_domain = addr.reverse_pointer
-            parts = ptr_domain.split('.')
-
-            if prefix is not None:
-                if isinstance(addr, ipaddress.IPv4Address):
-                    # Each label in IPv4 reverse DNS represents 8 bits (one octet)
-                    num_labels_to_keep = (prefix // 8) + 2  # +2 for in-addr.arpa
-                    ptr_zone = ".".join(parts[-num_labels_to_keep:])
-                else:
-                    # Each label in IPv6 reverse DNS represents 4 bits (one nibble)
-                    num_labels_to_keep = (prefix // 4) + 2  # +2 for ip6.arpa
-                    ptr_zone = ".".join(parts[-num_labels_to_keep:])
-            else:
-                # Default: one level up from the full PTR record
-                ptr_zone = ".".join(parts[1:])
-
-            return ptr_zone, ptr_domain
-        except ValueError as e:
-            raise ValueError(f"Invalid IP address for PTR calculation: {ip}") from e
+        """Delegates to :func:`calculate_ptr` -- kept as the service-level entry point."""
+        return calculate_ptr(ip)

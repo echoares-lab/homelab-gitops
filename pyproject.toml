@@ -20,7 +20,10 @@ dependencies = [
     "paramiko",
     "acme",
     "cryptography",
-    "mcp[cli]"
+    # Bounded to 2.x: the SDK renamed FastMCP -> MCPServer in 2.0 and moved the
+    # import path. An unbounded spec is what let 2.0 silently break CI; keep the
+    # major version explicit so the next major bump is a deliberate change.
+    "mcp[cli]>=2,<3"
 ]
 
 [project.scripts]
