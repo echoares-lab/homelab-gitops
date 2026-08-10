@@ -4,7 +4,7 @@ import os
 import yaml
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from homelab_gitops.domain.models import NodeProfile
 from homelab_gitops.domain.certificate import CertificateService
@@ -17,7 +17,7 @@ from homelab_gitops.drivers.acme_driver import AcmeDriver
 from homelab_gitops.drivers.technitium_driver import TechnitiumDriver
 from homelab_gitops.drivers.secrets_driver import SecretsDriver
 
-mcp = FastMCP("Homelab-GitOps")
+mcp = MCPServer("Homelab-GitOps")
 
 @mcp.tool()
 def get_fleet_status() -> str:
