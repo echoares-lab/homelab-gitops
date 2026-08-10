@@ -44,8 +44,19 @@ class AnsibleDriver(Driver):
         # Build command
         # Use comma if target is a single IP/hostname and not a file
         target = task.target or "localhost"
+        temp_inv_path = None
         if not os.path.exists(target) and "," not in target:
-            inventory = f"{target},"
+            if task.profile and task.profile.deployment.get("tags"):
+                import tempfile
+                temp_inv = tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False)
+                temp_inv.write(f"\n[all]\n{target}\n")
+                for tag in task.profile.deployment.get("tags", []):
+                    temp_inv.write(f"\n[tag_{tag}]\n{target}\n")
+                temp_inv.close()
+                inventory = temp_inv.name
+                temp_inv_path = temp_inv.name
+            else:
+                inventory = f"{target},"
         else:
             inventory = target
 
@@ -56,11 +67,17 @@ class AnsibleDriver(Driver):
         ]
 
         # SSH Identity
-        ssh_key = task.overrides.get("ssh_key")
+        ssh_key = task.overrides.get("ssh_key") or os.environ.get("SSH_PRIVATE_KEY_PATH") or (task.profile.deployment.get("ssh_private_key_path") if task.profile else None)
         if ssh_key:
+            ssh_key = os.path.expanduser(ssh_key)
+            if not os.path.exists(ssh_key):
+                if os.path.exists(os.path.expanduser("~/.ssh/id_ed25519")):
+                    ssh_key = os.path.expanduser("~/.ssh/id_ed25519")
+                elif os.path.exists(os.path.expanduser("~/.ssh/id_rsa")):
+                    ssh_key = os.path.expanduser("~/.ssh/id_rsa")
             cmd.extend(["--private-key", ssh_key])
             
-        ssh_user = task.overrides.get("ssh_user")
+        ssh_user = task.overrides.get("ssh_user") or os.environ.get("SSH_ADMIN_USERNAME") or (task.profile.deployment.get("ssh_admin_username") if task.profile else None) or "ansible"
         if ssh_user:
             cmd.extend(["-u", ssh_user])
 
@@ -98,23 +115,30 @@ class AnsibleDriver(Driver):
         timeout = task.overrides.get("timeout", 1800)
 
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=env,
-            )
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    env=env,
+                )
 
-            if result.returncode != 0:
-                raise ExecutionError(f"Ansible failed (RC={result.returncode}):\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+                if result.returncode != 0:
+                    raise ExecutionError(f"Ansible failed (RC={result.returncode}):\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
 
-            duration = time.time() - start
-            return TaskResult(
-                success=True,
-                task_type=task.type,
-                output=result.stdout,
-                duration=duration,
-            )
-        except subprocess.TimeoutExpired:
-            raise ExecutionError(f"Ansible execution timed out after {timeout}s")
+                duration = time.time() - start
+                return TaskResult(
+                    success=True,
+                    task_type=task.type,
+                    output=result.stdout,
+                    duration=duration,
+                )
+            except subprocess.TimeoutExpired:
+                raise ExecutionError(f"Ansible execution timed out after {timeout}s")
+        finally:
+            if temp_inv_path and os.path.exists(temp_inv_path):
+                try:
+                    os.unlink(temp_inv_path)
+                except Exception:
+                    pass

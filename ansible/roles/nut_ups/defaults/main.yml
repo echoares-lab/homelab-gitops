@@ -1,0 +1,5 @@
+---
+nut_ups_port: 3493
+nut_ups_mode: standalone
+nut_ups_admin_password: "{{ lookup('env', 'NUT_ADMIN_PASSWORD') | default('Singer4life!@', true) }}"
+nut_ups_upsmon_password: "{{ lookup('env', 'NUT_UPSMON_PASSWORD') | default('Singer4life!@', true) }}"

@@ -24,6 +24,7 @@ class Workflow:
             profile_name=profile.name,
             index="",
             vm_name=profile.name,
+            vm_ip=profile.deployment.get("ip_address"),
         )
 
         # Validate profile structure

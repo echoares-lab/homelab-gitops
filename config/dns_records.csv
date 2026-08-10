@@ -39,3 +39,6 @@ record,argocd,infra.plexplease.com,A,10.10.10.50,900,,,,,,,,Argo CD ingress on k
 dhcp_lease,benchmark-storage-01,10.10.10.0,,10.10.10.105,,00:50:56:33:98:00,,,,,,Auto-generated for benchmark-storage-01,,
 record,benchmark-storage-01,mgmt.plexplease.com,A,10.10.10.105,,,,,,,,Auto-generated for benchmark-storage-01,,
 record,105.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,benchmark-storage-01.mgmt.plexplease.com,,,,,,,,Auto-generated for benchmark-storage-01,,
+dhcp_lease,nut-ups-01,10.10.10.0,,10.10.10.139,,00:50:56:3a:bc:dd,,,,,,Auto-generated for nut-ups-01,,
+record,nut-ups-01,mgmt.plexplease.com,A,10.10.10.139,,,,,,,,Auto-generated for nut-ups-01,,
+record,139.10.10.10.in-addr.arpa,10.in-addr.arpa,PTR,nut-ups-01.mgmt.plexplease.com,,,,,,,,Auto-generated for nut-ups-01,,

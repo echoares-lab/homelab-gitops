@@ -71,6 +71,7 @@ def config_command(
         }
 
         workflow = Workflow(profile_obj, drivers=drivers, secrets_driver=SecretsDriver())
+        workflow.state.state = "deployed"
 
         print_info(f"Configuring {profile} {index or 'all instances'} ...")
         state = workflow.execute(["config"])

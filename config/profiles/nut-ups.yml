@@ -1,0 +1,27 @@
+vcenter:
+  datacenter: HOMELAB
+  cluster: Primary
+  host: 10.10.10.11
+  datastore: NVME_2TB_970_SAMSUNG_EVO_M.2
+  network: VM Network
+content_library:
+  name: GOLDEN
+  template: ubuntu-24.04-lts-golden
+vm_specs:
+  cpu: 1
+  memory: 2048
+  disk: 20
+  guest_id: ubuntu64Guest
+deployment:
+  tags:
+  - ubuntu
+  - ubuntu-2404
+  - docker
+  - nut_ups
+  vm_name: nut-ups
+  vm_name_domain: mgmt.plexplease.com
+  docker_metrics_enabled: false
+  ip_address: 10.10.10.139
+  ipv4_gateway: 10.10.10.1
+  dns_servers:
+  - 10.10.10.2

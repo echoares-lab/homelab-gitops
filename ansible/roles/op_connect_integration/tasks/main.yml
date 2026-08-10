@@ -1,10 +1,37 @@
 ---
 # 1Password Connect Integration Role
 
+- name: Install dependencies (gpg)
+  ansible.builtin.apt:
+    name: gnupg
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Add 1Password GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: https://downloads.1password.com/linux/keys/1password.asc
+    dest: /usr/share/keyrings/1password.asc
+    mode: '0644'
+  when: ansible_os_family == 'Debian'
+
+- name: Dearmor 1Password GPG key (Debian/Ubuntu)
+  ansible.builtin.command:
+    cmd: gpg --dearmor --yes --output /usr/share/keyrings/1password-archive-keyring.gpg /usr/share/keyrings/1password.asc
+    creates: /usr/share/keyrings/1password-archive-keyring.gpg
+  when: ansible_os_family == 'Debian'
+
+- name: Add 1Password APT repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main'
+    state: present
+    filename: 1password
+  when: ansible_os_family == 'Debian'
+
 - name: Ensure op CLI is installed
   ansible.builtin.apt:
     name: 1password
     state: present
+    update_cache: true
   register: op_connect_integration_install
   changed_when: op_connect_integration_install.changed | default(false)
   when: ansible_os_family == 'Debian'

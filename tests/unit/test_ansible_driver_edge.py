@@ -43,6 +43,7 @@ def test_execute_playbook_not_found(driver, mock_profile):
             driver.execute(task)
 
 def test_execute_success(driver, mock_profile):
+    mock_profile.deployment["tags"] = []
     task = Task(
         type="config",
         profile=mock_profile,
@@ -230,3 +231,39 @@ def test_execute_tags_string(driver, mock_profile):
         
         assert "--tags" in cmd
         assert "setup" in cmd
+
+
+def test_execute_success_with_tags(driver, mock_profile):
+    mock_profile.deployment["tags"] = ["test-tag"]
+    task = Task(
+        type="config",
+        profile=mock_profile,
+        target="1.2.3.4",
+        overrides={"playbook": "site.yml"}
+    )
+    
+    mock_result = MagicMock(returncode=0, stdout="Ansible output", stderr="")
+    
+    original_exists = os.path.exists
+    def mock_exists(path):
+        if path == "site.yml":
+            return True
+        if "tmp" in str(path) or str(path).endswith(".ini"):
+            return True
+        return original_exists(path)
+        
+    with patch("os.path.exists", side_effect=mock_exists), \
+         patch("subprocess.run", return_value=mock_result) as mock_run:
+         
+        result = driver.execute(task)
+        assert result.success is True
+        
+        args, kwargs = mock_run.call_args
+        cmd = args[0]
+        
+        assert "-i" in cmd
+        idx = cmd.index("-i")
+        inv_path = cmd[idx + 1]
+        assert inv_path.endswith(".ini")
+        assert "1.2.3.4," not in cmd
+

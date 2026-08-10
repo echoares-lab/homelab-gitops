@@ -87,8 +87,15 @@
     - security
     - engenius_epc
 
+- name: Deploy NUT UPS Monitor and Peanut
+  hosts: tag_nut_ups
+  become: true
+  roles:
+    - nut_ups
+
 - name: Run storage benchmarks
   hosts: tag_benchmark
   become: true
   roles:
     - storage_benchmark
+
