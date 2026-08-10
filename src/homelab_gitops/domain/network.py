@@ -6,10 +6,15 @@ import os
 import subprocess
 from typing import Optional, Tuple
 from homelab_gitops.domain.models import NodeProfile
+from homelab_gitops.domain.dns import calculate_ptr
 
 class NetworkService:
     def __init__(self, dns_csv_path: str = "config/dns_records.csv"):
         self.csv_path = dns_csv_path
+        # Addresses handed out by this instance but not yet on disk. Without
+        # this, a batch provisioning run re-reads the same CSV for every host
+        # and gives them all the same address.
+        self._pending_ips: set = set()
         self.headers = [
             "resource_type", "name", "parent", "type", "value", "ttl", 
             "mac_address", "network_address", "subnet_mask", 
@@ -27,7 +32,7 @@ class NetworkService:
         
     def get_next_ip(self, scope_network: str) -> str:
         """IP allocation: finds first available IP in the exclusion zone (2-100) for reservations."""
-        used_ips = set()
+        used_ips = set(self._pending_ips)
         
         if os.path.exists(self.csv_path):
             with open(self.csv_path, "r") as f:
@@ -64,6 +69,7 @@ class NetworkService:
             try:
                 res = subprocess.run(["ping", "-c", "1", "-W", "1", ip_str], capture_output=True)
                 if res.returncode != 0:
+                    self._pending_ips.add(ip_obj)
                     return ip_str
             except Exception:
                 pass
@@ -99,10 +105,7 @@ class NetworkService:
             })
             
             try:
-                addr = ipaddress.IPv4Address(ip)
-                ptr_domain = addr.reverse_pointer
-                parts = ptr_domain.split('.')
-                ptr_zone = ".".join(parts[-3:])
+                ptr_zone, ptr_domain = calculate_ptr(ip)
                 
                 writer.writerow({
                     "resource_type": "record",
@@ -114,6 +117,11 @@ class NetworkService:
                 })
             except Exception:
                 pass
+
+        try:
+            self._pending_ips.discard(ipaddress.IPv4Address(ip))
+        except ValueError:
+            pass
 
     def get_existing_records(self, hostname: str) -> Tuple[Optional[str], Optional[str]]:
         """Check if records exist for a hostname. Returns (mac, ip)."""
