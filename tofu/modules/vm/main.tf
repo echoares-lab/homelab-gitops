@@ -65,9 +65,10 @@ resource "vsphere_virtual_machine" "vm" {
   scsi_type = "pvscsi"
 
   network_interface {
-    network_id   = data.vsphere_network.network.id
-    adapter_type = "vmxnet3"
-    mac_address  = var.mac_address != "" ? var.mac_address : null
+    network_id     = data.vsphere_network.network.id
+    adapter_type   = "vmxnet3"
+    mac_address    = var.mac_address != "" ? var.mac_address : null
+    use_static_mac = var.mac_address != ""
   }
 
   disk {

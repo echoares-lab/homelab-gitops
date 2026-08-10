@@ -62,6 +62,12 @@
   roles:
     - mcp_gateway
 
+- name: Deploy independent k3s dead-man receiver
+  hosts: tag_k3s_deadman
+  become: true
+  roles:
+    - k3s_deadman
+
 - name: primary_dns
   hosts: tag_dns
   become: true

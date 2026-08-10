@@ -36,6 +36,7 @@ tags:
   k3s_server: "Bootstrap a single-node k3s control plane for GitOps-managed workloads."
   mcp_gateway: "Deploy the MCP Gateway container stack."
   nut_ups: "Deploy NUT APC UPS daemon and Peanut dashboard."
+  k3s_deadman: "Run the independent k3s Watchdog heartbeat receiver and SES fallback."
 
 roles:
   base: "Core system utilities, hostname setup, and package updates."
@@ -51,6 +52,7 @@ roles:
   dev_homelab: "Homelab GitOps development workstation toolchain."
   mcp_gateway: "MCP Gateway container stack deployment."
   nut_ups: "Deploy NUT APC UPS daemon and Peanut dashboard."
+  k3s_deadman: "Independent mTLS Watchdog receiver with local deadline and SES notification state."
   github_runner_base: "Shared package, storage, Node, browser, and CI prerequisites for runner hosts."
   github_runner: "GitHub Actions runner user, installation, service, and registration."
   github_runner_ci: "Aggregated multi-repository CI package and Python seed environment setup."

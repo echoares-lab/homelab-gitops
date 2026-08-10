@@ -139,7 +139,8 @@ class NetworkService:
         
         if mac and ip:
             profile.deployment["mac_address"] = mac
-            profile.deployment["ip_address"] = ip
+            if not profile.deployment.get("dhcp_only", False):
+                profile.deployment["ip_address"] = ip
             return
 
         mac = self.generate_mac()
@@ -150,4 +151,5 @@ class NetworkService:
         if ip:
             self.append_dns_records(mac, ip, hostname, domain, scope_network, f"Auto-generated for {hostname}")
             profile.deployment["mac_address"] = mac
-            profile.deployment["ip_address"] = ip
+            if not profile.deployment.get("dhcp_only", False):
+                profile.deployment["ip_address"] = ip

@@ -1,0 +1,29 @@
+vcenter:
+  datacenter: HOMELAB
+  cluster: Primary
+  host: 10.10.10.13
+  # Despite the legacy name, vCenter confirms this is datastore-7004, mounted
+  # and accessible on ESXi-03 with ~188 GiB free.
+  datastore: ESXI-01-LOCAL-SSD-01
+  network: VM Network
+content_library:
+  name: GOLDEN
+  # The former photon-test-base registration points at a deleted VMDK. This
+  # powered-off Photon source has a valid thin backing disk and is hardened by
+  # the dedicated role immediately after cloning.
+  template: photon-mcp
+vm_specs:
+  cpu: 1
+  memory: 1024
+  disk: 50
+  guest_id: vmwarePhoton64Guest
+deployment:
+  dhcp_only: true
+  tags:
+    - photon
+    - k3s_deadman
+  vm_name: k3s-deadman-01.infra.plexplease.com
+  vm_name_prefix: k3s-deadman
+  vm_name_domain: infra.plexplease.com
+  mac_address: "00:50:56:2d:55:01"
+  ansible_user: ansible
