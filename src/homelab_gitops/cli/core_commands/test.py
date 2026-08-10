@@ -36,6 +36,7 @@ def test_command(
 
         # Create workflow
         workflow = Workflow(profile_obj, drivers=drivers, secrets_driver=SecretsDriver())
+        workflow.state.state = "configured"
 
         print_info(f"Testing {profile} ...")
         workflow.execute(["test"])

@@ -1,60 +1,68 @@
 # Unified GitOps Template Pipeline
 
-A professional-grade automation framework for building, provisioning, and configuring high-performance Ubuntu and VMware Photon OS nodes on vSphere.
+A Python-orchestrated automation framework for building, provisioning, and configuring
+Ubuntu and VMware Photon OS nodes on vSphere, using Packer (golden images),
+OpenTofu (virtual hardware), and Ansible (OS state).
 
-## 🚀 Key Features
-*   **Unified Orchestrator:** A modern Python-based controller (`manage.py`) manages the entire lifecycle: Build, Deploy, Config, Test, and Destroy.
-*   **Interactive Command Builder:** Running `python3 manage.py` with no arguments launches a Rich-styled wizard to build and execute commands.
-*   **Scaffolding Helpers:** Built-in interactive wizards for creating Profiles, Roles, and Ansible Plays.
-*   **Matrix Testing:** Automated E2E test suite (`scripts/matrix_test.py`) ensures logic consistency across all OS and networking scenarios.
-*   **Optimized Golden Images:** All templates are pre-remediated to use VMware best practices: **PVSCSI** controllers, **VMXNET3** adapters, and Hardware Version **vmx-21**.
-*   **Declarative Infrastructure:** Uses **OpenTofu** (Terraform) with **Workspace isolation** to manage virtual hardware state idempotently.
-*   **Automated Verification:** Integrated **Pytest-Testinfra** suite validates OS hardening and service state immediately after deployment.
-*   **Profile-Driven:** Centralized YAML profiles (`config/profiles/`) define the "Source of Truth" for every node.
+## Documentation
 
----
+All project documentation — architecture, design specs, runbooks, roadmap, plans, and
+status notes — lives in the Obsidian vault, not in this repository
+(per [Master-Policy §1.6](/home/dev/obsidian-vault/02%20Areas/Policies/Master-Policy.md),
+Obsidian-First Documentation Minimalism):
 
-## 📖 Documentation
-For detailed guides, please refer to:
-*   **[Operations Runbook](./docs/RUNBOOK.md)**: Installation, command usage, and troubleshooting.
-*   **[Architecture Design](./docs/DESIGN.md)**: Workflow diagrams and hardware standards.
-*   **[Development Roadmap](./docs/ROADMAP.md)**: Project status and milestones.
+**`/home/dev/obsidian-vault/01 Projects/Homelab-Gitops/`**
 
----
+- `Runbooks/RUNBOOK.md` — installation, command usage, troubleshooting
+- `Specs/DESIGN.md` — workflow diagrams and hardware standards
+- `Specs/ROADMAP.md` — project status and milestones
+- `Specs/ENGINEERING_STANDARDS.md` — naming, linting, and architecture rules
+- `Specs/TOOLING.md` — tooling inventory and required versions
 
-## 🛠️ Quick Start
+Agent directives are in [AGENTS.md](./AGENTS.md).
 
-### 1. Configure Credentials
+## Requirements
+
+Python >= 3.10, plus Ansible, OpenTofu, and Packer on `PATH`. Dependencies are
+managed with `uv`:
+
+```bash
+uv venv && uv sync
+```
+
+## Quick start
+
+Configure credentials (secret references resolve from OpenBao/1Password; see the
+secrets runbook in the vault):
+
 ```bash
 cp config/vault.yml.example config/vault.yml
-# Populate with your vCenter details
 echo 'your_secure_password' > config/.vault_pass
 ansible-vault encrypt config/vault.yml --vault-password-file config/.vault_pass
 ```
 
-### 2. Deploy a New Node
-Deploy a Photon OS Docker node targeting a specific host:
+Deploy a node through the full lint → deploy → config → test pipeline:
+
 ```bash
 python3 manage.py all photon-docker 02 esxi-01.mgmt.plexplease.com
 ```
 
-This single command executes the full pipeline:
-1.  **Lint:** Validates YAML schema and vCenter infrastructure.
-2.  **Deploy:** Provisions vmx-21 hardware with OpenTofu.
-3.  **Config:** Applies Ansible roles via dynamic tag-based discovery.
-4.  **Test:** Runs Pytest-Testinfra E2E validation.
+Running `python3 manage.py` with no arguments launches an interactive command builder.
 
----
+## Tests and linting
 
-## 📂 Project Structure
-*   `ansible/`: Roles and dynamic inventory configuration.
-*   `config/`: YAML node profiles and global secrets.
-*   `docs/`: Runbooks, designs, and roadmaps.
-*   `packer/`: Golden image build definitions.
-*   `tofu/`: Declarative HCL for vSphere provisioning.
-*   `tests/`: Testinfra validation scripts.
+```bash
+pytest -q
+yamllint .
+ansible-lint
+```
 
----
+## Repository layout
 
-## ⚖️ Policies & Standards
-See [GEMINI.md](./GEMINI.md) for detailed coding standards and architectural rules.
+- `src/homelab_gitops/`, `manage.py` — orchestrator CLI
+- `ansible/` — roles and dynamic inventory (each role's `README.md` documents its interface)
+- `config/` — YAML node profiles and secret references
+- `packer/` — golden image build definitions
+- `tofu/` — declarative HCL for vSphere provisioning
+- `scripts/` — operational helper scripts
+- `tests/` — unit, integration, and Testinfra validation suites

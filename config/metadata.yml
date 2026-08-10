@@ -24,6 +24,7 @@ tags:
   dns: "Configure Technitium DNS services."
   fcos: "Fedora CoreOS immutable host configuration using Ignition."
   alloy: "Install Grafana Alloy monitoring agents on tagged hosts."
+  aws_ses: "AWS SES SMTP credentials for email sending (username, password, endpoint)."
   benchmark: "Mark hosts used for storage or infrastructure benchmark runs."
   storage_benchmark: "Run the two-phase storage benchmark suite (Phase 1 VM + Phase 2 k3s pods)."
   cf_dev: "Provision a Cloudflare Access automation development workstation."
@@ -34,6 +35,7 @@ tags:
   homelab_dev: "Provision a homelab-gitops development workstation."
   k3s_server: "Bootstrap a single-node k3s control plane for GitOps-managed workloads."
   mcp_gateway: "Deploy the MCP Gateway container stack."
+  nut_ups: "Deploy NUT APC UPS daemon and Peanut dashboard."
   k3s_deadman: "Run the independent k3s Watchdog heartbeat receiver and SES fallback."
 
 roles:
@@ -49,6 +51,7 @@ roles:
   dev_combined: "Combined homelab and Cloudflare development workstation toolchain."
   dev_homelab: "Homelab GitOps development workstation toolchain."
   mcp_gateway: "MCP Gateway container stack deployment."
+  nut_ups: "Deploy NUT APC UPS daemon and Peanut dashboard."
   k3s_deadman: "Independent mTLS Watchdog receiver with local deadline and SES notification state."
   github_runner_base: "Shared package, storage, Node, browser, and CI prerequisites for runner hosts."
   github_runner: "GitHub Actions runner user, installation, service, and registration."

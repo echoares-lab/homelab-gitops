@@ -37,7 +37,18 @@ data "vsphere_host" "host" {
   datacenter_id = data.vsphere_datacenter.dc.id
 }
 
+data "vsphere_tag_category" "category" {
+  name = "Provisioning"
+}
+
+data "vsphere_tag" "tags" {
+  for_each    = toset(var.vm_tags != "" ? split(",", var.vm_tags) : [])
+  name        = each.value
+  category_id = data.vsphere_tag_category.category.id
+}
+
 resource "vsphere_virtual_machine" "vm" {
+  tags             = [for t in data.vsphere_tag.tags : t.id]
   name             = var.vm_name
   resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
   datastore_id     = data.vsphere_datastore.datastore.id

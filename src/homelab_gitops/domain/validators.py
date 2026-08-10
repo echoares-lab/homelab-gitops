@@ -45,7 +45,7 @@ class YAMLSchemaValidator(Validator):
 class TagValidator(Validator):
     """Validate that deployment tags are valid."""
 
-    VALID_TAGS = {"ubuntu", "photon", "docker", "dns", "runner"}
+    VALID_TAGS = {"ubuntu", "photon", "docker", "dns", "runner", "nut_ups"}
 
     def validate(self, profile: NodeProfile) -> ValidationResult:
         """Validate tags are known."""

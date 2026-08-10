@@ -1,0 +1,6 @@
+---
+- name: Restart NUT Docker Compose stack
+  ansible.builtin.command:
+    cmd: docker compose restart
+    chdir: /opt/nut
+  failed_when: false
