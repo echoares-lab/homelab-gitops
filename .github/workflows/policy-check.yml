@@ -5,6 +5,7 @@ name: policy-check
 # edit it there, not here, so all repos move together.
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, master]
   pull_request:
