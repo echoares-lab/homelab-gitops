@@ -1,0 +1,4 @@
+# Master-Policy §1.6 migration backlog — pre-existing violations.
+# The CI gate fails on any file NOT listed here, so this file may only
+# ever SHRINK. Removing a line means that file was migrated to the vault.
+# Tracked in 02 Areas/Policies/Documentation-Migration-Roadmap.md
