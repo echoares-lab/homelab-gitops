@@ -1,43 +1,57 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: check-yaml
-        args: [--unsafe]
-
-  - repo: local
-    hooks:
-      - id: validate-ci-config
-        name: Validate CI Configuration
-        entry: python3 scripts/validate_ci_config.py
-        language: system
-        stages: [commit]
-        pass_filenames: false
-        files: '\.github/workflows/.*\.yml|pytest\.ini|requirements.*\.txt|pyproject\.toml'
-        # NOTE: a second local hook, `validate-test-references`, used to sit here.
-        # It hardcoded `test -d tests/test_services && test -f tests/test_manage_cli.py`
-        # — the Tier 1 unit-test paths as they stood in June 2026. The architectural
-        # cutover to the src/ package layout (3d24084) deleted both, splitting them
-        # into tests/unit/ and tests/cli/, and the hook was never repointed. Rather
-        # than repoint it: `validate_ci_config.py` check 3 already validates every
-        # `tests/**.py` path referenced by any workflow, dynamically and over the
-        # same file scope, so the hardcoded variant was a strictly weaker duplicate.
-
-  # ── Master-Policy gates (added 2026-08-12) ─────────────────────────────
-  # The AGENTS.md drift check lives here rather than in CI because it needs the
-  # Obsidian vault, which GitHub-hosted runners cannot reach.
-  - repo: local
-    hooks:
-      - id: doc-minimalism
-        name: Master-Policy 1.6 documentation minimalism
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      - id: agents-md-drift
-        name: AGENTS.md matches the vault
-        entry: bash -c 'python3 /home/dev/repos/dev-policies/tooling/scripts/render-agents-md.py --all --check'
-        language: system
-        pass_filenames: false
-        always_run: true
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+  - id: check-yaml
+    args:
+    - --unsafe
+    stages: [pre-commit]
+- repo: local
+  hooks:
+  # `pre-commit`, not the bare `commit`: that spelling has been deprecated
+  # since pre-commit 3.2 and warns on every run under the installed 4.6.2.
+  - id: validate-ci-config
+    name: Validate CI Configuration
+    entry: python3 scripts/validate_ci_config.py
+    language: system
+    stages: [pre-commit]
+    pass_filenames: false
+    files: \.github/workflows/.*\.yml|pytest\.ini|requirements.*\.txt|pyproject\.toml
+  - id: validate-test-references
+    name: Validate Test File References
+    entry: bash -c 'test -d tests/test_services && test -f tests/test_manage_cli.py'
+    language: system
+    stages: [pre-commit]
+    pass_filenames: false
+    files: \.github/workflows/.*\.yml
+- repo: local
+  hooks:
+  # Every gate here is pinned to `stages: [pre-commit]`. Without it a hook runs
+  # in EVERY installed stage, so installing the pre-push hook would silently
+  # re-run all of them on every push -- work already done at commit time.
+  - id: doc-minimalism
+    name: Master-Policy 1.6 documentation minimalism
+    entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py
+    language: system
+    pass_filenames: false
+    always_run: true
+    stages: [pre-commit]
+  # Scoped to THIS repo (was --all, changed 2026-08-15). --all checked the
+  # drift state of all 13 repos in dev-policies/tooling/repos.yaml, so a commit
+  # here failed whenever any unrelated repo drifted -- it blocked an unrelated
+  # commit in this very repo on the day it was changed. A hook can only gate
+  # the commit in front of it; the committer cannot fix another repo's
+  # AGENTS.md from here, so the failure is unactionable and trains people to
+  # reach for --no-verify. Fleet coverage comes from installing this same hook
+  # in every repo, each guarding its own file.
+  #
+  # No --profile: render-agents-md.py resolves it from dev-policies/tooling/
+  # repos.yaml, the single source of truth for repo shape, and errors out if
+  # this repo is missing there.
+  - id: agents-md-drift
+    name: AGENTS.md matches the vault
+    entry: python3 /home/dev/repos/dev-policies/tooling/scripts/render-agents-md.py --repo . --check
+    language: system
+    pass_filenames: false
+    always_run: true
+    stages: [pre-commit]
