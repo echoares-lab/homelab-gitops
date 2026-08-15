@@ -17,13 +17,18 @@ repos:
     stages: [pre-commit]
     pass_filenames: false
     files: \.github/workflows/.*\.yml|pytest\.ini|requirements.*\.txt|pyproject\.toml
-  - id: validate-test-references
-    name: Validate Test File References
-    entry: bash -c 'test -d tests/test_services && test -f tests/test_manage_cli.py'
-    language: system
-    stages: [pre-commit]
-    pass_filenames: false
-    files: \.github/workflows/.*\.yml
+    # NOTE: a second local hook, `validate-test-references`, used to sit here.
+    # It hardcoded `test -d tests/test_services && test -f tests/test_manage_cli.py`
+    # — the Tier 1 unit-test paths as they stood in June 2026. The architectural
+    # cutover to the src/ package layout (3d24084) deleted both, splitting them
+    # into tests/unit/ and tests/cli/, and the hook was never repointed, so it
+    # failed on EVERY workflow-file commit for two months. Rather than repoint
+    # it: `validate_ci_config.py` check 3 already validates every `tests/**.py`
+    # path referenced by any workflow, dynamically and over the same file scope,
+    # so the hardcoded variant was a strictly weaker duplicate.
+    #
+    # Removed once in 4a2373d and accidentally restored by 2fbdc6f, which
+    # rewrote this file from a pre-removal base. Do not re-add it.
 - repo: local
   hooks:
   # Every gate here is pinned to `stages: [pre-commit]`. Without it a hook runs
