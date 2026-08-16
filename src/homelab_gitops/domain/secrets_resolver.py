@@ -15,15 +15,15 @@ from homelab_gitops.domain.exceptions import SecretResolutionError
 # Map of override key -> (bao URI, environment fallback variable)
 _VCENTER_SECRETS = {
     "vcenter_user": (
-        "bao://kv/prod/platform/vcenter/VCENTER_USERNAME",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_USERNAME",
         "VCENTER_USER",
     ),
     "vcenter_password": (
-        "bao://kv/prod/platform/vcenter/VCENTER_PASSWORD",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_PASSWORD",
         "VCENTER_PASSWORD",
     ),
     "vcenter_server": (
-        "bao://kv/prod/platform/vcenter/VCENTER_SERVER",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_SERVER",
         "VCENTER_SERVER",
     ),
 }
@@ -35,7 +35,7 @@ _REMEDIATION = (
     "  export VAULT_ADDR=http://openbao.plexplease.com:8201\n"
     "  bao login   # or: export VAULT_TOKEN=<token>\n"
     "Then verify with:\n"
-    "  bao kv get -mount=kv -field={env} prod/platform/vcenter"
+    "  bao kv get -mount=kv -field={env} agents/autonomous/vcenter/prod"
 )
 
 

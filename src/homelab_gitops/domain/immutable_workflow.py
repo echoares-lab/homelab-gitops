@@ -96,9 +96,9 @@ class ImmutableWorkflow:
         try:
             if not self.secrets_driver:
                 raise DomainError("No secrets provider configured")
-            vcenter_user = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_USERNAME")).output
-            vcenter_pass = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD")).output
-            vcenter_server = self.secrets_driver.execute(Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_SERVER")).output
+            vcenter_user = self.secrets_driver.execute(Task(type="get", target="bao://kv/agents/autonomous/vcenter/prod/VCENTER_USERNAME")).output
+            vcenter_pass = self.secrets_driver.execute(Task(type="get", target="bao://kv/agents/autonomous/vcenter/prod/VCENTER_PASSWORD")).output
+            vcenter_server = self.secrets_driver.execute(Task(type="get", target="bao://kv/agents/autonomous/vcenter/prod/VCENTER_SERVER")).output
         except Exception:
             vcenter_user = os.environ.get("VCENTER_USER", "administrator@vsphere.local")
             vcenter_pass = os.environ.get("VCENTER_PASSWORD", "")
