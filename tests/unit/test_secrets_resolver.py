@@ -25,9 +25,9 @@ def test_resolves_from_openbao(monkeypatch):
     monkeypatch.delenv("VCENTER_USER", raising=False)
 
     values = {
-        "bao://kv/prod/platform/vcenter/VCENTER_USERNAME": "admin@vsphere",
-        "bao://kv/prod/platform/vcenter/VCENTER_PASSWORD": "s3cr3t",
-        "bao://kv/prod/platform/vcenter/VCENTER_SERVER": "10.0.0.9",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_USERNAME": "admin@vsphere",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_PASSWORD": "s3cr3t",
+        "bao://kv/agents/autonomous/vcenter/prod/VCENTER_SERVER": "10.0.0.9",
     }
 
     with patch("homelab_gitops.drivers.secrets_driver.SecretsDriver", return_value=_mock_driver(values)):

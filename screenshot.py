@@ -13,7 +13,7 @@ def get_screenshot(vm_name):
     token = auth_resp.json()["auth"]["client_token"]
     
     headers = {"X-Vault-Token": token}
-    creds_resp = requests.get(f"{vault_addr}/v1/kv/data/prod/platform/vcenter", headers=headers)
+    creds_resp = requests.get(f"{vault_addr}/v1/kv/data/agents/autonomous/vcenter/prod", headers=headers)
     creds = creds_resp.json()["data"]["data"]
     vc_user = creds["VCENTER_USERNAME"]
     vc_pass = creds["VCENTER_PASSWORD"]
