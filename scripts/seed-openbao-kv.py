@@ -26,8 +26,46 @@ def op_field(item_id, field_label, vault=None):
     raise KeyError(f"field {field_label!r} not found in item {item_id}")
 
 
-def bao_put(path, data):
-    body = json.dumps({"data": data}).encode()
+LEGACY_PREFIXES = ("prod/", "staging/", "repo/", "workloads/")
+
+
+def _reject_legacy(path):
+    """Refuse to write a legacy path.
+
+    Epic 2 moved every consumer to kv/data/agents/... and Epic 3 will prune the
+    legacy tree. This script writes with a ROOT token, so a single run against
+    the old paths would silently recreate them after the prune and leave the
+    estate with two live copies of three credentials. Failing loudly is the only
+    safe behaviour: a seeding script is exactly the thing someone re-runs a year
+    later without reading it.
+    """
+    if path.startswith(LEGACY_PREFIXES):
+        raise SystemExit(
+            f"REFUSING to write legacy path kv/data/{path}.\n"
+            "  The agent-scoped taxonomy is authoritative (Secrets-Policy 2.1) and the\n"
+            "  legacy tree is scheduled for pruning. Writing here would resurrect it.\n"
+            "  Use kv/data/agents/{agent_type}/{agent_id}/{environment}."
+        )
+
+
+def bao_merge(path, data):
+    """Merge keys into a secret, preserving every key already there.
+
+    Deliberately NOT a plain put. The KV-v2 write endpoint REPLACES the whole
+    payload, and the agent-scoped destinations are shared: cloudflare-platform
+    holds 5 keys and truenas-storage holds 14 (TrueNAS + TrueNAS-S3 + MinIO,
+    consolidated by the 2026-08-11 dual-write). A replace-style write of the one
+    key this script owns would delete the siblings and take down cert-manager,
+    alertmanager, the breakglass SES watchdog, democratic-csi and the postgres
+    backups simultaneously.
+    """
+    _reject_legacy(path)
+    existing = bao_read(path)
+    merged = dict(existing["data"]["data"]) if existing else {}
+    untouched = sorted(k for k in merged if k not in data)
+    merged.update(data)
+
+    body = json.dumps({"data": merged}).encode()
     req = urllib.request.Request(
         f"{BAO}/v1/kv/data/{path}",
         data=body,
@@ -36,7 +74,8 @@ def bao_put(path, data):
     )
     with urllib.request.urlopen(req) as r:
         resp = json.load(r)
-    print(f"  wrote kv/data/{path} -> version {resp['data']['version']}")
+    print(f"  merged kv/data/{path} -> version {resp['data']['version']} "
+          f"(set: {sorted(data)}; preserved {len(untouched)}: {untouched})")
 
 
 def bao_read(path):
@@ -59,13 +98,15 @@ print("  fetched: truenas api_key, technitium token, cloudflare api token")
 
 print("")
 print("=== Step 2: Write to OpenBao KV ===")
-bao_put("prod/platform/truenas",    {"TRUENAS_API_KEY":      truenas_key})
-bao_put("prod/platform/technitium", {"TECHNITIUM_TSIG_KEY":  technitium})
-bao_put("prod/platform/cloudflare", {"CLOUDFLARE_API_TOKEN": cloudflare})
+bao_merge("agents/autonomous/truenas-storage/prod",    {"TRUENAS_API_KEY":      truenas_key})
+bao_merge("agents/autonomous/technitium-dns/prod",     {"TECHNITIUM_TSIG_KEY":  technitium})
+bao_merge("agents/autonomous/cloudflare-platform/prod", {"CLOUDFLARE_API_TOKEN": cloudflare})
 
 print("")
 print("=== Step 3: Verify paths readable ===")
-for path in ("prod/platform/truenas", "prod/platform/technitium", "prod/platform/cloudflare"):
+for path in ("agents/autonomous/truenas-storage/prod",
+             "agents/autonomous/technitium-dns/prod",
+             "agents/autonomous/cloudflare-platform/prod"):
     resp = bao_read(path)
     if resp:
         keys = list(resp["data"]["data"].keys())
