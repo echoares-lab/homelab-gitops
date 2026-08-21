@@ -161,50 +161,22 @@ Every Pull Request and commit MUST pass the following automated CI quality gates
 *Source: `Secrets-Policy.md` — do not edit here.*
 
 ### 2.1 KV-v2 Secret Path Taxonomy
+
 All KV-v2 secret paths in OpenBao MUST follow this exact taxonomy:
 
 `kv/data/agents/{agent_type}/{agent_id}/{environment}/`
 
-> **Mount corrected 2026-08-16.** This clause previously mandated a `secret/` mount, which
-> does not exist. `bao secrets list` returns exactly four mounts — `cubbyhole/`,
-> `identity/`, `kv/` (KV-v2) and `sys/` — and the `openbao` ClusterSecretStore in `k3s-01`
-> is configured `path: kv, version: v2`. Every `secret/data/agents/...` path written
-> anywhere in this estate was unresolvable as stated. The policy was wrong; the
-> infrastructure was consistent. Corrected here and in the Infra secrets-migration epics
-> and audit. **Note the KV-v2 API quirk:** the `data/` segment appears in the HTTP path but
-> **not** in `bao kv` commands or in an ExternalSecret `remoteRef.key`. The path above is
-> addressed as `bao kv get kv/agents/...` and as `key: agents/...` with `path: kv` on the
-> store.
+- `agent_type` — `autonomous` (unattended workers, cron, K3s pods, CI/CD) or `interactive`
+  (local coding agents, interactive CLI tools).
+- `environment` — `prod`, `staging`, `homelab`, or `global` (environment-agnostic).
 
-- **`agent_type`**:
-  - `autonomous`: Unattended background workers, cron jobs, K3s pod workloads, CI/CD pipelines.
-  - `interactive`: Local developer coding agents (AGY, Codex, Cursor, Claude Code, Aider), interactive CLI tools.
-- **`environment`**:
-  - `prod`: Production cluster and live service workloads.
-  - `staging`: Staging test environments.
-  - `homelab`: Local homelab dev nodes and testing environments.
-  - `global`: Environment-agnostic developer tools and global credentials.
+**The mount is `kv`, not `secret`.** The `data/` segment is an HTTP-API artifact: the same
+secret is `kv/data/agents/…` over REST, `bao kv get kv/agents/…` on the CLI, and
+`remoteRef.key: agents/…` with `path: kv` on the store.
 
-### 2.2 Standardized `_metadata` Payload Schema
+### 2.2 `_metadata` payload
 
-> **Known conflict with §2.1's commonest consumer pattern (recorded 2026-08-16).** Putting
-> `_metadata` *inside* the payload means any consumer that reads the WHOLE secret receives it
-> as a data key. In Kubernetes, a `dataFrom: extract:` ExternalSecret gains `_metadata` as an
-> extra Secret key — observed on `ai-gateway-secrets` (29 → 30 keys) and its staging twin
-> (18 → 19). It was inert in every case checked, because all consumers read by explicit
-> `secretKeyRef` and nothing `envFrom`s a Secret — but that is a property of today's
-> manifests, not a guarantee.
->
-> **Until this is resolved, prefer explicit `data[].property` selection over
-> `dataFrom: extract:` for any ExternalSecret reading an agent-scoped path.** Explicit
-> selection is also what protects against the consolidation hazard in §2.4.
->
-> Options for resolution, none yet chosen: exclude `_metadata` at extraction time; move
-> provenance to OpenBao KV **custom metadata** (`kv metadata put`) instead of the payload,
-> which keeps it out of every consumer entirely; or accept the extra key and state so
-> explicitly.
-
-Every secret payload stored in OpenBao MUST include a standard `_metadata` JSON object alongside credential keys:
+Every secret payload carries a `_metadata` object alongside its credential keys:
 
 ```json
 {
@@ -220,84 +192,34 @@ Every secret payload stored in OpenBao MUST include a standard `_metadata` JSON 
 }
 ```
 
-### 2.3 Writers MUST merge, never replace (added 2026-08-16)
+Because `_metadata` sits inside the payload, a consumer that reads the whole secret receives
+it as a data key. **Use explicit `data[].property` selection, not `dataFrom: extract:`**, for
+any ExternalSecret reading an agent-scoped path.
 
-The KV-v2 write endpoint (`bao kv put`, `POST /v1/kv/data/<path>`) **replaces the entire
-payload**. Any script that writes a subset of a secret's keys with `put` will silently delete
-every key it does not set — including `_metadata`.
+### 2.3 Writers merge, never replace
 
-This is not hypothetical. Two scripts were caught mid-migration in the same week:
+`bao kv put` and `POST /v1/kv/data/<path>` **replace the entire payload** — a writer that sets
+a subset of keys silently deletes the rest, `_metadata` included.
 
-- `homelab-gitops/scripts/seed-openbao-kv.py` — one key into `cloudflare-platform/prod`
-  (5 keys) and `truenas-storage/prod` (14 keys); a `put` would have taken down cert-manager,
-  alertmanager, the breakglass SES watchdog, democratic-csi and the postgres backups.
-- `k3s-01/scripts/create_nexus_service_account.py` — only `dockerconfigjson` into
-  `nexus-registry/prod`, which also holds `username`, `password` and `_metadata` and is read
-  by seven ExternalSecrets.
+**Any writer that does not own every key at its path MUST use `bao kv patch` or a
+read-modify-write.** `put` is permitted only where the writer owns the whole payload.
 
-**Therefore: any writer that does not own every key at its path MUST use `bao kv patch`, or
-a read-modify-write.** `put` is permitted only where the writer authoritatively owns the
-whole payload.
+### 2.4 Compare key sets before repointing
 
-### 2.4 Consolidated destinations (added 2026-08-16)
+Agent-scoped paths may be supersets of the legacy sources they replaced. Before repointing any
+consumer, diff the **key sets**, not just the values, and select keys explicitly.
 
-The 2026-08-11 dual-write **merged several legacy sources into single agent-scoped paths**.
-Destinations are therefore not always one-to-one copies of their source, and may be
-supersets:
+### 2.5 Generated credentials MUST be URL-safe
 
-| Destination | Holds | Consequence |
-|---|---|---|
-| `truenas-storage/prod` | TrueNAS + TrueNAS-S3 + MinIO (14 keys) | `prod/platform/truenas-s3` has no separate destination |
-| `github-runner/prod` | 6 keys where the source had 1 | — |
-| `server-partpicker/prod` | **31 keys where the source had 4** | a `dataFrom: extract:` repoint would have widened that namespace's Secret from 4 keys to 32, adding eBay and SES credentials |
-| `aws-ses/prod` | 21 eBay/collector keys belonging to server-partpicker | **believed to be a mis-consolidation; needs review** |
+`openssl rand -base64` is unsafe for any credential that might appear in a URL: base64 emits
+`+`, `/` and `=`, all reserved in a URI, and the failure is invisible to any check that only
+asks whether the credential authenticates.
 
-Before repointing any consumer, compare the **key sets**, not just the values, and prefer
-explicit key selection.
-
-### 2.5 Generated credentials MUST be URL-safe (added 2026-08-20)
-
-**`openssl rand -base64` is not safe for any credential a consumer might place in a URL.**
-Base64 emits `+`, `/` and `=`, all of which have reserved meaning in a URI.
-
-This was found in production, not in review. Langfuse staging entered
-`CrashLoopBackOff` immediately after the ClickHouse per-consumer migration with:
-
-```
-ai_gateway_staging: Authentication failed: password is incorrect,
-or there is no user with such name
-HINT: Your CLICKHOUSE_PASSWORD contains special characters
-      (&, =, #, ?, %, +, @, space) that may break the migration URL
-```
-
-The password was **correct in ClickHouse**. What was wrong was the migration URL Langfuse
-built from it, because it does not percent-encode the credential. The failure is therefore
-invisible to any check that only asks "can this credential authenticate" — it authenticates
-fine through the native client and fails only through the URL path.
-
-**Therefore: generate machine credentials from the RFC 3986 unreserved set**
-(`A-Z a-z 0-9 - . _ ~`), and assert the result contains none of
-`+ / = & # ? % @` or space before storing it. A one-line guard is enough:
+Generate from the RFC 3986 unreserved set (`A-Z a-z 0-9 - . _ ~`) and assert before storing:
 
 ```bash
 case "$NEW" in *[+/=\&\#?%@\ ]*) echo "FATAL: unsafe char generated"; exit 1;; esac
 ```
-
-**Two things make this easy to miss.** First, it only bites consumers that build a URL, so a
-credential can work for months and then break when a *different* consumer adopts it. Second,
-it surfaced in staging only because staging runs database migrations on startup; production
-had already migrated and would have failed later, at the next migration, with the connection
-between cause and effect long since lost.
-
-Credentials rotated on 2026-08-17 (Nexus admin, TrueNAS root, vCenter appliance root,
-vCenter SSO, `SSH_ADMIN_PASSWORD`) were generated with `base64` and are **fine only because
-nothing currently URL-encodes them**. Regenerate them from the safe alphabet at their next
-rotation rather than treating them as compliant.
-
-Note the separate, unrelated constraint on vSphere SSO recorded in
-Epic 3:
-it rejects passwords longer than 20 characters. Length limits and character-set limits are
-different failure modes and both have now been hit.
 
 ---
 
@@ -351,7 +273,7 @@ Co-authored-by: Reviewer Agent <reviewer@users.noreply.github.com>
 | `Coding-Standards-Policy.md` | 1.1 | 2026-08-12 |
 | `Git-Policy.md` | 1.0 | 2026-07-29 |
 | `Master-Policy.md` | 2.1 | 2026-08-12 |
-| `Secrets-Policy.md` | 3.5 | 2026-08-20 |
+| `Secrets-Policy.md` | 4.0 | 2026-08-21 |
 | `Testing-Policy.md` | 1.2 | 2026-08-13 |
 
 <!-- END GENERATED — repo-specific directives may follow and are preserved. -->
