@@ -71,8 +71,8 @@ Reference: ADR 0001 - Obsidian-First Centralized Documentation Model.
      - `CLAUDE.md` and other tool-specific directive files are **thin pointers to `AGENTS.md`**, kept **untracked and gitignored** (adopted 2026-08-10). They are local convenience only; never duplicate policy text into them, or the two copies drift.
   3. `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md` where the project genuinely needs them.
   4. Format/interface notes physically adjacent to the artifacts they describe (e.g. a data directory's `README.md` documenting a file schema consumed by code), kept to the minimum needed to use the files.
-  5. `TOOLING.md` — the human-audited tooling/dependency surface for the repository (amended 2026-08-12). This is deliberate fleet infrastructure, not drift: it follows a shared template, is indexed across repos, and pairs with the `sbom.yml` workflow. Native manifests remain the dependency source of truth; `TOOLING.md` is the audit view over them.
-  6. Files under `.github/` that GitHub itself consumes or that document repository settings (e.g. `BRANCH_PROTECTION_POLICY.md`, issue templates) — amended 2026-08-12.
+  5. Files under `.github/` that GitHub itself consumes or that document repository settings (e.g. `BRANCH_PROTECTION_POLICY.md`, issue templates) — amended 2026-08-12.
+- **`TOOLING.md` — RETIRED 2026-08-15.** The per-repo tooling inventory admitted by the 2026-08-12 amendment is removed from the permitted list, deleted fleet-wide, and its template, index, and validator are dropped from `dev-policies`. It was write-once documentation that nothing consumed: 9 of 10 copies had a single commit and were never updated, no CI job or hook ever ran `validate-tooling-inventory.py`, and the first real run found the inventory already wrong. A stale inventory is worse than none — `ai-gateway`'s copy documented a `make help` target that does not exist. The dependency and tooling surface is `pyproject.toml` / `Makefile` / `package.json`, which are executable and cannot drift silently.
 - **Prohibited in repositories:** `docs/` trees mirroring vault content, `TODO.md`, epic or sprint files, ADR folders, design/implementation plans, research reports, and status/progress documents. Agent tooling that defaults to writing plans or specs into the repo (e.g. `docs/superpowers/plans/`) MUST be redirected to the project's vault folder.
 - **No "self-contained repo" exceptions.** Making a repo readable by agents lacking vault access is **not** a valid justification — agents have vault access, and duplication reproduces exactly the copy-drift ADR 0001 exists to prevent. Any pre-existing exception of this kind is revoked; migrate the content to the vault and delete the repo copy.
 - **Vendored / upstream repositories are exempt.** Forks or vendored copies of third-party projects (currently `CLIProxyAPI`, `Cli-Proxy-API-Management-Center`) keep their upstream documentation in-repo: migrating it fights every upstream merge and destroys provenance. Only *locally authored* project documentation for such repos goes to the vault.
@@ -140,7 +140,7 @@ gate is authoritative because it is the figure CI enforces
 *Source: `CICD-Policy.md` — do not edit here.*
 
 Every Pull Request and commit MUST pass the following automated CI quality gates before code can be merged:
-1. **MCP Scaffolding Gate — RETIRED 2026-08-14.** MCP servers are now configured once at user scope in `~/.claude.json`; repositories carry no `.mcp.json` or `.mcp.json.example`, so there is nothing in a checkout for CI to verify. Remove this gate from workflows and drop the `.mcp.json` checks from `scripts/setup_git_hooks.sh`. Rationale — including why per-repo scaffolding never delivered its guarantee — is in Master-Policy §1.5.
+1. **MCP Scaffolding Gate — RETIRED 2026-08-14; guard relocated, clarified 2026-08-15.** MCP servers are configured once at user scope in `~/.claude.json`; repositories carry no `.mcp.json` or `.mcp.json.example`, so there is nothing in a checkout for CI to verify and the gate is removed from workflows. What retirement dropped is the requirement to **have** the file — it never licensed re-introducing one. The original instruction to "drop the `.mcp.json` checks from `scripts/setup_git_hooks.sh`" was accurate only about *where* the check lives: the guard moved rather than disappeared. It is now the `no-mcp-json` hook in each repo's `.pre-commit-config.yaml`, which fails any commit that stages `.mcp.json` or `.mcp.json.example`; `scripts/setup_git_hooks.sh` no longer writes hook bodies inline and only runs `pre-commit install` (reference implementation: `hardware`). A checkout whose hooks are not installed has no protection at all — running `pre-commit install` per clone and per worktree is what makes the ban real. Rationale — including why per-repo scaffolding never delivered its guarantee — is in Master-Policy §1.5.
 2. **Static Analysis & Linting:** Code formatting and zero-warning lint checks (`ruff`, `biome`, `gofmt`).
 3. **Security & Secret Scanning:** `gitleaks` over the checked-out tree, using a repo-local `.gitleaks.toml`, on every push and PR — **and in the Obsidian vault on the same footing**. Scope, allowlist discipline, and the sensitive-non-secret rules are defined in Secrets-Policy §7.
 4. **Automated Test Matrix:** Execution of Unit and Integration test suites (Tiers 1–3). **Time caps are defined once in Testing-Policy §3.1** — do not restate a number here.
@@ -163,7 +163,18 @@ Every Pull Request and commit MUST pass the following automated CI quality gates
 ### 2.1 KV-v2 Secret Path Taxonomy
 All KV-v2 secret paths in OpenBao MUST follow this exact taxonomy:
 
-`secret/data/agents/{agent_type}/{agent_id}/{environment}/`
+`kv/data/agents/{agent_type}/{agent_id}/{environment}/`
+
+> **Mount corrected 2026-08-16.** This clause previously mandated a `secret/` mount, which
+> does not exist. `bao secrets list` returns exactly four mounts — `cubbyhole/`,
+> `identity/`, `kv/` (KV-v2) and `sys/` — and the `openbao` ClusterSecretStore in `k3s-01`
+> is configured `path: kv, version: v2`. Every `secret/data/agents/...` path written
+> anywhere in this estate was unresolvable as stated. The policy was wrong; the
+> infrastructure was consistent. Corrected here and in the Infra secrets-migration epics
+> and audit. **Note the KV-v2 API quirk:** the `data/` segment appears in the HTTP path but
+> **not** in `bao kv` commands or in an ExternalSecret `remoteRef.key`. The path above is
+> addressed as `bao kv get kv/agents/...` and as `key: agents/...` with `path: kv` on the
+> store.
 
 - **`agent_type`**:
   - `autonomous`: Unattended background workers, cron jobs, K3s pod workloads, CI/CD pipelines.
@@ -175,6 +186,24 @@ All KV-v2 secret paths in OpenBao MUST follow this exact taxonomy:
   - `global`: Environment-agnostic developer tools and global credentials.
 
 ### 2.2 Standardized `_metadata` Payload Schema
+
+> **Known conflict with §2.1's commonest consumer pattern (recorded 2026-08-16).** Putting
+> `_metadata` *inside* the payload means any consumer that reads the WHOLE secret receives it
+> as a data key. In Kubernetes, a `dataFrom: extract:` ExternalSecret gains `_metadata` as an
+> extra Secret key — observed on `ai-gateway-secrets` (29 → 30 keys) and its staging twin
+> (18 → 19). It was inert in every case checked, because all consumers read by explicit
+> `secretKeyRef` and nothing `envFrom`s a Secret — but that is a property of today's
+> manifests, not a guarantee.
+>
+> **Until this is resolved, prefer explicit `data[].property` selection over
+> `dataFrom: extract:` for any ExternalSecret reading an agent-scoped path.** Explicit
+> selection is also what protects against the consolidation hazard in §2.4.
+>
+> Options for resolution, none yet chosen: exclude `_metadata` at extraction time; move
+> provenance to OpenBao KV **custom metadata** (`kv metadata put`) instead of the payload,
+> which keeps it out of every consumer entirely; or accept the extra key and state so
+> explicitly.
+
 Every secret payload stored in OpenBao MUST include a standard `_metadata` JSON object alongside credential keys:
 
 ```json
@@ -190,6 +219,85 @@ Every secret payload stored in OpenBao MUST include a standard `_metadata` JSON 
   }
 }
 ```
+
+### 2.3 Writers MUST merge, never replace (added 2026-08-16)
+
+The KV-v2 write endpoint (`bao kv put`, `POST /v1/kv/data/<path>`) **replaces the entire
+payload**. Any script that writes a subset of a secret's keys with `put` will silently delete
+every key it does not set — including `_metadata`.
+
+This is not hypothetical. Two scripts were caught mid-migration in the same week:
+
+- `homelab-gitops/scripts/seed-openbao-kv.py` — one key into `cloudflare-platform/prod`
+  (5 keys) and `truenas-storage/prod` (14 keys); a `put` would have taken down cert-manager,
+  alertmanager, the breakglass SES watchdog, democratic-csi and the postgres backups.
+- `k3s-01/scripts/create_nexus_service_account.py` — only `dockerconfigjson` into
+  `nexus-registry/prod`, which also holds `username`, `password` and `_metadata` and is read
+  by seven ExternalSecrets.
+
+**Therefore: any writer that does not own every key at its path MUST use `bao kv patch`, or
+a read-modify-write.** `put` is permitted only where the writer authoritatively owns the
+whole payload.
+
+### 2.4 Consolidated destinations (added 2026-08-16)
+
+The 2026-08-11 dual-write **merged several legacy sources into single agent-scoped paths**.
+Destinations are therefore not always one-to-one copies of their source, and may be
+supersets:
+
+| Destination | Holds | Consequence |
+|---|---|---|
+| `truenas-storage/prod` | TrueNAS + TrueNAS-S3 + MinIO (14 keys) | `prod/platform/truenas-s3` has no separate destination |
+| `github-runner/prod` | 6 keys where the source had 1 | — |
+| `server-partpicker/prod` | **31 keys where the source had 4** | a `dataFrom: extract:` repoint would have widened that namespace's Secret from 4 keys to 32, adding eBay and SES credentials |
+| `aws-ses/prod` | 21 eBay/collector keys belonging to server-partpicker | **believed to be a mis-consolidation; needs review** |
+
+Before repointing any consumer, compare the **key sets**, not just the values, and prefer
+explicit key selection.
+
+### 2.5 Generated credentials MUST be URL-safe (added 2026-08-20)
+
+**`openssl rand -base64` is not safe for any credential a consumer might place in a URL.**
+Base64 emits `+`, `/` and `=`, all of which have reserved meaning in a URI.
+
+This was found in production, not in review. Langfuse staging entered
+`CrashLoopBackOff` immediately after the ClickHouse per-consumer migration with:
+
+```
+ai_gateway_staging: Authentication failed: password is incorrect,
+or there is no user with such name
+HINT: Your CLICKHOUSE_PASSWORD contains special characters
+      (&, =, #, ?, %, +, @, space) that may break the migration URL
+```
+
+The password was **correct in ClickHouse**. What was wrong was the migration URL Langfuse
+built from it, because it does not percent-encode the credential. The failure is therefore
+invisible to any check that only asks "can this credential authenticate" — it authenticates
+fine through the native client and fails only through the URL path.
+
+**Therefore: generate machine credentials from the RFC 3986 unreserved set**
+(`A-Z a-z 0-9 - . _ ~`), and assert the result contains none of
+`+ / = & # ? % @` or space before storing it. A one-line guard is enough:
+
+```bash
+case "$NEW" in *[+/=\&\#?%@\ ]*) echo "FATAL: unsafe char generated"; exit 1;; esac
+```
+
+**Two things make this easy to miss.** First, it only bites consumers that build a URL, so a
+credential can work for months and then break when a *different* consumer adopts it. Second,
+it surfaced in staging only because staging runs database migrations on startup; production
+had already migrated and would have failed later, at the next migration, with the connection
+between cause and effect long since lost.
+
+Credentials rotated on 2026-08-17 (Nexus admin, TrueNAS root, vCenter appliance root,
+vCenter SSO, `SSH_ADMIN_PASSWORD`) were generated with `base64` and are **fine only because
+nothing currently URL-encodes them**. Regenerate them from the safe alphabet at their next
+rotation rather than treating them as compliant.
+
+Note the separate, unrelated constraint on vSphere SSO recorded in
+Epic 3:
+it rejects passwords longer than 20 characters. Length limits and character-set limits are
+different failure modes and both have now been hit.
 
 ---
 
@@ -239,16 +347,11 @@ Co-authored-by: Reviewer Agent <reviewer@users.noreply.github.com>
 
 | Policy | Version | Updated |
 |---|---|---|
-| `CICD-Policy.md` | 1.2 | 2026-08-12 |
+| `CICD-Policy.md` | 1.4 | 2026-08-16 |
 | `Coding-Standards-Policy.md` | 1.1 | 2026-08-12 |
 | `Git-Policy.md` | 1.0 | 2026-07-29 |
 | `Master-Policy.md` | 2.1 | 2026-08-12 |
-| `Secrets-Policy.md` | 3.1 | 2026-08-12 |
+| `Secrets-Policy.md` | 3.5 | 2026-08-20 |
 | `Testing-Policy.md` | 1.2 | 2026-08-13 |
 
 <!-- END GENERATED — repo-specific directives may follow and are preserved. -->
-
-
-
-
-
