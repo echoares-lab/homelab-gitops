@@ -166,17 +166,20 @@ All KV-v2 secret paths in OpenBao MUST follow this exact taxonomy:
 
 `kv/data/agents/{agent_type}/{agent_id}/{environment}/`
 
-- `agent_type` — `autonomous` (unattended workers, cron, K3s pods, CI/CD) or `interactive`
-  (local coding agents, interactive CLI tools).
+- `agent_type` — `autonomous` (unattended workers, cron, K3s pods, CI/CD) or
+  `interactive` (local coding agents, interactive CLI tools).
 - `environment` — `prod`, `staging`, `homelab`, or `global` (environment-agnostic).
 
-**The mount is `kv`, not `secret`.** The `data/` segment is an HTTP-API artifact: the same
-secret is `kv/data/agents/…` over REST, `bao kv get kv/agents/…` on the CLI, and
+**The mount is `kv` , not `secret` .** The `data/` segment is an HTTP-API artifact: the
+same secret is `kv/data/agents/…` over REST, `bao kv get kv/agents/…` on the CLI, and
 `remoteRef.key: agents/…` with `path: kv` on the store.
+
+`bao secrets list` returns four mounts and `secret/` is not among them, so every
+`secret/data/agents/...` path this estate ever wrote was unresolvable as stated.
 
 ### 2.2 `_metadata` payload
 
-Every secret payload carries a `_metadata` object alongside its credential keys:
+Every secret payload carries a `_metadata` object alongside its credential keys.
 
 ```json
 {
@@ -192,30 +195,38 @@ Every secret payload carries a `_metadata` object alongside its credential keys:
 }
 ```
 
-Because `_metadata` sits inside the payload, a consumer that reads the whole secret receives
-it as a data key. **Use explicit `data[].property` selection, not `dataFrom: extract:`**, for
-any ExternalSecret reading an agent-scoped path.
+**Use explicit `data[].property` selection, not `dataFrom: extract:` **, for any
+ExternalSecret reading an agent-scoped path.
+
+Because `_metadata` sits inside the payload, a consumer that reads the whole secret
+receives it as a data key — observed widening `ai-gateway-secrets` from 29 keys to 30.
 
 ### 2.3 Writers merge, never replace
-
-`bao kv put` and `POST /v1/kv/data/<path>` **replace the entire payload** — a writer that sets
-a subset of keys silently deletes the rest, `_metadata` included.
 
 **Any writer that does not own every key at its path MUST use `bao kv patch` or a
 read-modify-write.** `put` is permitted only where the writer owns the whole payload.
 
+`bao kv put` and `POST /v1/kv/data/<path>` replace the entire payload — a writer that sets
+a subset silently deletes the rest, `_metadata` included. Two scripts were caught
+mid-migration about to do exactly this to paths holding 5 and 14 keys.
+
 ### 2.4 Compare key sets before repointing
 
-Agent-scoped paths may be supersets of the legacy sources they replaced. Before repointing any
-consumer, diff the **key sets**, not just the values, and select keys explicitly.
+Agent-scoped paths may be supersets of the legacy sources they replaced. Before repointing
+any consumer, diff the **key sets**, not just the values, and select keys explicitly.
+
+One consolidated destination holds 31 keys where its source had 4; a naive repoint would
+have widened that namespace's Secret to 32 keys.
 
 ### 2.5 Generated credentials MUST be URL-safe
 
-`openssl rand -base64` is unsafe for any credential that might appear in a URL: base64 emits
-`+`, `/` and `=`, all reserved in a URI, and the failure is invisible to any check that only
-asks whether the credential authenticates.
+Generate machine credentials from the RFC 3986 unreserved set ( `A-Z a-z 0-9 - . _ ~` )
+and assert the result before storing it.
 
-Generate from the RFC 3986 unreserved set (`A-Z a-z 0-9 - . _ ~`) and assert before storing:
+`openssl rand -base64` emits `+` , `/` and `=` , all reserved in a URI. A base64 password
+authenticated fine natively and put Langfuse staging into CrashLoopBackOff only through
+the URL its migration built — so the failure is invisible to any check that asks merely
+whether the credential works.
 
 ```bash
 case "$NEW" in *[+/=\&\#?%@\ ]*) echo "FATAL: unsafe char generated"; exit 1;; esac
