@@ -188,8 +188,8 @@ Every secret payload carries a `_metadata` object alongside its credential keys.
     "owner": "team-or-handle",
     "repository": "https://github.com/org/repo-name",
     "allowed_agent_roles": ["k3s-01-external-secrets", "hardware-collector"],
-    "class": "internal",
-    "rotation": "self",
+    "class": "derived",
+    "parent": "Cloudflare - Account API Token - Prod",
     "max_ttl_seconds": 3600,
     "migrated_from": "kv/data/prod/platform/cloudflare",
     "created_at": "2026-08-11T00:00:00Z"
@@ -197,14 +197,16 @@ Every secret payload carries a `_metadata` object alongside its credential keys.
 }
 ```
 
-`class` is `internal` (this estate issues and can rotate the credential) or `external` (a
-third party issues it). `rotation` is `self` or `vendor`; when `vendor`, `_metadata` also
-carries `rotation_url` naming where a human goes to rotate it.
+`class` is `native` (this estate is the issuer — internal CA, database roles, service
+accounts it controls) or `derived` (minted from a core external credential held in
+1Password). A `derived` secret also carries `parent`, naming the 1Password item it was
+minted from.
 
-Roughly half of the live agent paths are third-party — Cloudflare, AWS SES, GitHub,
-Google, eBay/Icecat, model providers. Four rules in this policy behave differently for
-those and previously said so nowhere, so an agent reading a path could not tell which
-regime applied.
+Everything in OpenBao is internal to this estate, because core external credentials stay
+in 1Password (§1). What differs is who can reissue the thing: a native credential this
+estate rotates on its own, while rotating a derived one means going back to its parent, in
+a vendor console, as a human. Without `parent` recorded, that trail has to be
+reconstructed from memory during an incident.
 
 **Use explicit `data[].property` selection, not `dataFrom: extract:`**, for any
 ExternalSecret reading an agent-scoped path.
@@ -232,9 +234,9 @@ have widened that namespace's Secret to 32 keys.
 ### 2.5 Generated credentials MUST be URL-safe
 
 Generate machine credentials from the RFC 3986 unreserved set (`A-Z a-z 0-9 - . _ ~`) and
-assert the result before storing it. Applies to `class: internal` / `rotation: self`
-credentials — a vendor-issued key takes whatever form the vendor issues, so store it
-verbatim and URL-encode at use.
+assert the result before storing it. Applies to `class: native` credentials, whose
+alphabet this estate chooses. A `derived` credential takes whatever form the vendor
+issues: store it verbatim and URL-encode at the point of use.
 
 `openssl rand -base64` emits `+`, `/` and `=`, all reserved in a URI. A base64 password
 authenticated fine natively and put Langfuse staging into CrashLoopBackOff only through
