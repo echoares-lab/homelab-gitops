@@ -89,13 +89,33 @@ variable "unsupported" {
 """,
     )
 
+    # `validate()` runs `packer init <template>` BEFORE it inspects the
+    # template's variables, so without this stub the test shelled out to the
+    # real packer on the CI runner (plugin fetch over the network: 16s for this
+    # file, tipping the Tier-2 suite past its 10s cap). A unit test never
+    # spawns a process.
+    runs = []
+
+    def fake_run(command, cwd, text, capture_output):
+        runs.append(command)
+
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return Result()
+
     monkeypatch.setattr(
         "scripts.validate_image_build_inputs.shutil.which",
         lambda name: f"/usr/bin/{name}",
     )
+    monkeypatch.setattr("scripts.validate_image_build_inputs.subprocess.run", fake_run)
 
     with pytest.raises(ImageBuildValidationError, match="No smoke value configured"):
         ImageBuildValidator(tmp_path).validate()
+
+    assert runs == [["packer", "init", "custom.pkr.hcl"]]
 
 
 def test_validator_exercises_butane_transpilation(tmp_path, monkeypatch):
