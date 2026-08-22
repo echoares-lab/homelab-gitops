@@ -91,13 +91,13 @@ def test_secrets_driver_execute_get_bao(node_profile):
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="bao-value\n")
-        task = Task(type="get", target="bao://kv/prod/platform/vcenter/VCENTER_PASSWORD", profile=node_profile)
+        task = Task(type="get", target="bao://kv/agents/autonomous/vcenter/prod/VCENTER_PASSWORD", profile=node_profile)
         result = driver.execute(task)
 
     assert result.success is True
     assert result.output == "bao-value"
     mock_run.assert_called_with(
-        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "agents/autonomous/vcenter/prod"],
         capture_output=True, text=True, timeout=10
     )
 
@@ -158,7 +158,7 @@ def test_secrets_driver_resolve_file_bao_refs(tmp_path):
 
     env_file = tmp_path / "secrets.env"
     env_file.write_text(
-        "VCENTER_PASSWORD=bao://kv/prod/platform/vcenter/VCENTER_PASSWORD\n"
+        "VCENTER_PASSWORD=bao://kv/agents/autonomous/vcenter/prod/VCENTER_PASSWORD\n"
         "STATIC_VALUE=literal\n"
     )
 
@@ -170,7 +170,7 @@ def test_secrets_driver_resolve_file_bao_refs(tmp_path):
     assert result["VCENTER_PASSWORD"] == "bao-password"
     assert result["STATIC_VALUE"] == "literal"
     mock_run.assert_called_once_with(
-        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "prod/platform/vcenter"],
+        ["/usr/bin/bao", "kv", "get", "-mount=kv", "-field=VCENTER_PASSWORD", "agents/autonomous/vcenter/prod"],
         capture_output=True, text=True, timeout=10
     )
 
