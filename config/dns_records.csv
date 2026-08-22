@@ -1,4 +1,14 @@
 resource_type,name,parent,type,value,ttl,mac_address,network_address,subnet_mask,start_address,end_address,gateway,comments,depends_on,advanced_json
+# ---------------------------------------------------------------------------
+# WARNING (owner decision 2026-08-22 / Infra backlog E7.T32): this file is NOT applied to DNS.
+# No pipeline consumes it into Technitium. tofu/dns/ is a stub with an empty state that has never managed a record.
+# NetworkService (src/homelab_gitops/domain/network.py) only appends rows here and reads IPs back as an allocation ledger.
+# scripts/technitium_manager.py convert-csv can render it to tofu JSON but nothing runs that and nothing applies the result.
+# Technitium serves 189 records today; the 127 infra.plexplease.com records are owned by external-dns (--policy=sync).
+# Completing tofu/dns/ and applying it would DELETE those records. Leave the module as-is. Host DNS is hand-managed in Technitium.
+# These comment rows sit below the header on purpose: every reader is csv.DictReader; a '#' first field matches no resource_type
+# and convert-csv skips it as unknown. Keep these lines comma-free or they will split into columns.
+# ---------------------------------------------------------------------------
 zone,plexplease.com,,Primary,,,,, ,,,,Technitium Primary Zone,,
 record,dns-01.plexplease.com,plexplease.com,A,10.10.10.2,3600,,,, ,,,,Technitium Primary DNS,,
 record,www.plexplease.com,plexplease.com,CNAME,dns-01.plexplease.com,3600,,,, ,,,,Web Server,,
