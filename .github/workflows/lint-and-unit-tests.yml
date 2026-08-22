@@ -63,22 +63,17 @@ jobs:
           echo "=== Shell Linting ==="
           shellcheck scripts/*.sh || true
 
-      - name: Run unit tests with coverage
+      # Tier 2 gate. Both thresholds live in pytest.ini addopts so this step
+      # cannot drift from what a developer gets by typing `pytest` locally:
+      #   --cov-fail-under=85     (Testing-Policy §2, floor 80%)
+      #   --max-suite-seconds=10  (Testing-Policy §3.1 Tier 2 cap)
+      # No `|| true`, no `continue-on-error`: breaching either fails the build.
+      - name: Run unit tests with coverage and duration gates
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
         run: |
-          echo "=== Unit Tests with Coverage ==="
-          pytest tests/ -v \
-            --cov=homelab_gitops \
-            --cov=manage.py \
-            --cov-report=term-missing \
-            --cov-report=json \
-            --cov-report=html:htmlcov
-
-      - name: Check coverage threshold (85%)
-        run: |
-          echo "=== Coverage Check ==="
-          python -m coverage report --fail-under=85 --precision=2 || (echo "Coverage below 85% threshold!" && exit 1)
+          echo "=== Tier 2 Unit Suite (coverage >=85%, duration <=10s) ==="
+          pytest --cov-report=json --cov-report=html:htmlcov
 
       - name: Build package artifacts
         run: |

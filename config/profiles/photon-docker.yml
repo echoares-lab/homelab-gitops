@@ -16,4 +16,4 @@ deployment:
   - photon
   - docker
   vm_name_prefix: docker
-  vm_name_domain: infa.plexplease.com
+  vm_name_domain: mgmt.plexplease.com

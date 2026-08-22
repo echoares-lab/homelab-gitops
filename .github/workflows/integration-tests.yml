@@ -84,7 +84,8 @@ jobs:
         run: |
           echo "=== Integration Tests ==="
           pytest tests/integration/ -v \
-            --tb=short -m "not e2e"
+            --tb=short -m "not e2e" \
+            --no-cov --max-suite-seconds=45
 
       - name: Run matrix test validation
         run: |
