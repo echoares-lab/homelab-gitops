@@ -40,3 +40,44 @@ repos:
       # 3d24084 (package cutover) so it failed on every workflow change since, and
       # scripts/validate_ci_config.py Check 3 already verifies that every test path
       # a workflow names exists.
+      - id: doc-minimalism
+        name: Master-Policy 1.6 documentation minimalism
+        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: doc-minimalism-ratchet
+        name: Master-Policy 1.6 baseline ratchet (may only shrink)
+        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py --ratchet
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: container-notices
+        name: container builds carry the notices they owe (Licensing-Policy 3)
+        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-container-notices.py
+        language: system
+        pass_filenames: false
+        files: '(^|/)(Dockerfile|Containerfile)(\..+)?$|(^|/).+\.Dockerfile$'
+        stages: [pre-commit]
+      - id: agents-md-drift
+        name: AGENTS.md matches the vault
+        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/render-agents-md.py --repo . --check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      # Deliberately no `--config .gitleaks.toml`. Hooks are shared across git
+      # worktrees but .gitleaks.toml is per-branch, so an explicit --config
+      # aborts on a branch that predates the file, and the abort reads as a
+      # secret finding. The upstream entry omits --config, so gitleaks
+      # auto-discovers .gitleaks.toml when present and falls back to its
+      # built-in rules when it is not.
+      - id: gitleaks
+        args: ["--redact"]
+        stages: [pre-commit]
+

@@ -1,13 +1,19 @@
+# Managed by dev-policies/tooling/scripts/sync-repo-pack.py from
+# dev-policies/repo-pack/github/workflows/policy-check.yml. Edit the template,
+# not this copy: a sync rewrites any file that calls the reusable workflow below.
+#
+# CICD-Policy §1.1 quality gates for homelab repositories: secret scanning,
+# Master-Policy §1.6 documentation minimalism (+ baseline ratchet), container
+# notice obligations, and the AGENTS.md generation marker. The gates themselves
+# live in dev-policies so every repo runs the same ones. No secrets are passed:
+# the reusable workflow carries its checkers inline (E2.T3 -- deploy keys are
+# disabled org-wide, so it cannot check dev-policies out).
 name: policy-check
-
-# Calls the shared Master-Policy gates (CICD-Policy §1.1). Definition lives in
-# echoares-lab/dev-policies/.github/workflows/reusable-homelab-policy-check.yml —
-# edit it there, not here, so all repos move together.
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main, master, production]
   pull_request:
 
 jobs:

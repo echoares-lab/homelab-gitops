@@ -60,25 +60,12 @@
 
 ## Repository Documentation Minimalism
 
-*Source: `Master-Policy.md` — do not edit here.*
+*Source: `Master-Policy.md` — summary; the full section is in the vault. Do not edit here.*
 
-Reference: ADR 0001 - Obsidian-First Centralized Documentation Model.
-
-- **Vault is the only documentation authority.** All project documentation — epics, task backlogs, ADRs, specs, architecture, runbooks, research reports, design/implementation plans, and status notes — lives **exclusively** in `/home/dev/obsidian-vault/01 Projects/<Project>/`.
-- **Permitted markdown in a code repository (exhaustive list):**
-  1. `README.md` — short orientation only: what the project is, how to run/test it, and a pointer to its vault folder. Not a place for architecture, epics, or status.
-  2. `AGENTS.md` — the **canonical, version-controlled** agent-directive file (vendor-neutral: Claude, AGY, Codex, Cursor). This is the only directive file committed to a repository.
-     - `CLAUDE.md` and other tool-specific directive files are **thin pointers to `AGENTS.md`**, kept **untracked and gitignored** (adopted 2026-08-10). They are local convenience only; never duplicate policy text into them, or the two copies drift.
-  3. `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md` where the project genuinely needs them.
-  4. Format/interface notes physically adjacent to the artifacts they describe (e.g. a data directory's `README.md` documenting a file schema consumed by code), kept to the minimum needed to use the files.
-  5. Files under `.github/` that GitHub itself consumes or that document repository settings (e.g. `BRANCH_PROTECTION_POLICY.md`, issue templates) — amended 2026-08-12.
-- **`TOOLING.md` — RETIRED 2026-08-15.** The per-repo tooling inventory admitted by the 2026-08-12 amendment is removed from the permitted list, deleted fleet-wide, and its template, index, and validator are dropped from `dev-policies`. It was write-once documentation that nothing consumed: 9 of 10 copies had a single commit and were never updated, no CI job or hook ever ran `validate-tooling-inventory.py`, and the first real run found the inventory already wrong. A stale inventory is worse than none — `ai-gateway`'s copy documented a `make help` target that does not exist. The dependency and tooling surface is `pyproject.toml` / `Makefile` / `package.json`, which are executable and cannot drift silently.
-- **Prohibited in repositories:** `docs/` trees mirroring vault content, `TODO.md`, epic or sprint files, ADR folders, design/implementation plans, research reports, and status/progress documents. Agent tooling that defaults to writing plans or specs into the repo (e.g. `docs/superpowers/plans/`) MUST be redirected to the project's vault folder.
-- **No "self-contained repo" exceptions.** Making a repo readable by agents lacking vault access is **not** a valid justification — agents have vault access, and duplication reproduces exactly the copy-drift ADR 0001 exists to prevent. Any pre-existing exception of this kind is revoked; migrate the content to the vault and delete the repo copy.
-- **Vendored / upstream repositories are exempt.** Forks or vendored copies of third-party projects (currently `CLIProxyAPI`, `Cli-Proxy-API-Management-Center`) keep their upstream documentation in-repo: migrating it fights every upstream merge and destroys provenance. Only *locally authored* project documentation for such repos goes to the vault.
-- **Code- and CI-consumed markdown is not documentation.** Files read at runtime, asserted by tests, served by an application, or targeted by an alert `runbook_url` are application/interface artifacts and stay in the repo (e.g. AI-Gateway's `docs/openapi/` served by `docs-server`; K3s-Cluster's four alert-linked runbooks; Cloudflare-Access-Automation's OpenAPI artifact and test fixtures). Where such a file must also exist in the vault, keep **one** authority and make the other a pointer stub — never two maintained copies.
-  - **Clarified 2026-08-12:** `docs/runbooks/` and `docs/openapi/` are permitted **by path**, so this stops being re-litigated per file. A runbook qualifies when an alert's `runbook_url` (or equivalent live consumer) points at it — a runbook nothing links to is documentation and belongs in the vault.
-- **Migration rule:** when removing documentation from a repo, **move** it into the vault (preserving content and history in the commit message), never delete outright.
+- **Rule:** project documentation — epics, backlogs, ADRs, specs, architecture, runbooks, research reports, design/implementation plans, status notes — lives **exclusively** in `/home/dev/obsidian-vault/01 Projects/<Project>/`, never in a code repository. When removing documentation from a repo, **move** it to the vault; never delete.
+- **Permitted markdown in a repo (exhaustive):** `README.md` (orientation + vault pointer), `AGENTS.md` (`CLAUDE.md` is an untracked pointer to it), `CHANGELOG.md` / `LICENSE` / `CONTRIBUTING.md` / `SECURITY.md`, format notes adjacent to the artifacts they describe, `.github/` files GitHub consumes, and code-/CI-consumed markdown with a live consumer (`docs/runbooks/`, `docs/openapi/`). Vendored upstream forks are exempt.
+- **Enforced mechanically, not by memory:** a `PreToolUse` hook (`.claude/settings.json` in every repo, `block-prohibited-docs.py`) denies the write and names the vault destination; `pre-commit` (`doc-minimalism` + the shrink-only baseline ratchet) and the `policy-check` CI gate catch anything that gets past it.
+- **Full text and placement rules:** Master-Policy §1.6 in the vault, or the `policy-doc-placement` skill.
 
 ## Modern Toolchain & Language Guidelines
 
@@ -298,7 +285,7 @@ Co-authored-by: Reviewer Agent <reviewer@users.noreply.github.com>
 | `CICD-Policy.md` | 1.4 | 2026-08-16 |
 | `Coding-Standards-Policy.md` | 1.1 | 2026-08-12 |
 | `Git-Policy.md` | 1.0 | 2026-07-29 |
-| `Master-Policy.md` | 2.1 | 2026-08-12 |
+| `Master-Policy.md` | 2.2 | 2026-08-22 |
 | `Secrets-Policy.md` | 4.0 | 2026-08-21 |
 | `Testing-Policy.md` | 1.2 | 2026-08-13 |
 
