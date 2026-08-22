@@ -23,9 +23,31 @@ class CIValidator:
         self.warnings: List[str] = []
         self.successes: List[str] = []
 
+    # A coverage GATE is a `--cov=<target>` or a `--fail-under` threshold. A
+    # `--cov-report=<fmt>` is an output format, not a gate: CI adds json/html
+    # reports on top of whatever pytest.ini arms, and that must not count as a
+    # second configuration.
+    _COV_GATE_RE = re.compile(r"--cov(?!-report)\b|--fail-under")
+
+    @classmethod
+    def _has_coverage_gate(cls, text: str) -> bool:
+        """True if any non-comment line carries a coverage gate flag."""
+        for line in text.splitlines():
+            if line.strip().startswith("#"):
+                continue
+            if cls._COV_GATE_RE.search(line):
+                return True
+        return False
+
     def check_coverage_config_duplication(self) -> bool:
         """
-        Check 1: Ensure coverage config isn't in both pytest.ini and workflow.
+        Check 1: the coverage gate lives in exactly one place, pytest.ini.
+
+        Since 2026-08-22 (E1.T4) `--cov=` and `--cov-fail-under` sit in
+        pytest.ini `addopts` so a bare `pytest` fails locally for exactly the
+        reasons CI fails. A workflow that re-states either flag is a second
+        threshold that can drift from the first. Workflows may still pass
+        `--cov-report=...` to choose output formats.
 
         Returns:
             bool: True if no duplication found, False otherwise.
@@ -38,24 +60,20 @@ class CIValidator:
             self.warnings.append(f"{check_name}: pytest.ini not found")
             return True
 
-        # Check for coverage config in pytest.ini
-        pytest_ini_content = pytest_ini.read_text()
-        pytest_has_coverage = (
-            "--cov" in pytest_ini_content or "--fail-under" in pytest_ini_content
-        )
+        pytest_has_coverage = self._has_coverage_gate(pytest_ini.read_text())
 
-        # Check for coverage config in workflows
-        workflow_has_coverage = False
-        for workflow_file in workflow_files:
-            content = workflow_file.read_text()
-            if "--cov" in content or "--fail-under" in content:
-                workflow_has_coverage = True
-                break
+        duplicated_in = [
+            workflow_file.name
+            for workflow_file in workflow_files
+            if self._has_coverage_gate(workflow_file.read_text())
+        ]
 
-        if pytest_has_coverage and workflow_has_coverage:
+        if pytest_has_coverage and duplicated_in:
             self.errors.append(
-                f"{check_name}: Coverage config found in both pytest.ini and workflows. "
-                "Coverage should be configured in workflows only."
+                f"{check_name}: Coverage config found in both pytest.ini and workflows "
+                f"({', '.join(sorted(duplicated_in))}). The coverage gate is configured "
+                "in pytest.ini only; workflows may add --cov-report formats but not "
+                "--cov=<target> or --fail-under."
             )
             return False
 

@@ -76,6 +76,36 @@ class TestCIValidator:
             assert result is False
             assert any("found in both" in e for e in validator.errors)
 
+    def test_coverage_report_format_in_workflow_is_not_duplication(self):
+        """A workflow may add --cov-report formats on top of the pytest.ini gate.
+
+        Since E1.T4 the gate (--cov=<target>, --cov-fail-under) lives in
+        pytest.ini addopts only; CI adds json/html reports. Comment lines that
+        mention the flags are documentation, not configuration.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            (repo_root / ".github" / "workflows").mkdir(parents=True)
+
+            (repo_root / "pytest.ini").write_text(
+                "[pytest]\n"
+                "addopts =\n"
+                "    --cov=mymodule\n"
+                "    --cov-fail-under=85\n"
+            )
+            (repo_root / ".github" / "workflows" / "test.yml").write_text(
+                "name: Test\njobs:\n"
+                "  test:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      #   --cov-fail-under=85 lives in pytest.ini\n"
+                "      - run: pytest --cov-report=json --cov-report=html:htmlcov\n"
+            )
+
+            validator = CIValidator(repo_root)
+            assert validator.check_coverage_config_duplication() is True
+            assert not validator.errors
+
     def test_dependencies_declared_check(self):
         """Test that dependencies are correctly declared."""
         with tempfile.TemporaryDirectory() as tmpdir:

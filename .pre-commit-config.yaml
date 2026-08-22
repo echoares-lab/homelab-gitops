@@ -7,18 +7,36 @@ repos:
 
   - repo: local
     hooks:
+      # Master-Policy 1.5 (2026-08-14): MCP servers are configured once at user
+      # scope in ~/.claude.json. A repo-local .mcp.json only applies when the
+      # session happens to start in this repo, and it is how OBSIDIAN_API_KEY
+      # previously spread in plaintext across 19 checkouts.
+      #
+      # `language: fail` + `files:` rather than a `git diff --cached` walk:
+      # pre-commit already hands a hook only the files staged for this commit.
+      # Neither path is tracked anywhere in the fleet, so any match at all is a
+      # re-introduction. `pre-commit run --all-files` enumerates via `git
+      # ls-files`, so an untracked scratch .mcp.json cannot trip this spuriously.
+      - id: no-mcp-json
+        name: no repo-local .mcp.json (Master-Policy 1.5)
+        language: fail
+        entry: >-
+          .mcp.json is no longer used -- configure servers at user scope with
+          `claude mcp add -s user <name> -- <command>`. See Master-Policy 1.5.
+          Offending path:
+        files: '^\.mcp\.json(\.example)?$'
+        stages: [pre-commit]
+
       - id: validate-ci-config
         name: Validate CI Configuration
         entry: python3 scripts/validate_ci_config.py
         language: system
-        stages: [commit]
+        stages: [pre-commit]
         pass_filenames: false
         files: '\.github/workflows/.*\.yml|pytest\.ini|requirements.*\.txt|pyproject\.toml'
 
-      - id: validate-test-references
-        name: Validate Test File References
-        entry: bash -c 'test -d tests/test_services && test -f tests/test_manage_cli.py'
-        language: system
-        stages: [commit]
-        pass_filenames: false
-        files: '\.github/workflows/.*\.yml'
+      # validate-test-references (bash `test -d tests/test_services && test -f
+      # tests/test_manage_cli.py`) was removed 2026-08-22: both paths were deleted in
+      # 3d24084 (package cutover) so it failed on every workflow change since, and
+      # scripts/validate_ci_config.py Check 3 already verifies that every test path
+      # a workflow names exists.

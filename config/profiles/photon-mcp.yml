@@ -18,7 +18,7 @@ deployment:
   - alloy
   - mcp_gateway
   vm_name_prefix: mcp
-  vm_name_domain: infa.plexplease.com
+  vm_name_domain: mgmt.plexplease.com
   ansible_user: ansible
   ansible_password: Singer4life!@
   ansible_become_password: Singer4life!@

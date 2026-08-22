@@ -25,3 +25,5 @@ record,139.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,nut-ups-01.mgmt.plexp
 dhcp_lease,k3s-deadman-01,10.10.10.0,,10.10.10.51,,00:50:56:2d:55:01,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
 record,k3s-deadman-01,infra.plexplease.com,A,10.10.10.51,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
 record,51.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,k3s-deadman-01.infra.plexplease.com,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
+record,openbao.plexplease.com,plexplease.com,A,10.10.10.30,300,,,,,,,Legacy apex name for the OpenBao API on the Docker services host; observed live 2026-08-22 and previously undeclared. Declared here so the destructive CSV apply does not reap it. Network-Policy 4 forbids new apex names - migrate to a mgmt. host name once the host hostname is determined.,,
+record,30.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,openbao.plexplease.com,300,,,,,,,PTR for 10.10.10.30 - Network-Policy 4 requires every statically-addressed host to have one. Points at the only observed forward name for this address; re-point when the host gains a mgmt. name.,,
