@@ -20,6 +20,24 @@ Image identity: `sonic-broadcom.bin` sha256
 Azure build 1201290). Mods do NOT survive `sonic-installer install` of a new image —
 re-run `apply-platform.sh` after any image change.
 
-Known gaps: no `sonic_platform` API package for this board (pmon hardware daemons
-inactive → no fan/thermal management; fans follow the controller's fallback behavior),
-and the default `admin` credential should be rotated on any non-bench deployment.
+## Status (2026-08-24, validated on bench hardware)
+
+Working: ONIE install; platform/HWSKU detection; `syncd`/`swss` stable with the trimmed
+30-port map (24x1G + 4x10G + 2x100G); VLAN/SVI config; mgmt over the OOB port; Dell board
+support via the image's bundled `platform-modules-n3248te` deb (apply-platform.sh installs
+it) — `dell_n3248te_platform` + `emc2305` fan controller + i2c muxes load, exposing 5x
+tmp75 board sensors (27-40C observed) and PSU telemetry through hwmon.
+
+Working — validated end-to-end 2026-08-24:
+- **1G copper dataplane**: jack 1 linked at 1000FD (BCM54182 external PHY driver attached),
+  bidirectional traffic proven (production ARP flood RX + iperf3 **944 Mbit/s** through the
+  port). Root cause of the earlier failure: the N3224T is wired as "half an N3248TE"
+  crosswise — jacks on SerDes lanes 1-24 but PHY MDIO at 0x20-0x39; the hybrid config.bcm
+  in apply-platform.sh encodes this.
+- Board sensors/fan controller drivers (see above), ONIE install, VLAN/SVI, mgmt via OOB.
+
+Open items:
+- SFP+ (`Ethernet48-51`) and 100G (`Ethernet52/56`) untested (no modules on the bench).
+- Jacks 2-24 assumed by symmetry (same PHY blocks); only jack 1 traffic-tested.
+- `pmon` SONiC-native fan/thermal integration still WIP; raw hwmon works.
+- Default `admin` credential must be rotated for any non-bench use.
