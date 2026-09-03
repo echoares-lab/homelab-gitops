@@ -1,25 +1,19 @@
-# Unified GitOps Template Pipeline
+# Unified GitOps Infrastructure (Legacy Monolith)
 
-A Python-orchestrated automation framework for building, provisioning, and configuring
-Ubuntu and VMware Photon OS nodes on vSphere, using Packer (golden images),
-OpenTofu (virtual hardware), and Ansible (OS state).
+> [!NOTE]
+> **Repository Decomposition Notice (2026-09-03):**
+> This monolithic infrastructure repository has been decomposed into modular, lifecycle-isolated repositories:
+> - **[`compute-infra`](../compute-infra)**: Owns VM lifecycle, Packer golden images, OpenTofu vSphere/Proxmox definitions, and Ansible node configuration.
+> - **[`network-infra`](../network-infra)**: Owns SONiC Dell PowerSwitch N3224T-ON NOS configuration, Technitium DNS/DHCP schemas, and EnGenius EPC controller containers.
+> - **[`k8s`](../k8s)**: Owns Kubernetes GitOps, ArgoCD applications, and Authentik service access configurations.
 
 ## Documentation
 
-All project documentation — architecture, design specs, runbooks, roadmap, plans, and
-status notes — lives in the Obsidian vault, not in this repository
-(per [Master-Policy §1.6](/home/dev/obsidian-vault/02%20Areas/Policies/Master-Policy.md),
-Obsidian-First Documentation Minimalism):
+Project documentation lives directly in-repo under `docs/`:
+- `docs/architecture.md` — system architecture overview and repository boundaries
+- `docs/runbooks/` — operational runbooks and troubleshooting guides
 
-**`/home/dev/obsidian-vault/01 Projects/Homelab-Gitops/`**
-
-- `Runbooks/RUNBOOK.md` — installation, command usage, troubleshooting
-- `Specs/DESIGN.md` — workflow diagrams and hardware standards
-- `Specs/ROADMAP.md` — project status and milestones
-- `Specs/ENGINEERING_STANDARDS.md` — naming, linting, and architecture rules
-- `Specs/TOOLING.md` — tooling inventory and required versions
-
-Agent directives are in [AGENTS.md](./AGENTS.md).
+Agent directives are defined in [AGENTS.md](./AGENTS.md).
 
 ## Requirements
 

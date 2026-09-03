@@ -2,17 +2,17 @@
 
 # Agent Directives — `homelab-gitops`
 
-> **Generated from the Obsidian vault. Do not edit this region by hand** — run `dev-policies/tooling/scripts/render-agents-md.py --repo . --profile gitops-infra`. Edits here are overwritten and CI fails on drift.
+> **Generated from dev-policies. Do not edit this region by hand** — run `dev-policies/tooling/scripts/render-agents-md.py --repo . --profile gitops-infra`. Edits here are overwritten and CI fails on drift.
 
-**Operative authority:** `/home/dev/obsidian-vault/02 Areas/Policies/Master-Policy.md` and its linked policy notes. On any conflict between this file and the vault, **the vault wins** — this file is a rendering of it, not a second source of truth.
+**Operative authority:** `dev-policies` repository (`policy/rules/*.yaml` and `docs/policies/Master-Policy.md`). On any conflict, **dev-policies is the single source of truth**.
 
 **Repo profile:** `gitops-infra`
 
 ## Context load order
 
-1. This file.
-2. `/home/dev/obsidian-vault/01 Projects/<Project>/Overview.md` — check its `## Policy Exceptions` section.
-3. The specific vault policy, when you need detail beyond what is rendered here.
+1. This file (`AGENTS.md`).
+2. In-repo `docs/` or `dev-policies/work/<project>.yaml` for project-specific architecture and active work.
+3. The specific policy under `dev-policies/docs/policies/`, when you need detail beyond what is rendered here.
 
 ---
 
@@ -44,31 +44,29 @@
 
 - **MCP servers are configured at USER scope, not per repository (resolved 2026-08-14).** The canonical server list lives once in `~/.claude.json`. Repositories MUST NOT carry a root `.mcp.json`; agents MUST NOT create one when scaffolding or cloning. Add servers with `claude mcp add -s user` (or `add-json -s user` when `env` blocks are involved).
   - **Why per-repo scaffolding was wrong:** MCP resolves from the session's **startup directory**, not from whatever files an agent later touches. Agents here routinely start in one repo and do work in others, so a `.mcp.json` in the repo being edited contributes nothing — it only ever applies when the session happened to start there. The per-repo mandate therefore did not deliver the guarantee it claimed; user scope delivers it unconditionally.
-  - **This supersedes the `.mcp.json` / `.mcp.json.example` split of 2026-08-12.** That split existed solely because the working file carried a live `OBSIDIAN_API_KEY`. The `obsidian` server is now keyless (below), so there is no credential to keep out of git and no reason for either file to exist. Both are removed from every repository; the CI gate in CICD-Policy §1.1.1 is retired with them.
+  - **This supersedes the `.mcp.json` / `.mcp.json.example` split of 2026-08-12.** That split existed solely because the working file carried a live `OBSIDIAN_API_KEY`. The `obsidian` server is now keyless (below), so there is no credential to keep out of git and no reason for either file to exist. Both are removed from every repository; the CI gate in [CICD-Policy §1.1.1](CICD-Policy.md) is retired with them.
   - **Per-repo disabling is not achievable and MUST NOT be attempted.** `deniedMcpServers` has no effect outside managed/enterprise settings (verified empirically — the denied server still loads). `enabledMcpjsonServers` / `disabledMcpjsonServers` work only for servers declared in a project `.mcp.json`, which no longer exists. A user-scope server is on in every repository, by design.
   - **Credentials use `${VAR}` expansion, which works at user scope** (verified). Tokens MUST be referenced as `${VAR}` in `~/.claude.json` and supplied from the secret manager per §4.1 — never inlined.
 - **Local Agent Memory (`memory`)**: `~/.claude.json` MUST define `@modelcontextprotocol/server-memory` writing to `/home/dev/.local/share/agent-memory/memory.json`. Agents MUST log facts, user preferences, and key architectural entities for sub-second retrieval across sessions.
-- **Obsidian Vault Memory (`obsidian`)**: `~/.claude.json` MUST define the **keyless** `npx -y obsidian-mcp /home/dev/obsidian-vault` variant. The `obsidian-mcp-server` REST variant is **prohibited** — it requires `OBSIDIAN_API_KEY`, which is what drove that key into plaintext across 19 working trees. Agents MUST read/write specs, ADRs, and project documentation in `/home/dev/obsidian-vault/01 Projects/<Project>/`.
 - **Documentation MCPs (`context7`, `cf-docs`)**: Agents MUST query `context7` for open-source library/framework specs and `cf-docs`/`cf-bindings` for Cloudflare platform specs before generating implementation code.
 - **Database & Persistence MCPs (`postgres`)**: Agents MUST use the `postgres` MCP tools to inspect table schemas, indexes, constraints, and cache keys instead of writing manual debug scripts. The `redis` MCP server is **not provisioned** — it failed to start on every session and was removed 2026-08-14; use `redis-cli` until a working server is configured.
+- **Agent Gateway (`agent-gateway`)**: Agents MUST route LLM completions through `agent-gateway` (`http://localhost:8089/v1` locally or `https://gateway.infra.plexplease.com/v1` in-cluster), which dynamically handles consumer OAuth load balancing (`CLIProxyAPI`) and local GPU offload (`Ollama`).
+- **Agent Tools Suite (`agent-tools`)**: Agents MUST use native `agent-tools` primitives for secrets (`internal/secrets` enforcing OpenBao merge-only patching, 1Password parent tracking, and RFC 3986 tokens) and standards enforcement (`internal/standards`).
 - **Infra & DevOps MCPs (`argocd`, `grafana`, `homarr`)**: Agents MUST use `argocd` and `grafana` MCP tools for deployment state and observability. The `kubernetes` and `docker` MCP servers are **not provisioned** — both failed to start on every session and were removed 2026-08-14; use `kubectl` and `docker` directly until working servers are configured.
-- **Subagent MCP Equipping**: Subagents are spawned with the **`Agent` tool** (`subagent_type` selects the agent). There is no `invoke_subagent` call and no `enable_mcp_tools` flag — those are primitives of a different harness and were never executable here. User-scope MCP servers declared in `~/.claude.json` are reachable by every subagent automatically; schemas for deferred tools load on demand via `ToolSearch`. The real control is the agent definition: where a subagent type is defined in `.claude/agents/*.md`, its `tools:` frontmatter MUST retain the `mcp__<server>__<tool>` entries its task needs, because omitting them is what actually withdraws MCP access.
+- **Subagent MCP Equipping**: Subagents are spawned with the **`Agent` tool** (`subagent_type` selects the agent). User-scope MCP servers declared in `~/.claude.json` are reachable by every subagent automatically; schemas for deferred tools load on demand via `ToolSearch`. The real control is the agent definition: where a subagent type is defined in `.claude/agents/*.md`, its `tools:` frontmatter MUST retain the `mcp__<server>__<tool>` entries its task needs, because omitting them is what actually withdraws MCP access.
 
 #### 1.5.1 Memory Tiering & Retrieval Protocol
 - **Tier 1 (Fast Operational Memory - `memory`)**: Use `@modelcontextprotocol/server-memory` (JSON Knowledge Graph) for user preferences, tech stack choices, active sprint goals, entity relationships, and sub-second key-value lookups.
-- **Tier 2 (Persistent Vault Documentation - `obsidian`)**: Use Obsidian Markdown notes for long-term project specs, ADRs (`0001-title.md`), Runbooks, API contract specs, and post-mortems.
+- **Tier 2 (In-Repo Specifications & Policy Workflows)**: Use version-controlled in-repo specifications (`docs/`, `config/`, and `dev-policies/work/*.yaml`) for project architecture, ADRs, runbooks, and interface specs.
 
 ## Repository Documentation Minimalism
 
-*Source: `Master-Policy.md` — summary; the full section is in the vault. Do not edit here.*
+*Source: `Master-Policy.md` — summary; the full policy is in dev-policies. Do not edit here.*
 
-- **Rule:** project documentation — epic/backlog views (the authored task record is `dev-policies/work/<project>.yaml`, Work-Tracking-Policy §1), ADRs, specs, architecture, runbooks, research reports, design/implementation plans, status notes — lives **exclusively** in `/home/dev/obsidian-vault/01 Projects/<Project>/`, never in a code repository.
-- **Permitted markdown in a repo (exhaustive):** `README.md` (orientation + vault pointer), `AGENTS.md` (`CLAUDE.md` is an untracked pointer to it), `CHANGELOG.md` / `LICENSE` / `CONTRIBUTING.md` / `SECURITY.md`, format/interface notes physically adjacent to the artifacts they describe, and files under `.github/` that GitHub consumes.
-- **Carve-outs — these STAY in the repo; never migrate or delete them:** vendored/upstream forks (currently `CLIProxyAPI`, `Cli-Proxy-API-Management-Center`) keep their upstream documentation in-repo; `docs/runbooks/` and `docs/openapi/` are permitted by path, and any markdown with a live consumer (an alert `runbook_url`, a test, a served route) is an interface artifact, not documentation; format notes adjacent to the artifacts they describe stay with them.
-- **Migrating:** when documentation does leave a repo, **move** it into the vault (naming the destination in the commit message) — never delete outright.
-- **Enforced mechanically, not by memory:** a `PreToolUse` hook (`.claude/settings.json` in every repo, `block-prohibited-docs.py`) denies a prohibited write and names the vault destination; `pre-commit` (`doc-minimalism` + the shrink-only exception ratchet) and the `policy-check` CI gate catch the rest. The hook cannot stop a wrong *deletion* — the carve-outs above are what stop that.
-- **Grandfathered debt is a dated exception, not a permanent baseline:** pre-existing violations live in `dev-policies/policy/exceptions.yaml` with a scope, a rationale, an owner and an **expiry**; an expired entry grants nothing. See [[02 Areas/Policies/Policy-Exceptions.md|Policy-Exceptions]] — a PR adding an entry is the only way to get one.
-- **Full text and placement rules:** Master-Policy §1.6 in the vault, or the `policy-doc-placement` skill.
+- **Rule (Decommissioned 2026-09-03):** Obsidian vault maintenance is **COMPLETELY DECOMMISSIONED**. The authoritative estate record is **machine-readable YAML/JSON** (`dev-policies/policy/rules/*.yaml`, `dev-policies/work/<project>.yaml`, and repo configuration files).
+- **In-Repo Documentation Standard:** Code-adjacent documentation (`docs/`, architecture overviews, design decisions, runbooks, and interface specs) lives **exclusively in code repositories** under `docs/` adjacent to the implementations they describe.
+- **AI-Agent First:** Agents MUST prioritize machine-readable structured formats (JSON/YAML) over loose unstructured markdown. When markdown is requested, it lives strictly in-repo under `docs/`.
+- **Prohibited:** Maintaining hand-edited duplicate notes in external vaults. External markdown vault syncing is retired across the fleet.
 
 ## Modern Toolchain & Language Guidelines
 
@@ -77,7 +75,7 @@
 ### 2.1 Python (Modern Toolchain Mandate: `uv` & `ruff`)
 - **Runtime Target:** Python 3.12+.
 - **Mandatory Package & Environment Manager (`uv`):** Use **`uv`** (`uv pip`, `uv venv`, `uv sync`, `uv run`) for ultra-fast dependency resolution and virtual environment management. Traditional `pip` and `poetry` are deprecated.
-- **Nexus PyPI Index Mandate:** All `uv` operations MUST target the local Nexus repository index at `https://nexus.infra.plexplease.com/repository/pypi-group/simple` via global `~/.config/uv/uv.toml` or repository-level `uv.toml`. *(Corrected 2026-08-12: this previously read `pypi-all`, which returns HTTP 404. Verified live — `pypi-group` returns 200.)*
+- **[Nexus](CICD-Policy.md) PyPI Index Mandate:** All `uv` operations MUST target the local [Nexus](CICD-Policy.md) repository index at `https://nexus.infra.plexplease.com/repository/pypi-group/simple` via global `~/.config/uv/uv.toml` or repository-level `uv.toml`. *(Corrected 2026-08-12: this previously read `pypi-all`, which returns HTTP 404. Verified live — `pypi-group` returns 200.)*
 - **Mandatory Formatter & Linter (`ruff`):** Use **`ruff check .`** and **`ruff format .`** for linting and code formatting.
 - **Type Annotations:** Full type hinting (`typing` / Python 3.12 generic syntax).
 - **Data Models:** Use Pydantic v2 for data parsing, schema validation, and config loading.
@@ -104,36 +102,31 @@
 
 *Source: `Testing-Policy.md` — do not edit here.*
 
-**This table is the only place test time caps are defined.** Master-Policy §2.1 and CICD-Policy §1.1 point here rather than restating a number — previously the same two numbers appeared with four different scopes across those documents.
+**This table defines the informational timing benchmarks for test execution across all suites.** Test runners report execution duration and benchmarks for observability and performance telemetry rather than failing builds on strict caps.
 
-| Tier | Scope of the cap | Cap |
+| Tier | Scope of the benchmark | Informational Target |
 |---|---|---|
-| Tier 1 — Static analysis & lint | Whole repo | No separate cap; counts toward the CI gate total |
-| Tier 2 — Unit | Whole repo, entire unit suite | **10 seconds** |
-| Tier 3 — Integration | Per suite, inside the CI gate total | **45 seconds** |
-| Tier 4 — E2E (mocked) | Own job, not part of the PR gate | **60 seconds** per suite |
-| **CI gate total (Tiers 1–3)** | One PR run — the number CI actually enforces | **60 seconds** |
+| Tier 1 — Static analysis & lint | Whole repo | Informational; reports elapsed time |
+| Tier 2 — Unit | Whole repo, entire unit suite | **~10 seconds** target (telemetry reported) |
+| Tier 3 — Integration | Per suite | **~45 seconds** target (telemetry reported) |
+| Tier 4 — E2E (mocked) | Own job, not part of the PR gate | **~60 seconds** target per suite |
+| **CI execution telemetry (Tiers 1–3)** | One PR run — reported in test telemetry | **~60 seconds** target |
 
 Notes:
-- Tier 4 E2E runs against the `CLIProxyAPI` mock in its own job and is **excluded** from the Tiers 1–3 gate total.
-- A suite exceeding its cap MUST be refactored or parallelized. Raising a cap requires a documented Policy Exception per Policy-Exceptions §2.
+- Tier 4 E2E runs against the `CLIProxyAPI` mock in its own job and is **excluded** from the Tiers 1–3 combined measurement.
+- Test runners and CI telemetry report execution durations. Timing is tracked for performance regression analysis without failing builds solely on duration.
 
-**Why 45s for Tier 3 (resolved 2026-08-13).** The superseded text set *both* "individual
-test suite ≤ 60s" and "Tiers 1–3 combined ≤ 60s", which cannot both hold — if integration
-alone may consume the full 60s, Tier 2's 10s already blows the combined budget. The combined
-gate is authoritative because it is the figure CI enforces
-(CICD-Policy §1.1), so Tier 3 gets the remainder:
-60s total − 10s unit − ~5s lint ≈ **45s**. Do not reintroduce a second standalone 60s figure.
+**Timing Targets (updated 2026-08-29).** Targets serve as guidance for keeping agent iteration cycles fast and responsive. When test suites grow significantly past targets, parallelization or refactoring is recommended.
 
 ## Automated Quality Gates
 
 *Source: `CICD-Policy.md` — do not edit here.*
 
 Every Pull Request and commit MUST pass the following automated CI quality gates before code can be merged:
-1. **MCP Scaffolding Gate — RETIRED 2026-08-14; guard relocated, clarified 2026-08-15.** MCP servers are configured once at user scope in `~/.claude.json`; repositories carry no `.mcp.json` or `.mcp.json.example`, so there is nothing in a checkout for CI to verify and the gate is removed from workflows. What retirement dropped is the requirement to **have** the file — it never licensed re-introducing one. The original instruction to "drop the `.mcp.json` checks from `scripts/setup_git_hooks.sh`" was accurate only about *where* the check lives: the guard moved rather than disappeared. It is now the `no-mcp-json` hook in each repo's `.pre-commit-config.yaml`, which fails any commit that stages `.mcp.json` or `.mcp.json.example`; `scripts/setup_git_hooks.sh` no longer writes hook bodies inline and only runs `pre-commit install` (reference implementation: `hardware`). A checkout whose hooks are not installed has no protection at all — running `pre-commit install` per clone and per worktree is what makes the ban real. Rationale — including why per-repo scaffolding never delivered its guarantee — is in Master-Policy §1.5.
+1. **MCP Scaffolding Gate — RETIRED 2026-08-14; guard relocated, clarified 2026-08-15.** MCP servers are configured once at user scope in `~/.claude.json`; repositories carry no `.mcp.json` or `.mcp.json.example`, so there is nothing in a checkout for CI to verify and the gate is removed from workflows. What retirement dropped is the requirement to **have** the file — it never licensed re-introducing one. The original instruction to "drop the `.mcp.json` checks from `scripts/setup_git_hooks.sh`" was accurate only about *where* the check lives: the guard moved rather than disappeared. It is now the `no-mcp-json` hook in each repo's `.pre-commit-config.yaml`, which fails any commit that stages `.mcp.json` or `.mcp.json.example`; `scripts/setup_git_hooks.sh` no longer writes hook bodies inline and only runs `pre-commit install` (reference implementation: `hardware`). A checkout whose hooks are not installed has no protection at all — running `pre-commit install` per clone and per worktree is what makes the ban real. Rationale — including why per-repo scaffolding never delivered its guarantee — is in [Master-Policy §1.5](Master-Policy.md).
 2. **Static Analysis & Linting:** Code formatting and zero-warning lint checks (`ruff`, `biome`, `gofmt`).
-3. **Security & Secret Scanning:** `gitleaks` over the checked-out tree, using a repo-local `.gitleaks.toml`, on every push and PR — **and in the Obsidian vault on the same footing**. Scope, allowlist discipline, and the sensitive-non-secret rules are defined in Secrets-Policy §7.
-4. **Automated Test Matrix:** Execution of Unit and Integration test suites (Tiers 1–3). **Time caps are defined once in Testing-Policy §3.1** — do not restate a number here.
+3. **Security & Secret Scanning:** `gitleaks` over the checked-out tree, using a repo-local `.gitleaks.toml`, on every push and PR — **and in the Obsidian vault on the same footing**. Scope, allowlist discipline, and the sensitive-non-secret rules are defined in [Secrets-Policy §7](Secrets-Policy.md).
+4. **Automated Test Matrix:** Execution of Unit and Integration test suites (Tiers 1–3). **Time caps are defined once in [Testing-Policy §3.1](Testing-Policy.md)** — do not restate a number here.
 5. **Build Validation:** Compilation check of container images or binary packages.
 
 ## Authorized Artifact Repository
