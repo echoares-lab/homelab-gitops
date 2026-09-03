@@ -26,8 +26,7 @@ uv venv && uv sync
 
 ## Quick start
 
-Configure credentials (secret references resolve from OpenBao/1Password; see the
-secrets runbook in the vault):
+Configure credentials (secret references resolve from OpenBao/1Password per Secrets-Policy §2):
 
 ```bash
 cp config/vault.yml.example config/vault.yml

@@ -1,6 +1,0 @@
----
-- name: Restart k3s deadman
-  ansible.builtin.systemd:
-    name: k3s-deadman.service
-    state: restarted
-    daemon_reload: true

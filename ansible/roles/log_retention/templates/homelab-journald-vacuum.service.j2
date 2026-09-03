@@ -1,7 +1,0 @@
-[Unit]
-Description=Bound journald storage for HomeLab profile
-Documentation=man:journalctl(1)
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/journalctl --vacuum-time={{ log_retention_journald_vacuum_time }} --vacuum-size={{ log_retention_journald_vacuum_size }}

@@ -1,6 +1,0 @@
----
-- name: Restart github-runner service
-  ansible.builtin.systemd:
-    name: "actions.runner.{{ runner_github_url | regex_replace('https://github.com/', '') | replace('/', '.') }}.{{ runner_name }}.service"
-    state: restarted
-    daemon_reload: true
