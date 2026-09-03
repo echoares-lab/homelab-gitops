@@ -20,11 +20,21 @@ class Workflow:
         self.drivers = drivers
         self.secrets_driver = secrets_driver
         self.state_machine = StateMachine()
+        vm_ip = profile.deployment.get("ip_address")
+        if not vm_ip:
+            try:
+                from homelab_gitops.domain.network import NetworkService
+                _, vm_ip = NetworkService().get_existing_records(profile.name)
+                if not vm_ip and profile.deployment.get("vm_name"):
+                    _, vm_ip = NetworkService().get_existing_records(profile.deployment["vm_name"].split(".")[0])
+            except Exception:
+                pass
+
         self.state = DeploymentState(
             profile_name=profile.name,
             index="",
-            vm_name=profile.name,
-            vm_ip=profile.deployment.get("ip_address"),
+            vm_name=profile.deployment.get("vm_name", profile.name),
+            vm_ip=vm_ip,
         )
 
         # Validate profile structure

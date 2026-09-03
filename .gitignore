@@ -129,3 +129,6 @@ Thumbs.db
 # Test artefacts
 .coverage
 # <<< END repo-pack managed block (dev-policies) <<<
+.playwright-mcp/
+config/*.json
+config/estate_inventory.yaml

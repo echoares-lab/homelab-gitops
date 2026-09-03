@@ -22,4 +22,4 @@ vm_specs:
   cpu: 16
   disk: 40
   guest_id: fedora64Guest
-  memory: 16384
+  memory: 65536
