@@ -53,7 +53,7 @@ jobs:
           uv venv .venv --python 3.12
           echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
           uv pip install -e .
-          uv pip install pytest-cov
+          uv pip install -r requirements.txt
 
       - name: Run unit tests (no secrets needed)
         env:

@@ -98,7 +98,7 @@ jobs:
         run: |
           echo "=== Clean Install Smoke Test ==="
           uv venv /tmp/homelab-gitops-clean-install --python 3.12
-          uv pip --python /tmp/homelab-gitops-clean-install/bin/python install dist/*.whl
+          uv pip install --python /tmp/homelab-gitops-clean-install/bin/python dist/*.whl
           /tmp/homelab-gitops-clean-install/bin/homelab-gitops --help
           /tmp/homelab-gitops-clean-install/bin/homelab-gitops doctor --help
 
