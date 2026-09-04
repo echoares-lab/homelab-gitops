@@ -40,28 +40,28 @@ repos:
         stages: [pre-commit]
       - id: doc-minimalism
         name: Master-Policy 1.6 documentation minimalism
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/check-doc-minimalism.py
         language: system
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
       - id: doc-minimalism-ratchet
         name: Master-Policy 1.6 exception ratchet (dated, may only shrink)
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py --ratchet
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/check-doc-minimalism.py --ratchet
         language: system
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
       - id: container-notices
         name: container builds carry the notices they owe (Licensing-Policy 3)
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-container-notices.py
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/check-container-notices.py
         language: system
         pass_filenames: false
         files: '(^|/)(Dockerfile|Containerfile)(\..+)?$|(^|/).+\.Dockerfile$'
         stages: [pre-commit]
       - id: agents-md-drift
         name: AGENTS.md matches the vault
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/render-agents-md.py --repo . --check
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/render-agents-md.py --repo . --check
         language: system
         pass_filenames: false
         always_run: true
@@ -73,13 +73,13 @@ repos:
   # re-run all of them on every push -- work already done at commit time.
       - id: doc-minimalism
         name: Master-Policy 1.6 documentation minimalism
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/check-doc-minimalism.py
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/check-doc-minimalism.py
         language: system
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
   # Scoped to THIS repo (was --all, changed 2026-08-15). --all checked the
-  # drift state of all 13 repos in dev-policies/tooling/repos.yaml, so a commit
+  # drift state of all 13 repos in homelab-policies/tooling/repos.yaml, so a commit
   # here failed whenever any unrelated repo drifted -- it blocked an unrelated
   # commit in this very repo on the day it was changed. A hook can only gate
   # the commit in front of it; the committer cannot fix another repo's
@@ -87,12 +87,12 @@ repos:
   # reach for --no-verify. Fleet coverage comes from installing this same hook
   # in every repo, each guarding its own file.
   #
-  # No --profile: render-agents-md.py resolves it from dev-policies/tooling/
+  # No --profile: render-agents-md.py resolves it from homelab-policies/tooling/
   # repos.yaml, the single source of truth for repo shape, and errors out if
   # this repo is missing there.
       - id: agents-md-drift
         name: AGENTS.md matches the vault
-        entry: python3 /home/dev/repos/dev-policies/tooling/scripts/render-agents-md.py --repo . --check
+        entry: python3 /home/dev/repos/homelab-policies/tooling/scripts/render-agents-md.py --repo . --check
         language: system
         pass_filenames: false
         always_run: true

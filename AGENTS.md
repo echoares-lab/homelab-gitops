@@ -300,21 +300,21 @@ marker is preserved across future regenerations.
 
 ---
 
-<!-- BEGIN GENERATED — dev-policies/tooling/scripts/render-agents-md.py. Do not edit by hand. -->
+<!-- BEGIN GENERATED — homelab-policies/tooling/scripts/render-agents-md.py. Do not edit by hand. -->
 
 # Agent Directives — `homelab-gitops`
 
-> **Generated from dev-policies. Do not edit this region by hand** — run `dev-policies/tooling/scripts/render-agents-md.py --repo . --profile gitops-infra`. Edits here are overwritten and CI fails on drift.
+> **Generated from homelab-policies. Do not edit this region by hand** — run `homelab-policies/tooling/scripts/render-agents-md.py --repo . --profile gitops-infra`. Edits here are overwritten and CI fails on drift.
 
-**Operative authority:** `dev-policies` repository (`policy/rules/*.yaml` and `docs/policies/Master-Policy.md`). On any conflict, **dev-policies is the single source of truth**.
+**Operative authority:** `homelab-policies` repository (`policy/rules/*.yaml` and `docs/policies/Master-Policy.md`). On any conflict, **homelab-policies is the single source of truth**.
 
 **Repo profile:** `gitops-infra`
 
 ## Context load order
 
 1. This file (`AGENTS.md`).
-2. In-repo `docs/` or `dev-policies/work/<project>.yaml` for project-specific architecture and active work.
-3. The specific policy under `dev-policies/docs/policies/`, when you need detail beyond what is rendered here.
+2. In-repo `docs/` or `homelab-policies/work/<project>.yaml` for project-specific architecture and active work.
+3. The specific policy under `homelab-policies/docs/policies/`, when you need detail beyond what is rendered here.
 
 ---
 
@@ -359,13 +359,13 @@ marker is preserved across future regenerations.
 
 #### 1.5.1 Memory Tiering & Retrieval Protocol
 - **Tier 1 (Fast Operational Memory - `memory`)**: Use `@modelcontextprotocol/server-memory` (JSON Knowledge Graph) for user preferences, tech stack choices, active sprint goals, entity relationships, and sub-second key-value lookups.
-- **Tier 2 (In-Repo Specifications & Policy Workflows)**: Use version-controlled in-repo specifications (`docs/`, `config/`, and `dev-policies/work/*.yaml`) for project architecture, ADRs, runbooks, and interface specs.
+- **Tier 2 (In-Repo Specifications & Policy Workflows)**: Use version-controlled in-repo specifications (`docs/`, `config/`, and `homelab-policies/work/*.yaml`) for project architecture, ADRs, runbooks, and interface specs.
 
 ## Repository Documentation Minimalism
 
-*Source: `Master-Policy.md` — summary; the full policy is in dev-policies. Do not edit here.*
+*Source: `Master-Policy.md` — summary; the full policy is in homelab-policies. Do not edit here.*
 
-- **Rule (Decommissioned 2026-09-03):** Obsidian vault maintenance is **COMPLETELY DECOMMISSIONED**. The authoritative estate record is **machine-readable YAML/JSON** (`dev-policies/policy/rules/*.yaml`, `dev-policies/work/<project>.yaml`, and repo configuration files).
+- **Rule (Decommissioned 2026-09-03):** Obsidian vault maintenance is **COMPLETELY DECOMMISSIONED**. The authoritative estate record is **machine-readable YAML/JSON** (`homelab-policies/policy/rules/*.yaml`, `homelab-policies/work/<project>.yaml`, and repo configuration files).
 - **In-Repo Documentation Standard:** Code-adjacent documentation (`docs/`, architecture overviews, design decisions, runbooks, and interface specs) lives **exclusively in code repositories** under `docs/` adjacent to the implementations they describe.
 - **AI-Agent First:** Agents MUST prioritize machine-readable structured formats (JSON/YAML) over loose unstructured markdown. When markdown is requested, it lives strictly in-repo under `docs/`.
 - **Prohibited:** Maintaining hand-edited duplicate notes in external vaults. External markdown vault syncing is retired across the fleet.
