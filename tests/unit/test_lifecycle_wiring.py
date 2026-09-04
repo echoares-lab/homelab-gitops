@@ -113,10 +113,12 @@ def test_tofu_driver_execute_deploy(mock_run, mock_which):
     assert result.vm_ip == "1.2.3.4"
 
 @patch("shutil.which", return_value="/usr/bin/ansible-playbook")
+@patch("os.path.exists", return_value=True)
 @patch("subprocess.run")
-def test_ansible_driver_execute_config(mock_run, mock_which):
+def test_ansible_driver_execute_config(mock_run, mock_exists, mock_which):
     """Test AnsibleDriver config execution."""
     mock_run.return_value = MagicMock(returncode=0, stdout="configured")
+    mock_exists.side_effect = lambda p: str(p) != "1.2.3.4"
     
     driver = AnsibleDriver()
     profile = NodeProfile(

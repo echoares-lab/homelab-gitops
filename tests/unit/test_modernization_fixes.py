@@ -257,10 +257,11 @@ def test_tofu_driver_validate():
 
 def test_ansible_driver_validate():
     with patch.dict(os.environ, {"ANSIBLE_PLAYBOOK_DIR": "/tmp"}):
-        from homelab_gitops.drivers.ansible_driver import AnsibleDriver
-        driver = AnsibleDriver()
-        with patch("os.path.exists", return_value=True):
-            assert driver.validate() is True
+        with patch("shutil.which", return_value="/usr/bin/ansible-playbook"):
+            from homelab_gitops.drivers.ansible_driver import AnsibleDriver
+            driver = AnsibleDriver()
+            with patch("os.path.exists", return_value=True):
+                assert driver.validate() is True
 
 def test_vcenter_driver_validate():
     from homelab_gitops.drivers.vcenter_driver import vCenterDriver
