@@ -110,13 +110,16 @@
 | Tier 2 — Unit | Whole repo, entire unit suite | **~10 seconds** target (telemetry reported) |
 | Tier 3 — Integration | Per suite | **~45 seconds** target (telemetry reported) |
 | Tier 4 — E2E (mocked) | Own job, not part of the PR gate | **~60 seconds** target per suite |
-| **CI execution telemetry (Tiers 1–3)** | One PR run — reported in test telemetry | **~60 seconds** target |
+| **CI fast-feedback telemetry (Tiers 1–2)** | Fast unit/lint PR check — aspirational feedback goal | **~60 seconds** aspirational target |
+| **Heavy CI Pipelines (GitOps, Containers, SBOM)** | Full manifest validation, container baking, SBOM generation | **3–10 minutes** realistic runtime (thoroughness over speed) |
 
 Notes:
 - Tier 4 E2E runs against the `CLIProxyAPI` mock in its own job and is **excluded** from the Tiers 1–3 combined measurement.
 - Test runners and CI telemetry report execution durations. Timing is tracked for performance regression analysis without failing builds solely on duration.
+- Heavy workflows (e.g. `k8s` GitOps validation, container builds, golden images, and SBOM generation) naturally require 3–10 minutes. Builds MUST NOT be truncated or artificially constrained when comprehensive verification requires realistic execution time.
 
-**Timing Targets (updated 2026-08-29).** Targets serve as guidance for keeping agent iteration cycles fast and responsive. When test suites grow significantly past targets, parallelization or refactoring is recommended.
+**Aspirational Target vs. Realistic Pipeline Execution (updated 2026-09-04).**
+The 60-second benchmark is an aspirational target for developer feedback loops on simple code changes. For complex infrastructure validations, container image builds, and supply-chain security scans, correctness and rigorous empirical verification take precedence over arbitrary speed limits.
 
 ## Automated Quality Gates
 
