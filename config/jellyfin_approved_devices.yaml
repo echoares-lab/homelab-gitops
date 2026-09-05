@@ -1,0 +1,25 @@
+# ==============================================================================
+# Declarative Registry of Authorized Jellyfin Client Devices
+# Managed via GitOps & synced to Cloudflare WAF via scripts/sync_jellyfin_waf_devices.py
+# ==============================================================================
+
+devices:
+  - id: ellens-smart-tv
+    user: ellen
+    device_name: "Ellen's TV"
+    client: "Jellyfin Android TV"
+    version: "0.19.10"
+    device_id: "676f873ad56a19dc22978a4fed072057dfd50cb0"
+    added_at: "2026-09-05"
+    enabled: true
+    notes: "Smart TV in Living Room"
+
+  - id: matthew-desktop-chrome
+    user: matthew
+    device_name: "Chrome Desktop"
+    client: "Jellyfin Web"
+    version: "10.10.7"
+    device_id: "TW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyOC4wLjAuMCBTYWZhcmkvNTM3LjM2fDE3ODgzODE5NzkwNjk1"
+    added_at: "2026-09-05"
+    enabled: true
+    notes: "Windows PC Chrome Browser"
