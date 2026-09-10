@@ -121,6 +121,7 @@ def generate_estate():
             "access_points": [
                 {
                     "name": "ap-01",
+                    "hardware_asset": "hardware-inventory://machines/ap-01",
                     "model": "EnGenius EWS377-FIT",
                     "vendor": "EnGenius Technologies",
                     "ipv4": "10.10.10.6",
@@ -134,6 +135,7 @@ def generate_estate():
                 },
                 {
                     "name": "ap-02",
+                    "hardware_asset": "hardware-inventory://machines/ap-02",
                     "model": "EnGenius EWS377-FIT",
                     "vendor": "EnGenius Technologies",
                     "ipv4": "10.10.10.8",
@@ -147,6 +149,7 @@ def generate_estate():
                 },
                 {
                     "name": "asus-ap-01",
+                    "hardware_asset": "hardware-inventory://machines/asus-ap-01",
                     "model": "ASUS Wireless AP",
                     "vendor": "ASUSTek COMPUTER INC",
                     "ipv4": "10.10.10.7",

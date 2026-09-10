@@ -2,7 +2,7 @@
 
 > **Authoritative Inventory Document:** `docs/estate_architecture_and_inventory.md`  
 > **Machine-Readable Sources:** [`config/estate_inventory.yaml`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.yaml), [`config/estate_inventory.json`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.json), [`config/network_clients.json`](file:///home/dev/repos/homelab-gitops/config/network_clients.json)  
-> **Last Updated:** 2026-09-10 16:19 UTC  
+> **Last Updated:** 2026-09-10 16:53 UTC  
 > **Status:** Empirically Verified & Consolidated  
 
 ---
