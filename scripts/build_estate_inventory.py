@@ -21,7 +21,7 @@ def generate_estate():
             "last_updated": now_iso,
             "authoritative_source": "config/estate_inventory.yaml",
             "generated_by": "AGY Antigravity Pair Programmer",
-            "version": "1.0.0"
+            "version": "1.1.0"
         },
         "network": {
             "firewall_gateway": {
@@ -66,6 +66,7 @@ def generate_estate():
             "switches": [
                 {
                     "name": "sw-core-01",
+                    "hardware_asset": "hardware-inventory://machines/sw-core-01",
                     "model": "Dell EMC PowerSwitch N3224T-ON",
                     "hw_sku": "DellEMC-N3224T",
                     "platform": "x86_64-dellemc_n3224t_c3338-r0",
@@ -180,8 +181,7 @@ def generate_estate():
                 "hardware": {
                     "motherboard": "Supermicro X11DPi-N(T)",
                     "chassis": "Supermicro 2U / 4U Rackmount Server",
-                    "bios_version": "3.6",
-                    "bios_date": "2022-01-25",
+                    "hardware_asset": "hardware-inventory://machines/srv-01",
                     "cpu": "Dual Genuine Intel(R) CPU 0000%@ (Xeon Scalable Platinum 8160/8260 QS/ES)",
                     "cpu_topology": "2 Sockets, 48 Physical Cores, 96 Hardware Threads @ 2.60 GHz",
                     "ram_installed": "382.7 GiB DDR4 ECC Registered",
@@ -231,8 +231,7 @@ def generate_estate():
                 "mgmt_mac": "00:50:56:61:8D:A4",
                 "hardware": {
                     "model": "Topton / CWWK Multi-NIC Mini PC (Default string 6083002)",
-                    "bios_version": "5.27",
-                    "bios_date": "2023-06-26",
+                    "hardware_asset": "hardware-inventory://machines/srv-02",
                     "cpu": "Intel Core i3-N305 (Alder Lake-N)",
                     "cpu_topology": "1 Socket, 8 Physical Cores, 8 Threads @ 1.80 GHz",
                     "ram_installed": "15.7 GiB DDR5",
@@ -268,8 +267,7 @@ def generate_estate():
                     "chassis": "Dell Latitude 5520 Laptop",
                     "service_tag": "9SHLP93",
                     "system_uuid": "4c4c4544-0053-4810-804c-b9c04f503933",
-                    "bios_version": "1.4.2",
-                    "bios_date": "2021-03-09",
+                    "hardware_asset": "hardware-inventory://machines/srv-03",
                     "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
                     "cpu_topology": "4 Cores, 8 Threads",
                     "ram_installed": "23.7 GiB DDR4",
@@ -295,6 +293,7 @@ def generate_estate():
                 "popos_dhcp_ipv4": "10.10.10.239",
                 "mac": "04:42:1A:E9:D1:B3",
                 "hardware": {
+                    "hardware_asset": "hardware-inventory://machines/srv-04",
                     "motherboard": "ASUS Intel Z690",
                     "cpu": "13th Gen Intel(R) Core(TM) i7-13700K (Raptor Lake)",
                     "cpu_topology": "16 Cores (8P + 8E), 24 Threads @ 5.40 GHz Boost",
