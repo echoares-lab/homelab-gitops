@@ -6,7 +6,7 @@ import sys
 
 def get_screenshot(vm_name):
     # Vault configuration
-    vault_addr = "http://openbao.plexplease.com:8201"
+    vault_addr = "http://openbao.infra.plexplease.com:8201"
     
     # Get vCenter credentials from Vault
     auth_resp = requests.post(f"{vault_addr}/v1/auth/token/create", json={"policies": ["default"]})

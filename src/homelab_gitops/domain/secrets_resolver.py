@@ -32,7 +32,7 @@ _REMEDIATION = (
     "Could not resolve vCenter credential '{key}' from OpenBao "
     "({uri}) and no '{env}' environment fallback is set.\n"
     "Authenticate to OpenBao before running this command, e.g.:\n"
-    "  export VAULT_ADDR=http://openbao.plexplease.com:8201\n"
+    "  export VAULT_ADDR=http://openbao.infra.plexplease.com:8201\n"
     "  bao login   # or: export VAULT_TOKEN=<token>\n"
     "Then verify with:\n"
     "  bao kv get -mount=kv -field={env} agents/autonomous/vcenter/prod"
