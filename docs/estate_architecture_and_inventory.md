@@ -161,12 +161,14 @@ Storage is anchored by **TrueNAS SCALE 25.04.2.6 (Fangtooth)** operating as a hi
 ```
 
 ### Key ZFS Datasets & Usages
-1. `WHITEBOX/MEDIA/MOVIES` (54.1 TB) — Primary 1080p/720p Plex Movie collection.
-2. `WHITEBOX/MEDIA/TV` (27.7 TB) — Television series archive.
-3. `WHITEBOX/MEDIA/4K_MOVIES` (3.18 TB) — High-bitrate 4K UHD Remux / HDR media.
-4. `WHITEBOX/nexus` (1.07 TB) — Sonatype Nexus hosted container registry & PyPI repository.
-5. `WHITEBOX/WINDOWS_BACKUP` (265 GB) — Desktop workstation bare-metal disk images.
-6. `WHITEBOX/MEDIA/DOWNLOAD` (130 GB) — Usenet (SABnzbd) and torrent staging filesystem.
+Media datasets follow the TRaSH-Guides layout since 2026-09-11 (k8s `docs/specs/2026-09-11-trash-media-layout-design.md`): one dataset per media type, each holding `library/` (players and the arr root folder), `torrents/`, `usenet/` and `.recycle/`, so imports are hardlinks or renames within the dataset. Each is NFS-exported to k3s-01 (10.10.10.50) only.
+
+1. `WHITEBOX/MEDIA/movies` (56.7 TB) — Movie library incl. 4K (the former `MOVIES` and `4K_MOVIES`); Radarr root `library/`.
+2. `WHITEBOX/MEDIA/tv` (27.9 TB) — Television series; Sonarr root `library/`.
+3. `WHITEBOX/MEDIA/music`, `books`, `audiobooks`, `podcasts`, `xxx` — Lidarr, Readarr/Booklore/Shelfmark, Audiobookshelf (two), Whisparr libraries (new, near-empty).
+4. `WHITEBOX/MEDIA/downloads` — Scratch: SABnzbd incomplete/nzb/failed folders and uncategorised torrents (the former `DOWNLOAD`).
+5. `WHITEBOX/nexus` (1.07 TB) — Sonatype Nexus hosted container registry & PyPI repository.
+6. `WHITEBOX/WINDOWS_BACKUP` (265 GB) — Desktop workstation bare-metal disk images.
 7. `WHITEBOX/k3s-object-store` (124 GB) — Backing storage for MinIO S3 cluster storage.
 8. `WHITEBOX/backups` (74.9 GB) — TrueNAS configuration, database dumps, and disaster recovery snapshots.
 9. `K3S_HDD/k3s-iscsi/*` — Democratic-CSI persistent volumes mounted dynamically into k3s pods.
