@@ -76,16 +76,21 @@ jobs:
           echo "=== Shell Linting ==="
           shellcheck scripts/*.sh || true
 
-      # Tier 2 gate. Both thresholds live in pytest.ini addopts so this step
+      # Tier 2 gate. Both settings live in pytest.ini addopts so this step
       # cannot drift from what a developer gets by typing `pytest` locally:
-      #   --cov-fail-under=85     (Testing-Policy §2, floor 80%)
-      #   --max-suite-seconds=10  (Testing-Policy §3.1 Tier 2 cap)
-      # No `|| true`, no `continue-on-error`: breaching either fails the build.
-      - name: Run unit tests with coverage and duration gates
+      #   --cov-fail-under=85         (Testing-Policy §2, floor 80%) -- hard gate
+      #   --suite-seconds-target=10   (Testing-Policy §3.1 Tier 2 target) -- telemetry:
+      #                               an overrun prints a warning annotation, it does
+      #                               not fail the job, because §3.1 forbids failing a
+      #                               build solely on duration and wall-clock on a
+      #                               shared ARC node measures contention, not the suite.
+      # No `|| true`, no `continue-on-error`: a test failure or a coverage
+      # breach fails the build.
+      - name: Run unit tests with coverage gate and duration telemetry
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
         run: |
-          echo "=== Tier 2 Unit Suite (coverage >=85%, duration <=10s) ==="
+          echo "=== Tier 2 Unit Suite (coverage >=85% gate, ~10s duration target) ==="
           pytest --cov-report=json --cov-report=html:htmlcov
 
       - name: Build package artifacts

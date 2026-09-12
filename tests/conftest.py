@@ -62,11 +62,15 @@ def pytest_collection_modifyitems(config, items):
             if "host" in getattr(item, "fixturenames", []):
                 item.add_marker(skip)
 
-    # Skip integration tests if TEST_VM_HOST not set
+    # Skip VM-backed integration tests if TEST_VM_HOST not set. Match on the
+    # `integration` *marker*: item.keywords also carries every parent node name,
+    # so `"integration" in item.keywords` was true for everything under
+    # tests/integration/ -- including the fully mocked suites there -- and
+    # skipped all 17 of them wherever the variable was unset (CI included).
     if not os.environ.get("TEST_VM_HOST"):
         skip_integration = pytest.mark.skip(reason="TEST_VM_HOST not set")
         for item in items:
-            if "integration" in item.keywords:
+            if item.get_closest_marker("integration") is not None:
                 item.add_marker(skip_integration)
 
 
