@@ -1,46 +1,57 @@
-"""Repo-root pytest plugin: hard test-time caps (Testing-Policy §3.1).
+"""Repo-root pytest plugin: suite-duration telemetry (Testing-Policy §3.1).
 
-Testing-Policy §3.1 fixes a per-tier wall-clock cap on the *whole* suite
-(Tier 2 unit = 10s, Tier 3 integration = 45s, Tier 4 E2E = 60s). pytest has no
-native way to fail a run for taking too long -- ``--timeout`` from
-pytest-timeout is per-test, and ``--durations`` only reports. This plugin
-measures the whole session and turns an over-cap run into a build failure.
+Testing-Policy §3.1 (updated 2026-09-04) sets a per-tier wall-clock *target*
+for the whole suite (Tier 2 unit ~10s, Tier 3 integration ~45s, Tier 4 E2E
+~60s) and says the numbers are "telemetry reported ... without failing builds
+solely on duration". pytest has no native whole-session timer -- ``--timeout``
+from pytest-timeout is per-test and ``--durations`` only ranks tests -- so this
+plugin measures the session (collection included) and reports it against the
+tier target.
 
-The cap is supplied with ``--max-suite-seconds``; the Tier 2 value is armed by
-default via ``addopts`` in pytest.ini. Tiers 3 and 4 pass their own cap on the
-command line (a later CLI flag overrides addopts).
+An overrun never changes the exit status. It is made loud instead: a red
+banner in the terminal summary and, under GitHub Actions, a ``::warning::``
+workflow annotation so the regression is visible on the run without turning a
+slow runner into a red build. The 2026-09-11 incident that motivated this:
+the same commit measured 7.2s on an idle ARC runner and 24.7s when eight jobs
+landed on the node at once (echoares-lab/homelab-gitops actions/runs/34658572448),
+so a hard cap on wall-clock was gating runner contention, not the suite.
 
-Set ``--max-suite-seconds=0`` to disable, which is only appropriate for ad-hoc
-local runs -- never in CI.
+The target is supplied with ``--suite-seconds-target``; the Tier 2 value is
+armed by default via ``addopts`` in pytest.ini. Tiers 3 and 4 pass their own
+target on the command line (a later CLI flag overrides addopts). ``0`` turns
+the report off.
 """
 
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
 
 _START_KEY = pytest.StashKey[float]()
-_BREACH_KEY = pytest.StashKey[str]()
-_CAP_OPT = "--max-suite-seconds"
+_REPORT_KEY = pytest.StashKey[str]()
+_OVERRUN_KEY = pytest.StashKey[bool]()
+_TARGET_OPT = "--suite-seconds-target"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
-        _CAP_OPT,
+        _TARGET_OPT,
         action="store",
         type=float,
         default=0.0,
         metavar="SECONDS",
         help=(
-            "Fail the run if the entire suite takes longer than SECONDS "
-            "(Testing-Policy §3.1 tier cap). 0 disables the gate."
+            "Report the whole-suite wall-clock time against this Testing-Policy "
+            "§3.1 tier target. Overruns warn; they never fail the run. 0 disables "
+            "the report."
         ),
     )
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    # Started before collection so collection time counts toward the cap: a
+    # Started before collection so collection time counts toward the figure: a
     # suite that is slow to collect is still a slow suite.
     config.stash[_START_KEY] = time.monotonic()
 
@@ -51,30 +62,35 @@ def _elapsed(config: pytest.Config) -> float:
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     config = session.config
-    cap = config.getoption(_CAP_OPT)
-    if cap <= 0:
+    target = config.getoption(_TARGET_OPT)
+    if target <= 0:
         return
 
     elapsed = _elapsed(config)
-    if elapsed <= cap:
-        return
-
-    config.stash[_BREACH_KEY] = (
-        f"Suite took {elapsed:.2f}s, over the {cap:.2f}s cap "
-        f"(Testing-Policy §3.1). Refactor or parallelize the suite; "
-        f"raising the cap requires a dated Policy Exception."
+    over = elapsed > target
+    config.stash[_OVERRUN_KEY] = over
+    verdict = "OVER" if over else "within"
+    config.stash[_REPORT_KEY] = (
+        f"Suite took {elapsed:.2f}s, {verdict} the {target:.2f}s Testing-Policy "
+        f"§3.1 tier target (telemetry only; the exit status is unaffected)."
     )
-
-    # Preserve a pre-existing failure status; otherwise fail the build.
-    if exitstatus == 0:
-        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+    # Deliberately no change to session.exitstatus: §3.1 forbids failing a
+    # build solely on duration.
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config: pytest.Config) -> None:
     # Reported here rather than from pytest_sessionfinish so the message lands
     # inside the terminal summary that the active reporter actually renders.
-    message = config.stash.get(_BREACH_KEY, None)
+    message = config.stash.get(_REPORT_KEY, None)
     if not message:
         return
-    terminalreporter.write_sep("=", "SUITE DURATION GATE FAILED", red=True, bold=True)
-    terminalreporter.write_line(message)
+    if config.stash.get(_OVERRUN_KEY, False):
+        terminalreporter.write_sep("=", "SUITE DURATION OVER TARGET", red=True, bold=True)
+        terminalreporter.write_line(message)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            # Workflow-command annotation: shows on the run summary and the PR
+            # checks tab without failing the job.
+            terminalreporter.write_line(f"::warning title=Suite duration over target::{message}")
+    else:
+        terminalreporter.write_sep("=", "suite duration telemetry")
+        terminalreporter.write_line(message)

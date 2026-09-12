@@ -1,3 +1,18 @@
+# .github/workflows/integration-tests.yml
+# Purpose: Tier 3 integration suite (tests/integration/, mocked drivers) on
+# every push/PR, plus the VM-backed connectivity and Ansible dry-run steps when
+# a test VM is configured.
+#
+# History: from 2026-06-08 to 2026-09-11 every run of this workflow was a
+# zero-job `failure` (100/100 runs). GitHub refused the file at parse time
+# because `secrets.*` is not an allowed context in a step-level `if:` -- the run
+# was named after the file path instead of `name:`, the tell-tale of a parse
+# failure. The secret is mapped into job-level `env` below and the steps test
+# `env.TEST_VM_HOST` instead, which is the supported pattern. The job also
+# targeted `[self-hosted, testing]`; no runner with that label is registered on
+# this repository, and CICD-Policy §1.2 routes ordinary jobs to the ARC scale
+# set (`runs-on: arc`), which lives inside the homelab network.
+
 name: Integration Tests
 
 on:
@@ -8,64 +23,87 @@ on:
       - master
       - develop
   pull_request:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          Runner to use. Defaults to the self-hosted arc runner (routes
+          through Nexus, has warm caches). Pick ubuntu-latest only as a
+          manual override if the cluster/arc runner is known to be down.
+        type: choice
+        options:
+          - arc
+          - ubuntu-latest
+        default: arc
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   integration-tests:
-    name: Integration Tests (Tier 2)
-    runs-on: [self-hosted, testing]
-    # Note: This job requires a self-hosted runner with homelab access
-    # For GitHub-hosted runners, this would need a VPN or direct vSphere access
+    name: Integration Tests (Tier 3)
+    runs-on: ${{ github.event.inputs.runner || 'arc' }}
+    env:
+      # `secrets` cannot be read from a step `if:`; `env` can. An unset secret
+      # expands to the empty string, which is what the conditions below test.
+      TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
+      TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest-testinfra paramiko pexpect
+          uv venv .venv --python 3.12
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          uv pip install -e .
+          uv pip install -r requirements.txt
+
+      # tests/integration/ is fully mocked (see its module docstrings) and runs
+      # without a VM; tests that genuinely need one carry @pytest.mark.integration
+      # and are skipped by tests/conftest.py when TEST_VM_HOST is unset.
+      - name: Run integration tests (Tier 3)
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
+        run: |
+          echo "=== Tier 3 Integration Suite (~45s duration target, telemetry) ==="
+          pytest tests/integration/ -v \
+            --tb=short -m "not e2e" \
+            --no-cov --suite-seconds-target=45
+
+      - name: Skip VM-backed steps (TEST_VM_HOST not configured)
+        if: env.TEST_VM_HOST == ''
+        run: |
+          echo "TEST_VM_HOST is not configured; the VM connectivity check and the"
+          echo "Ansible dry-run are skipped. To enable them add repository secrets:"
+          echo "  - TEST_VM_HOST     (SSH-reachable test VM)"
+          echo "  - TEST_VM_SSH_KEY  (path to the private key on the runner)"
 
       - name: Validate test VM is accessible
-        if: secrets.TEST_VM_HOST != ''
+        if: env.TEST_VM_HOST != ''
         run: |
-          TEST_VM_HOST="${{ secrets.TEST_VM_HOST }}"
           echo "Testing connectivity to $TEST_VM_HOST..."
           timeout 10 bash -c "cat < /dev/null > /dev/tcp/$TEST_VM_HOST/22" || {
             echo "ERROR: Cannot reach test VM at $TEST_VM_HOST:22"
             exit 1
           }
-          echo "✓ Test VM is accessible"
-
-      - name: Skip integration tests (credentials not configured)
-        if: secrets.TEST_VM_HOST == ''
-        run: |
-          echo "⚠ Skipping integration tests: TEST_VM_HOST secret not configured"
-          echo "To enable integration tests, configure these secrets in GitHub:"
-          echo "  - TEST_VM_HOST"
-          echo "  - TEST_VM_SSH_KEY"
-
-      - name: Validate OpenTofu configuration
-        run: |
-          echo "=== Validating OpenTofu Configuration ==="
-          cd tofu
-          # Note: tofu requires vCenter credentials; this is informational
-          tofu validate || echo "⚠ OpenTofu validation requires credentials"
+          echo "Test VM is accessible"
 
       - name: Run Ansible syntax check and dry-run
-        if: secrets.TEST_VM_HOST != ''
-        env:
-          TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
-          TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
+        if: env.TEST_VM_HOST != ''
         run: |
           echo "=== Ansible Dry-Run ==="
           ansible-playbook -i "$TEST_VM_HOST," \
@@ -74,42 +112,3 @@ jobs:
             -e "ansible_python_interpreter=/usr/bin/python3" \
             --check \
             ansible/site.yml
-
-      - name: Run integration tests
-        if: secrets.TEST_VM_HOST != ''
-        env:
-          TEST_VM_HOST: ${{ secrets.TEST_VM_HOST }}
-          TEST_VM_SSH_KEY: ${{ secrets.TEST_VM_SSH_KEY }}
-          PYTHONPATH: /home/runner/work/homelab-gitops/homelab-gitops
-        run: |
-          echo "=== Integration Tests ==="
-          pytest tests/integration/ -v \
-            --tb=short -m "not e2e" \
-            --no-cov --max-suite-seconds=45
-
-      - name: Run matrix test validation
-        run: |
-          echo "=== Matrix Test Validation ==="
-          python3 scripts/matrix_test.py || echo "⚠ Matrix test requires full infrastructure"
-
-      - name: Comment PR with integration test results
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const status = "${{ job.status }}";
-            const emoji = status === 'success' ? '✓' : '✗';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## Integration Tests ${emoji}\nStatus: ${status}`
-            });
-        continue-on-error: true
-
-      - name: Report infrastructure health
-        if: always()
-        run: |
-          echo "=== Infrastructure Health ==="
-          echo "Test VM: ${{ secrets.TEST_VM_HOST }}"
-          echo "Status: ${{ job.status }}"
