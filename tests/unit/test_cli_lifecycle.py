@@ -43,12 +43,19 @@ def test_cli_build(mock_packer, mock_workflow, mock_yaml, mock_open, mock_exists
 })
 @patch("homelab_gitops.cli.core_commands.deploy.Workflow")
 @patch("homelab_gitops.cli.core_commands.deploy.TofuDriver")
-def test_cli_deploy(mock_tofu, mock_workflow, mock_yaml, mock_open, mock_exists, app):
+# deploy_command imports NetworkService lazily, so patch it at its definition.
+# Unmocked, ensure_network() -> get_next_ip() shells out to `ping -W 1` against
+# the 10.10.10.0/24 reservation range: real network I/O from a unit test, a
+# fixed ~1s of the Tier 2 wall clock, and a result that depends on which LAN
+# the runner sits on.
+@patch("homelab_gitops.domain.network.NetworkService")
+def test_cli_deploy(mock_net, mock_tofu, mock_workflow, mock_yaml, mock_open, mock_exists, app):
     """Test deploy command."""
     mock_workflow.return_value.execute.return_value = MagicMock(vm_ip="1.2.3.4")
     result = runner.invoke(app, ["deploy", "photon-docker", "01"])
     assert result.exit_code == 0
     assert "Workflow completed for photon-docker at 1.2.3.4" in result.stdout
+    mock_net.return_value.ensure_network.assert_called_once()
 
 @patch("os.path.exists", return_value=True)
 @patch("builtins.open", new_callable=MagicMock)
