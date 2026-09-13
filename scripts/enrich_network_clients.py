@@ -1,10 +1,91 @@
 #!/usr/bin/env python3
-"""
-Enrich network_clients.json with deep verified hardware metadata and regenerate docs/network_client_map.md.
+"""Enrich network_clients.json with verified hardware metadata and regenerate
+docs/network_client_map.md.
+
+``config/network_clients.json`` is live-discovery output from
+``scripts/map_network_clients.py`` (pfSense ARP/NDP/state tables, Technitium
+DHCP leases and reverse PTR, IEEE OUI). It is a build artefact and is
+gitignored. The overrides below are the hand-written annotations layered on top
+of that discovery.
+
+Facts about hosts that appear in the authoritative estate record
+(``config/estate_inventory.yaml``) are read from it rather than restated here,
+so a correction made once in the YAML reaches this map too. See
+``_estate_overrides``.
 """
 
 import json
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from build_estate_inventory import load_estate  # noqa: E402
+
+
+def _estate_overrides():
+    """Client-map annotations derived from the authoritative estate record.
+
+    These sit *underneath* the hand-written overrides below: where an address
+    has both, the hand-written one wins. That keeps this change from silently
+    rewriting annotations that were richer than what the estate record carries.
+    The direction of travel is the other way -- as each host's facts land in
+    ``config/estate_inventory.yaml``, delete its hand-written block here so the
+    estate record is the only copy.
+
+    Retired addresses always come from here: if discovery still finds a
+    lingering lease, the map must label it retired rather than silently
+    reinstating the fact the estate record just corrected.
+    """
+    estate = load_estate()
+    derived = {}
+
+    for host in estate["physical_servers"]:
+        ip = host.get("ipv4")
+        if not ip:
+            continue
+
+        gpus = [
+            g for g in host.get("hardware", {}).get("gpus", [])
+            if "iGPU" not in g.get("model", "")
+        ]
+        gpu_text = ""
+        if gpus:
+            gpu_text = "; GPUs: " + ", ".join(
+                f"{g['model']}" + (f" [{g['vram']}]" if g.get("vram") else "")
+                for g in gpus
+            )
+
+        hw = host.get("hardware", {})
+        cpu = hw.get("cpu", "")
+        ram = hw.get("ram_installed", "")
+        spec = ", ".join(bit for bit in (host.get("current_os", ""), cpu, ram) if bit)
+
+        addressing = " [DHCP reservation, MAC-bound]" if host.get("ipv4_assignment") else ""
+        derived[ip] = {
+            "vendor": "ASUSTek / Custom PC" if host["id"] == "srv-04" else "Physical Host",
+            "hostname": host.get("fqdn_bench") or host.get("fqdn_mgmt") or host.get("name"),
+            "role": f"{host['role']} ({spec}){gpu_text}{addressing}",
+            "device_class": "Physical Workstation",
+        }
+        # `status` is deliberately not set: it carries the live flow count from
+        # discovery, which is fresher than anything the estate record knows.
+
+        for old in host.get("retired_addresses", []):
+            derived[old["ipv4"]] = {
+                "vendor": "ASUSTek COMPUTER INC",
+                "hostname": f"(retired) {old.get('former_name', '')}".strip(),
+                "role": (
+                    f"RETIRED {old['retired']} -- this address no longer identifies "
+                    f"a host. {old['reason']} Current address: {ip} ({host['name']})."
+                ),
+                "device_class": "Physical Workstation",
+                "status": "Retired",
+            }
+
+    return derived
+
 
 def enrich():
     with open('/home/dev/repos/homelab-gitops/config/network_clients.json') as f:
@@ -99,12 +180,6 @@ def enrich():
             "hostname": "dev-01.mgmt.plexplease.com",
             "role": "Development & AGY Operations VM; EnGenius EPC Cloud Controller Docker host (40 vCPU, 80GB RAM on ESXi-01)",
             "device_class": "Development VM"
-        },
-        "10.10.10.53": {
-            "vendor": "ASUSTek / Custom PC",
-            "hostname": "bench-01.infra.plexplease.com",
-            "role": "AI Hardware Benchmark Node (Ubuntu 24.04, i7-13700K 16c/24t, 32GB RAM, Dual Intel Arc Pro B65 GPUs)",
-            "device_class": "Physical Workstation"
         },
         "10.10.10.60": {
             "vendor": "NVIDIA Corporation",
@@ -238,12 +313,6 @@ def enrich():
             "role": "Google Nest Smart Learning Thermostat",
             "device_class": "Smart Home / IoT"
         },
-        "10.10.10.239": {
-            "vendor": "ASUSTek COMPUTER INC",
-            "hostname": "pop-os.mgmt.plexplease.com",
-            "role": "Dual-Boot Desktop (Pop!_OS partition on i7-13700K / Arc Pro B65 hardware)",
-            "device_class": "Physical Workstation"
-        },
         "10.10.10.242": {
             "vendor": "Intel Corporate",
             "hostname": "DESKTOP-DLA0R8I.mgmt.plexplease.com",
@@ -251,6 +320,12 @@ def enrich():
             "device_class": "Physical Workstation"
         }
     }
+
+    # Facts about estate hosts come from the authoritative record. Hand-written
+    # overrides above still win on conflict -- see _estate_overrides.
+    merged = _estate_overrides()
+    merged.update(overrides)
+    overrides = merged
 
     # Apply overrides and vendor lookups
     for c in clients:

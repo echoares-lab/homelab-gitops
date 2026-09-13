@@ -1,18 +1,138 @@
 #!/usr/bin/env python3
-"""
-Generate Comprehensive Homelab Estate Architecture and Inventory Document
+"""Render the human-readable estate document from the authoritative YAML.
+
+``config/estate_inventory.yaml`` is the source of truth. This script renders
+``docs/estate_architecture_and_inventory.md`` from it.
+
+The facts that drift fastest -- the bench-01 host row, its GPU complement, and
+the discrepancy matrix -- are derived from the YAML rather than restated here,
+so a correction made once in the YAML reaches this document. The remaining
+prose and the tables for slower-moving hardware are still literals below; they
+should migrate to the YAML as they are next touched. Nothing in this file may
+contradict the YAML: where both describe the same fact, delete the literal and
+read the YAML.
+
+Output is deterministic -- the document's date comes from
+``metadata.last_updated`` in the YAML, not from the clock, so regenerating
+without an estate change produces no diff.
 """
 
-import os
-from datetime import datetime, timezone
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from build_estate_inventory import load_estate  # noqa: E402
+
+
+def _host(estate, host_id):
+    for host in estate["physical_servers"]:
+        if host["id"] == host_id:
+            return host
+    raise KeyError(f"physical host {host_id!r} is not in the estate record")
+
+
+def _gpu_summary(host):
+    """One-line GPU complement, discrete cards only, with VRAM and attachment."""
+    parts = []
+    for gpu in host["hardware"]["gpus"]:
+        if "iGPU" in gpu.get("model", ""):
+            continue
+        bits = [gpu["model"]]
+        if gpu.get("vram"):
+            bits.append(gpu["vram"])
+        if gpu.get("root_port"):
+            bits.append(f"root port {gpu['root_port']}")
+        parts.append(f"{gpu['device']}: " + ", ".join(bits))
+    return parts
+
+
+def _bench_mermaid_node(host):
+    hw = host["hardware"]
+    gpus = " / ".join(
+        g["model"].split(" (")[0] for g in hw["gpus"] if "iGPU" not in g.get("model", "")
+    )
+    return (
+        f'BENCH["Custom Desktop ({host["name"]})\n'
+        f'i7-13700K (16c/24t) | 32 GB | {gpus}\n'
+        f'{host["current_os"].split(" (")[0]}: {host["ipv4"]} (DHCP reservation, both OSes)"]'
+    )
+
+
+def _bench_table_row(host):
+    hw = host["hardware"]
+    gpu_cell = "<br>".join(_gpu_summary(host))
+    return (
+        f'| **{host["name"]}** | {host["role"]} | Custom Mid-Tower Desktop | '
+        f'{hw["motherboard"]}<br>{hw["cpu"]} ({hw["cpu_topology"]}) | '
+        f'{hw["ram_installed"]} | 1 TB NVMe (`nvme0n1`, `/mnt/aistore` 582GB)<br>'
+        f'USB Disks: 120GB (`sda`), 16GB (`sdb`) | ASUS UEFI BIOS<br>{host["current_os"]} | '
+        f'NIC: `{host["mac"]}` (Intel I225-V)<br>IP: `{host["ipv4"]}` '
+        f'(DHCP reservation, MAC-bound)<br>{gpu_cell} | **{host["status"]}** |'
+    )
+
+
+#: Tokens that read as identifiers rather than prose: addresses, MACs, FQDNs and
+#: filenames. The estate YAML stores them as plain text (it is data, not
+#: markdown), so the markdown formatting is reapplied on render.
+_CODE_TOKEN = re.compile(
+    r"(?<![`\w.])("
+    r"(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?"          # IPv4, optionally with CIDR
+    r"|(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"           # MAC
+    r"|[\w.-]+\.plexplease\.com"                       # estate FQDN
+    r"|[\w-]+\.(?:md|ya?ml|json|csv)"                   # referenced file
+    r")(?![`\w])"
+)
+
+
+def _as_markdown(text):
+    """Re-apply inline code formatting to identifiers stored as plain data."""
+    return _CODE_TOKEN.sub(r"`\1`", text)
+
+
+def _discrepancy_rows(estate):
+    rows = []
+    for disc in estate["discrepancies_and_resolutions"]:
+        rows.append(
+            f'| **{disc["id"]}** | **{_as_markdown(disc["title"])}** '
+            f'| {_as_markdown(disc["documented"])} '
+            f'| {_as_markdown(disc["empirical_evidence"])} '
+            f'| {_as_markdown(disc["resolution"])} |'
+        )
+    return "\n".join(rows)
+
+
+def _bench_directory_rows(host):
+    """Active address, plus any retired ones recorded as retired."""
+    rows = [
+        f'| `{host["ipv4"]}` | `{host["mac"]}` | `{host["fqdn_bench"]}` | '
+        f'AI Benchmark Workstation (DHCP reservation; answers on this address under '
+        f'either installed OS) | **Active** |'
+    ]
+    for old in host.get("retired_addresses", []):
+        rows.append(
+            f'| ~~`{old["ipv4"]}`~~ | `{host["mac"]}` | ~~`{old["former_name"]}`~~ | '
+            f'Retired {old["retired"]} -- {old["reason"]} | **Retired** |'
+        )
+    return "\n".join(rows)
+
 
 def generate():
 
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    
+    estate = load_estate()
+    bench = _host(estate, "srv-04")
+
+    now_str = estate["metadata"]["last_updated"]
+    bench_node = _bench_mermaid_node(bench)
+    bench_row = _bench_table_row(bench)
+    disc_rows = _discrepancy_rows(estate)
+    bench_dir_rows = _bench_directory_rows(bench)
+
     doc = f"""# EchoAres Homelab Infrastructure & Estate Architecture
 
-> **Authoritative Inventory Document:** `docs/estate_architecture_and_inventory.md`  
+> **Generated document -- do not edit.** Rendered by `scripts/generate_estate_docs.py`.  
+> **Authoritative source:** [`config/estate_inventory.yaml`](../config/estate_inventory.yaml) (hand-maintained, tracked in git).  
 > **Machine-Readable Sources:** [`config/estate_inventory.yaml`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.yaml), [`config/estate_inventory.json`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.json), [`config/network_clients.json`](file:///home/dev/repos/homelab-gitops/config/network_clients.json)  
 > **Last Updated:** {now_str}  
 > **Status:** Empirically Verified & Consolidated  
@@ -21,7 +141,7 @@ def generate():
 
 ## 1. Executive Summary & Estate Topology
 
-The EchoAres homelab estate is a hybrid compute and storage environment combining enterprise dual-socket server hardware, multi-NIC edge appliances, modern Open Network Linux (SONiC NOS) switching, bare-metal and virtualized Kubernetes clusters, high-density ZFS storage arrays, dedicated Intel Battlemage AI acceleration, and an IoT smart home ecosystem.
+The EchoAres homelab estate is a hybrid compute and storage environment combining enterprise dual-socket server hardware, multi-NIC edge appliances, modern Open Network Linux (SONiC NOS) switching, bare-metal and virtualized Kubernetes clusters, high-density ZFS storage arrays, mixed-vendor GPU acceleration (Intel Battlemage and NVIDIA Ada) on the benchmark workstation, and an IoT smart home ecosystem.
 
 ### Complete Layer 1–7 Estate Architecture
 
@@ -52,7 +172,7 @@ graph TD
         ESXI1["Supermicro X11DPi-N(T) (esxi-01)\nDual Xeon (48c/96t) | 384 GB ECC RAM\nESXi 8.0.3 b25205845 | 10.10.10.11"]
         ESXI3["Topton i3-N305 Appliance (esxi-03)\n8c/8t | 16 GB DDR5 | 4x2.5G + 2x10G\nESXi 8.0.3 b25205845 | 10.10.10.13"]
         TALOS["Dell Latitude 5520 (talos-fty-fw0)\ni7-1185G7 (4c/8t) | 24 GB RAM | 2TB NVMe\nTalos Linux v1.13.5 (K8s v1.36.2) | 10.10.10.144"]
-        BENCH["Custom Desktop (bench-01 / pop-os)\ni7-13700K (16c/24t) | 32 GB | Dual Arc Pro B65\nUbuntu 24.04 (Bench): 10.10.10.53 | Pop!_OS: 10.10.10.239"]
+        {bench_node}
 
         N3224 ---|Ethernet16 to vmnic0| ESXI1
         PROCURVE --- ESXI3
@@ -99,7 +219,7 @@ graph TD
 | **ipmi-01** | ESXi-01 Out-of-Band Remote Management | Integrated ASPEED AST2500 BMC | Supermicro Motherboard Embedded BMC (IPMI 2.0 / Redfish 1.8.0) | 512 MB Embedded | Flash ROM | Supermicro IPMI Firmware (TLS: `CN=IPMI, O=Super Micro Computer`) | Dedicated IPMI RJ-45: `AC:1F:6B:3B:93:7F`<br>Static DHCP Reserved: `10.10.10.10`<br>Current Active Lease: `10.10.10.104`<br>FQDN: `ipmi-01.mgmt.plexplease.com` | **ONLINE** |
 | **esxi-03** | Edge Firewall & Deadman Hypervisor | Topton / CWWK Multi-NIC Mini PC | Fanless Mini PC (Chassis 6083002)<br>Intel Core i3-N305 Alder Lake-N (8c/8t @ 1.80 GHz) | 15.7 GiB DDR5 | M.2 NVMe SSD | BIOS 5.27 (2023-06-26)<br>VMware ESXi 8.0.3 (Build 25205845) | `vmnic0`: `A8:B8:E0:0A:50:B2` (10G SFP+ ixgben)<br>`vmnic2`: `34:1A:4C:04:23:23` (2.5G i226)<br>`vmnic3`: `34:1A:4C:04:23:24` (2.5G i226)<br>Management: `10.10.10.13` | **ONLINE** |
 | **talos-fty-fw0** | Bare-Metal Talos Kubernetes Node | Dell Latitude 5520 Laptop (Service Tag `9SHLP93`) | Dell Inc. Motherboard (UUID `4c4c4544-0053-4810-804c-b9c04f503933`)<br>11th Gen Intel Core i7-1185G7 (4c/8t @ 3.00 GHz) | 23.7 GiB DDR4 | 2 TB NVMe SSD (`/` and Flannel storage) | BIOS 1.4.2 (2021-03-09)<br>Talos Linux v1.13.5 (Kernel 6.18.36-talos) | `eth0`: `C0:25:A5:03:CF:FC` (Intel GbE)<br>IP: `10.10.10.144` | **ONLINE** |
-| **bench-01** | AI Hardware Benchmark & Workstation | Custom Mid-Tower Desktop | ASUS Intel Z690<br>13th Gen Intel Core i7-13700K Raptor Lake (16c/24t @ 5.40 GHz) | 31.0 GiB DDR4/DDR5 | 1 TB NVMe (`nvme0n1`, `/mnt/aistore` 582GB)<br>USB Disks: 120GB (`sda`), 16GB (`sdb`) | ASUS UEFI BIOS<br>Ubuntu 24.04 (Kernel 6.17.0-1009-intel) | NIC: `04:42:1A:E9:D1:B3` (Intel I225-V)<br>Bench IP: `10.10.10.53`<br>Pop!_OS IP: `10.10.10.239`<br>Dual Intel Arc Pro B65 GPUs (`8086:e222`) | **ONLINE** |
+{bench_row}
 | **sw-core-01** | Core L2/L3 Network Switch | Dell EMC PowerSwitch N3224T-ON (1U) | DellEMC-N3224T (Platform `x86_64-dellemc_n3224t_c3338-r0`)<br>Intel Atom C3338 dual-core @ 1.50 GHz | 3.8 GiB DDR4 | 32 GB eMMC / SSD | SONiC.202511-n3224t-slim2.0-39ddd324e<br>Broadcom Helix5 ASIC (BCM56370) | 24x 10G Base-T + 4x 25G SFP28 + 2x 100G QSFP28<br>eth0 OOB: `10.10.10.146` (`E8:B2:65:4B:A5:E8`)<br>Ethernet0: `10.10.10.61` (`E8:B2:65:4B:A5:E9`)<br>Vlan100: `10.10.20.1/24` | **ONLINE** |
 | **procurve-j9028b** | Distribution / Edge Gigabit Switch | HP ProCurve 1800-24G (J9028B) (1U) | Managed Gigabit Web Switch | Embedded | Internal Flash | HP ProCurve Firmware | 24x 1GbE RJ-45<br>Management IP: `10.10.10.131`<br>MAC: `00:1F:28:D3:66:80` | **ONLINE** |
 | **ap-01** | High-Density Wi-Fi 6 AP (Top Floor) | EnGenius EWS377-FIT | Qualcomm Quad-Core Networking SoC | 1 GB RAM | Internal Flash | EnGenius Fit Firmware (Managed by EPC Controller on k3s-01: `wifi.infra.plexplease.com`) | 1x 2.5GbE PoE+ Port<br>IP: `10.10.10.6`<br>MAC: `C4:E3:CE:68:E2:50`<br>Location: Top Floor | **ONLINE** |
@@ -234,15 +354,7 @@ Consolidated from VMware vCenter Server 8.0 (`vcenter.mgmt.plexplease.com` at `1
 
 | ID | Subject | Documented / Assumed State | Empirical Finding & Evidence | Definitive Resolution |
 | :---: | :--- | :--- | :--- | :--- |
-| **DISC-01** | **VLAN Segmentation** | `VLAN.md` & `network.yaml` define 8 distinct VLANs (`10.10.10.0/24` to `10.10.100.0/24`). Technitium has disabled scopes shifted by +10. | pfSense interface `vmx0` is `10.10.10.1/24` with **zero VLAN sub-interfaces**. All 61 hosts share a single flat Layer 2 broadcast domain (`10.10.10.0/24`). Dell N3224T has isolated `Vlan100` (`10.10.20.1/24`) for switch lab traffic. | **Recorded reality as flat `/24` subnet.** Documented the isolated lab segment on the Dell switch. Retained the multi-VLAN model in policy as a blueprint for future phased implementation. |
-| **DISC-02** | **Dell Latitude 5520 Identity** | vCenter records `host-9074` at `10.10.10.102` (Dell Latitude 5520, Service Tag `9SHLP93`) as `DISCONNECTED`. `network_client_map.md` labeled `10.10.10.144` as "Dell Appliance / Firewall". | Talos Linux node `talos-fty-fw0` at `10.10.10.144` carries System UUID `4c4c4544-0053-4810-804c-b9c04f503933` (`DELL` + `9SHLP93`). Address `10.10.10.102` in DHCP is now leased to an iPhone. | **Resolved:** The physical laptop was wiped and reprovisioned bare-metal as the Talos control-plane node. The vCenter host record is obsolete. |
-| **DISC-03** | **ESXi Host Naming** | 1Password VM inventory labeled `10.10.10.13` as "ESXi 2". | Technitium forward/reverse DNS, TLS certificates, and vCenter designate `10.10.10.13` as `esxi-03.mgmt.plexplease.com`. (Former `esxi-02` was the laptop at `.102`). | **Resolved:** Authoritative name is `esxi-03`. |
-| **DISC-04** | **TrueNAS Subnet Placement** | `VLAN.md` placed TrueNAS on VLAN 20 (`10.10.20.0/24`). | TrueNAS answers on `10.10.10.20` (`MGMT_NET`). k3s Democratic-CSI targets `10.10.10.20`. | **Resolved:** Permanent IP is `10.10.10.20` (as ratified by `network.yaml` rule `truenas-discrepancy`). |
-| **DISC-05** | **Desktop Workstation Dual Boot** | `network_client_map.md` listed `10.10.10.239` as `pop-os.mgmt.plexplease.com`. | Same physical NIC MAC (`04:42:1A:E9:D1:B3`) has two IPs: `10.10.10.239` when booted to Pop!_OS, and `10.10.10.53` (`bench-01`) when booted to Ubuntu 24.04. | **Resolved:** Currently booted to Ubuntu 24.04 (`10.10.10.53`) running vLLM XPU on dual Intel Arc Pro B65 GPUs. |
-| **DISC-06** | **NVIDIA Device Identity** | Labeled as generic "NVIDIA Node" at `10.10.10.60`. | TLS handshake on port 8443 returned subject `CN=NVidia darcy Cast ICA`. "darcy" is the hardware codename for NVIDIA SHIELD TV. | **Resolved:** Identified as NVIDIA SHIELD TV 4K streaming client. |
-| **DISC-07** | **Unknown IoT Devices (.130, .134, .135)** | Labeled as "Unknown Vendor" in ARP table. | IEEE OUI `5C:E7:53` belongs to Shenzhen Intellirocks Tech. Co. Ltd. (manufacturer of Govee smart appliances). | **Resolved:** Identified as Govee smart LED light strips / environmental sensors. |
-| **DISC-08** | **PeaNUT Ingress Outage (502)** | DNS defines `nut-ups-01` at `10.10.10.139`. Ingress returned 502 Bad Gateway. | VM `vm-11001` (`nut-ups`) on ESXi-01 is `poweredOff`. IP `10.10.10.139` is unreachable. | **Resolved:** Outage root cause verified as powered-off VM `vm-11001`. |
-| **DISC-09** | **Core Switch Ingress IP** | k3s Ingress points to `10.10.10.4:80`. | Switch responds on `10.10.10.146` (eth0 OOB) and `10.10.10.61` (in-band Ethernet0). `10.10.10.4` does not answer. | **Recorded discrepancy:** k3s EndpointSlice requires update to `10.10.10.146`. |
+{disc_rows}
 
 ---
 
@@ -266,7 +378,7 @@ Consolidated directory of all active, statically assigned, and reserved endpoint
 | `10.10.10.50` | `00:50:56:9F:71:25` | `k3s-01.infra.plexplease.com` | Production Kubernetes Node (k3s v1.35.5, FCOS 44) | **Active** |
 | `10.10.10.51` | `00:50:56:2D:55:01` | `k3s-deadman-01.infra.plexplease.com` | Out-of-Cluster Monitoring Deadman Receiver | **Active** |
 | `10.10.10.52` | `00:50:56:9F:A8:B7` | `dev-01.mgmt.plexplease.com` | Dev & AGY Operations Node | **Active** |
-| `10.10.10.53` | `04:42:1A:E9:D1:B3` | `bench-01.infra.plexplease.com` | AI Benchmark Workstation (Ubuntu 24.04, Dual Arc Pro B65) | **Active** |
+{bench_dir_rows}
 | `10.10.10.60` | `00:04:4B:B1:CE:D1` | `nvidia-shield.mgmt.plexplease.com` | NVIDIA SHIELD TV (darcy / Google Cast / Android TV) | **Active** |
 | `10.10.10.61` | `E8:B2:65:4B:A5:E9` | `sw-core-01-inband.infra.plexplease.com`| Dell PowerSwitch N3224T-ON In-Band Ethernet0 | **Active** |
 | `10.10.10.101` | `DC:03:98:94:07:E6` | `LGwebOSTV.mgmt.plexplease.com` | LG webOS 4K Smart TV | **Active** |
@@ -291,15 +403,14 @@ Consolidated directory of all active, statically assigned, and reserved endpoint
 | `10.10.10.195` | `00:50:56:9F:0C:FB` | `homeassistant.mgmt.plexplease.com` | Home Assistant OS Automation Controller | **Active** |
 | `10.10.10.236` | `3C:31:74:27:C7:25` | `Nest-Thermostat-C725.mgmt.plexplease.com`| Google Nest Learning Thermostat (Zone 1) | **Active** |
 | `10.10.10.237` | `3C:31:74:29:B3:67` | `Nest-Thermostat-B367.mgmt.plexplease.com`| Google Nest Learning Thermostat (Zone 2) | **Active** |
-| `10.10.10.239` | `04:42:1A:E9:D1:B3` | `pop-os.mgmt.plexplease.com` | Custom Desktop PC (Pop!_OS alternate boot) | Dual-boot |
 | `10.10.10.242` | `14:F6:D8:F6:74:5D` | `DESKTOP-DLA0R8I.mgmt.plexplease.com`| Windows 11 Desktop PC | **Active** |
 | `10.10.20.50` | `00:50:56:9F:1D:D3` | `lab-peer-vlan100.mgmt.plexplease.com`| `lab-peer-n3224t` NIC 2 on Switch Vlan100 | **Active** |
 """
 
     # Repo-relative: this was an absolute path into /home/dev/repos/homelab-gitops,
     # so running this copy from compute-infra wrote docs into the OTHER repo.
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    doc_path = os.path.join(repo_root, "docs", "estate_architecture_and_inventory.md")
+    repo_root = Path(__file__).resolve().parent.parent
+    doc_path = repo_root / "docs" / "estate_architecture_and_inventory.md"
     with open(doc_path, 'w') as f:
         f.write(doc)
     print(f"Generated comprehensive estate documentation at {doc_path}")
