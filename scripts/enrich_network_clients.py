@@ -82,12 +82,6 @@ def enrich():
             "role": "TrueNAS SCALE 25.04.2 Storage Appliance (146TB ZFS, LSI 2308 HBA + Optane P1600X SLOG passthrough)",
             "device_class": "Storage Appliance"
         },
-        "10.10.10.30": {
-            "vendor": "VMware, Inc.",
-            "hostname": "homelab.mgmt.plexplease.com",
-            "role": "Docker Services Host (Ubuntu Linux 7.0, 16 vCPU, 32GB RAM, 30 containers: Plex, Sonarr, OpenBao, etc.)",
-            "device_class": "Server VM"
-        },
         "10.10.10.50": {
             "vendor": "Red Hat / CoreOS",
             "hostname": "k3s-01.infra.plexplease.com",

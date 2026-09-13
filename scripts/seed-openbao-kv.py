@@ -12,7 +12,7 @@ if not ROOT_TOKEN:
     print("  export ROOT_TOKEN=$(op document get affyyquvnukbgq76zj2s62ndxm --vault Homelab-GitOps | python3 -c \"import json,sys; print(json.load(sys.stdin)['root_token'])\")")
     sys.exit(1)
 
-BAO = "http://10.10.10.30:8201"
+BAO = "http://openbao.infra.plexplease.com:8201"
 
 
 def op_field(item_id, field_label, vault=None):

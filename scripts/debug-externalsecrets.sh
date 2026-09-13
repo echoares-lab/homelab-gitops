@@ -19,7 +19,7 @@ echo ""
 echo "=== OpenBao KV paths (check they exist) ==="
 echo "  Checking with root token from env..."
 curl -sf -H "X-Vault-Token: $ROOT_TOKEN" \
-  "http://10.10.10.30:8201/v1/secret/metadata/k3s-01?list=true" \
+  "http://openbao.infra.plexplease.com:8201/v1/secret/metadata/k3s-01?list=true" \
   | python3 -m json.tool 2>/dev/null || echo "  Path secret/k3s-01 not found or error"
 
 echo ""
