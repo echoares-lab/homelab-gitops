@@ -6,6 +6,7 @@ VMs, Kubernetes clusters, Docker containers, network clients, and DNS records.
 """
 
 import json
+import os
 import yaml
 from datetime import datetime, timezone
 
@@ -425,18 +426,6 @@ def generate_estate():
                 "role": "Central ZFS storage appliance"
             },
             {
-                "name": "HOMELAB",
-                "vm_id": "vm-7030",
-                "host": "10.10.10.11 (ESXi-01)",
-                "power_state": "poweredOn",
-                "vcpus": 16,
-                "ram_mb": 32768,
-                "primary_ipv4": "10.10.10.30",
-                "mac": "00:0C:29:C8:A8:14",
-                "os": "Ubuntu Linux (Linux 7.0.0-30-generic)",
-                "role": "Legacy Docker Compose application host (30 running containers)"
-            },
-            {
                 "name": "sonic-build-01",
                 "vm_id": "vm-12002",
                 "host": "10.10.10.11 (ESXi-01)",
@@ -654,9 +643,7 @@ def generate_estate():
                     {"ingress": "esxi-01.infra.plexplease.com", "target": "10.10.10.11:443"},
                     {"ingress": "esxi-03.infra.plexplease.com", "target": "10.10.10.13:443"},
                     {"ingress": "truenas.infra.plexplease.com", "target": "10.10.10.20:443"},
-                    {"ingress": "openbao.infra.plexplease.com", "target": "10.10.10.30:8201"},
-                    {"ingress": "plex.infra.plexplease.com", "target": "10.10.10.30:32400"},
-                    {"ingress": "sabnzbd.infra.plexplease.com", "target": "10.10.10.30:8080"},
+                    {"ingress": "openbao.infra.plexplease.com", "target": "10.10.10.40:8201"},
                     {"ingress": "home-assistant.infra.plexplease.com", "target": "10.10.10.195:8123"},
                     {"ingress": "switch.infra.plexplease.com", "target": "10.10.10.4:80 (switch OOB is 10.10.10.146)"},
                     {"ingress": "ap.infra.plexplease.com", "target": "10.10.10.6:80"},
@@ -680,46 +667,6 @@ def generate_estate():
             }
         ],
         "docker_hosts": [
-            {
-                "host_name": "homelab",
-                "ipv4": "10.10.10.30",
-                "os": "Ubuntu Linux (Linux 7.0.0-30-generic)",
-                "vcpus": 16,
-                "ram_mb": 32768,
-                "running_containers_count": 30,
-                "containers": [
-                    {"name": "edge-nginx-proxy-manager-1", "image": "jc21/nginx-proxy-manager:latest", "ports": ["80", "81", "443"]},
-                    {"name": "plex", "image": "lscr.io/linuxserver/plex:latest", "ports": ["32400 (host net)"]},
-                    {"name": "sonarr", "image": "lscr.io/linuxserver/sonarr:latest", "ports": ["8988"]},
-                    {"name": "sabnzbd", "image": "lscr.io/linuxserver/sabnzbd:latest", "ports": ["8080"]},
-                    {"name": "radarr4k", "image": "lscr.io/linuxserver/radarr:latest", "ports": ["7879"]},
-                    {"name": "radarr", "image": "lscr.io/linuxserver/radarr:latest", "ports": ["7870"]},
-                    {"name": "ombi", "image": "lscr.io/linuxserver/ombi:latest", "ports": ["3579"]},
-                    {"name": "hydra2", "image": "lscr.io/linuxserver/nzbhydra2:latest", "ports": ["5076"]},
-                    {"name": "secrets-openbao-1", "image": "ghcr.io/openbao/openbao:latest", "ports": ["8201->8200"]},
-                    {"name": "nexus", "image": "sonatype/nexus3:latest", "ports": ["8081", "8082"]},
-                    {"name": "db-stack-redis", "image": "redis:alpine", "ports": ["6379"]},
-                    {"name": "db-stack-postgres", "image": "postgres:16-alpine", "ports": ["5432"]},
-                    {"name": "db-stack-clickhouse", "image": "clickhouse/clickhouse-server:24.3-alpine", "ports": ["8123", "9000"]},
-                    {"name": "secrets-op-connect-api-1", "image": "1password/connect-api:1.8.2", "ports": ["8200->8080"]},
-                    {"name": "secrets-op-connect-sync-1", "image": "1password/connect-sync:1.8.2", "ports": []},
-                    {"name": "ai-stack-litellm", "image": "ghcr.io/berriai/litellm:main-latest", "ports": ["4000"]},
-                    {"name": "ai-stack-langfuse", "image": "langfuse/langfuse:3", "ports": ["3000"]},
-                    {"name": "ai-stack-clickhouse", "image": "clickhouse/clickhouse-server:24.3-alpine", "ports": ["8123", "9000"]},
-                    {"name": "ai-stack-postgres", "image": "postgres:16-alpine", "ports": ["5432"]},
-                    {"name": "ai-stack-redis", "image": "redis:alpine", "ports": ["6379"]},
-                    {"name": "connectivity-cloudflared-plexplease-1", "image": "cloudflare/cloudflared:latest", "ports": []},
-                    {"name": "observability-cadvisor-1", "image": "gcr.io/cadvisor/cadvisor:latest", "ports": ["8088"]},
-                    {"name": "uptime-kuma", "image": "louislam/uptime-kuma:latest", "ports": ["3002->3001"]},
-                    {"name": "observability-loki-1", "image": "grafana/loki:latest", "ports": ["3100"]},
-                    {"name": "observability-prometheus-1", "image": "prom/prometheus:latest", "ports": ["9090"]},
-                    {"name": "observability-alloy-1", "image": "grafana/alloy:latest", "ports": ["12345", "1514/udp", "1515/udp"]},
-                    {"name": "observability-node-exporter-1", "image": "prom/node-exporter:latest", "ports": ["9100"]},
-                    {"name": "observability-grafana-1", "image": "grafana/grafana:latest", "ports": ["3000"]},
-                    {"name": "notifications-email-relay-1", "image": "boky/postfix:latest", "ports": ["25", "587"]},
-                    {"name": "dockhand", "image": "fnsys/dockhand:latest", "ports": ["3001->3000"]}
-                ]
-            },
             {
                 "host_name": "dev-01",
                 "ipv4": "10.10.10.52",
@@ -817,8 +764,12 @@ def generate_estate():
 
 if __name__ == "__main__":
     estate = generate_estate()
-    yaml_path = "/home/dev/repos/homelab-gitops/config/estate_inventory.yaml"
-    json_path = "/home/dev/repos/homelab-gitops/config/estate_inventory.json"
+    # Repo-relative. These were absolute paths into /home/dev/repos/homelab-gitops,
+    # so running this copy from compute-infra silently overwrote the OTHER repo's
+    # inventory and left this one untouched.
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    yaml_path = os.path.join(repo_root, "config", "estate_inventory.yaml")
+    json_path = os.path.join(repo_root, "config", "estate_inventory.json")
     
     with open(yaml_path, "w") as f:
         yaml.dump(estate, f, sort_keys=False, indent=2)

@@ -15,7 +15,6 @@
 | `10.10.10.11` | `00:50:56:68:E1:EF` | Supermicro | `esxi-01.mgmt.plexplease.com` | VMware ESXi 8.0.3 Hypervisor 01 (Supermicro X11DPi-N(T), Dual Xeon 48c/96t, 384GB RAM, Intel X710) | Active (4 flows) |
 | `10.10.10.13` | `00:50:56:61:8D:A4` | Topton / CWWK | `esxi-03.mgmt.plexplease.com` | VMware ESXi 8.0.3 Hypervisor 03 (Alder Lake-N i3-N305 8c/8t, 16GB DDR5, 4x2.5G + 2x10G SFP+) | Active (322 flows) |
 | `10.10.10.20` | `00:50:56:A1:79:C7` | iXsystems / TrueNAS | `truenas-01.mgmt.plexplease.com` | TrueNAS SCALE 25.04.2 Storage Appliance (146TB ZFS, LSI 2308 HBA + Optane P1600X SLOG passthrough) | In ARP Cache |
-| `10.10.10.30` | `00:0C:29:C8:A8:14` | VMware, Inc. | `homelab.mgmt.plexplease.com` | Docker Services Host (Ubuntu Linux 7.0, 16 vCPU, 32GB RAM, 30 containers: Plex, Sonarr, OpenBao, etc.) | Active (16 flows) |
 | `10.10.10.50` | `00:50:56:9F:71:25` | Red Hat / CoreOS | `k3s-01.infra.plexplease.com` | Production Kubernetes Cluster (k3s v1.35.5, Fedora CoreOS 44, 16 vCPU, 64GB RAM) | Active (30 flows) |
 | `10.10.10.51` | `00:50:56:2D:55:01` | VMware, Inc. (Photon OS) | `k3s-deadman-01.infra.plexplease.com` | Out-of-Cluster Monitoring Deadman (Photon OS 5.0, 1 vCPU, 1GB RAM on ESXi-03) | In ARP Cache |
 | `10.10.10.52` | `00:50:56:9F:A8:B7` | VMware, Inc. (Ubuntu) | `dev-01.mgmt.plexplease.com` | Development & AGY Operations VM; EnGenius EPC Cloud Controller Docker host (40 vCPU, 80GB RAM on ESXi-01) | Active (122 flows) |

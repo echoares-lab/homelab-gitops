@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-OPENBAO="http://10.10.10.30:8201"
+OPENBAO="http://openbao.infra.plexplease.com:8201"
 K3S_HOST="core@10.10.10.50"
 K8S_API="https://10.10.10.50:6443"
 AUTH_MOUNT="kubernetes-k3s-01"

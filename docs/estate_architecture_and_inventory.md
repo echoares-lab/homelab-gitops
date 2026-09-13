@@ -2,7 +2,7 @@
 
 > **Authoritative Inventory Document:** `docs/estate_architecture_and_inventory.md`  
 > **Machine-Readable Sources:** [`config/estate_inventory.yaml`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.yaml), [`config/estate_inventory.json`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.json), [`config/network_clients.json`](file:///home/dev/repos/homelab-gitops/config/network_clients.json)  
-> **Last Updated:** 2026-09-03 03:32 UTC  
+> **Last Updated:** 2026-09-13 16:53 UTC  
 > **Status:** Empirically Verified & Consolidated  
 
 ---
@@ -72,9 +72,6 @@ IP: 10.10.10.50 | Pod CIDR: 10.42.0.0/16"]
         ESXI1 --> TN["TRUENAS SCALE (vm-7027)
 25.04.2 | 8 vCPU, 80GB RAM | IP: 10.10.10.20
 Passthrough: LSI SAS2308, Optane P1600X, 980PRO"]
-        ESXI1 --> HL["HOMELAB (vm-7030)
-Ubuntu Linux 7.0 | 16 vCPU, 32GB RAM
-IP: 10.10.10.30 | 30 Docker Containers"]
         ESXI1 --> DEV["dev-01 (vm-7036)
 Ubuntu 24.04 | 40 vCPU, 80GB RAM
 IP: 10.10.10.52 | EPC Controller Docker"]
@@ -184,7 +181,6 @@ Consolidated from VMware vCenter Server 8.0 (`vcenter.mgmt.plexplease.com` at `1
 | :--- | :--- | :--- | :---: | :---: | :---: | :--- | :--- | :--- | :--- |
 | **k3s-01** | `vm-9073` | `10.10.10.11` (ESXi-01) | **poweredOn** | 16 | 65,536 | `10.10.10.50` | `00:50:56:9F:71:25` | Fedora CoreOS 44 | Production Kubernetes cluster host |
 | **TRUENAS.PLEXPLEASE.COM** | `vm-7027` | `10.10.10.11` (ESXi-01) | **poweredOn** | 8 | 81,920 | `10.10.10.20` | `00:50:56:A1:79:C7` | Debian 12 (TrueNAS SCALE 25.04) | Core enterprise ZFS NAS appliance |
-| **HOMELAB** | `vm-7030` | `10.10.10.11` (ESXi-01) | **poweredOn** | 16 | 32,768 | `10.10.10.30` | `00:0C:29:C8:A8:14` | Ubuntu Linux (Kernel 7.0) | Legacy Docker application stack (30 containers) |
 | **dev-01.mgmt.plexplease.com** | `vm-7036` | `10.10.10.11` (ESXi-01) | **poweredOn** | 40 | 81,920 | `10.10.10.52` | `00:50:56:9F:A8:B7` | Ubuntu Linux 24.04 LTS | Agent runtime, dev workspace, EnGenius EPC host |
 | **sonic-build-01** | `vm-12002` | `10.10.10.11` (ESXi-01) | **poweredOn** | 60 | 98,304 | `10.10.10.150` | `00:50:56:9F:F1:2A` | Ubuntu 24.04 LTS | High-parallelism SONiC NOS compilation VM |
 | **dns-01.mgmt.plexplease.com** | `vm-7035` | `10.10.10.11` (ESXi-01) | **poweredOn** | 4 | 8,192 | `10.10.10.2` | `00:50:56:9F:5E:32` | VMware Photon OS 5.0 | Authoritative DNS & DHCP Server (Technitium) |
@@ -248,15 +244,6 @@ Consolidated from VMware vCenter Server 8.0 (`vcenter.mgmt.plexplease.com` at `1
 - **Networking:** Pod Network `10.244.0.0/24`, Service Network `10.96.0.0/12`
 - **Core Pods:** CoreDNS v1.14.2, Flannel v0.28.5, Kube-Apiserver v1.36.2, Kube-Controller-Manager v1.36.2, Kube-Scheduler v1.36.2, Kube-Proxy v1.36.2.
 
-### 5.3 Docker Compose Workloads on `homelab` (`10.10.10.30`)
-30 active containers supporting media automation, data persistence, and legacy infrastructure:
-- **Media Suite:** Plex Media Server (`host` network, port 32400), Sonarr (8988), Radarr (7870), Radarr4K (7879), SABnzbd (8080), Ombi (3579), NZBHydra2 (5076).
-- **Core & Secrets:** OpenBao (`secrets-openbao-1`, port 8201->8200), 1Password Connect API (`secrets-op-connect-api-1`, port 8200->8080) & Sync daemon.
-- **Databases:** PostgreSQL 16 (5432), Redis (6379), ClickHouse (8123, 9000).
-- **AI Stack (Co-located):** LiteLLM proxy (4000), Langfuse (3000), ClickHouse & Postgres.
-- **Observability:** Prometheus (9090), Grafana (3000), Loki (3100), Alloy (12345, 1514-1515/udp), Node Exporter (9100), cAdvisor (8088), Uptime Kuma (3002).
-- **Management & Utilities:** Nginx Proxy Manager (80, 81, 443), Sonatype Nexus 3 (8081, 8082), Dockhand (3001), Postfix email relay (25, 587), Cloudflared tunnel.
-
 ### 5.4 Docker Workloads on `dev-01` (`10.10.10.52`)
 - **EnGenius Private Cloud (EPC) Stack:**
   - `epc-api:1.9.0` (FastAPI / Gunicorn, ports 443, 8088)
@@ -301,7 +288,6 @@ Consolidated directory of all active, statically assigned, and reserved endpoint
 | `10.10.10.11` | `00:50:56:68:E1:EF` | `esxi-01.mgmt.plexplease.com` | VMware ESXi 8.0.3 (Supermicro X11DPi-N(T) Dual Xeon) | **Active** |
 | `10.10.10.13` | `00:50:56:61:8D:A4` | `esxi-03.mgmt.plexplease.com` | VMware ESXi 8.0.3 (Topton i3-N305 Appliance) | **Active** |
 | `10.10.10.20` | `00:50:56:A1:79:C7` | `truenas-01.mgmt.plexplease.com` | TrueNAS SCALE 25.04.2 Storage Appliance | **Active** |
-| `10.10.10.30` | `00:0C:29:C8:A8:14` | `homelab.mgmt.plexplease.com` | Ubuntu Docker Host (30 containers: Plex, Sonarr, OpenBao, etc.) | **Active** |
 | `10.10.10.50` | `00:50:56:9F:71:25` | `k3s-01.infra.plexplease.com` | Production Kubernetes Node (k3s v1.35.5, FCOS 44) | **Active** |
 | `10.10.10.51` | `00:50:56:2D:55:01` | `k3s-deadman-01.infra.plexplease.com` | Out-of-Cluster Monitoring Deadman Receiver | **Active** |
 | `10.10.10.52` | `00:50:56:9F:A8:B7` | `dev-01.mgmt.plexplease.com` | Dev & AGY Operations Node | **Active** |
