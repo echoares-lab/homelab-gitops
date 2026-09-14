@@ -43,8 +43,42 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ${{ github.event.inputs.runner || 'arc' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # 'every' is required for the '!' rules below to exclude; with the
+          # default 'some' predicate the negations are ignored.
+          predicate-quantifier: 'every'
+          # INVARIANT (Agent-First-Refactor E6.T3): this filter gates only the
+          # job(s) below that read its output. Secret scanning and the
+          # Master-Policy drift gates (policy-check.yml: gitleaks,
+          # doc-minimalism ratchet, AGENTS.md provenance) and sbom.yml have NO
+          # path filter and must never be placed behind one. A docs-only change
+          # skips this lane and still runs them.
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!LICENSE'
+
   integration-tests:
     name: Integration Tests (Tier 3)
+    needs: [changes]
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/production' || needs.changes.outputs.code == 'true'
     runs-on: ${{ github.event.inputs.runner || 'arc' }}
     env:
       # `secrets` cannot be read from a step `if:`; `env` can. An unset secret
@@ -112,3 +146,30 @@ jobs:
             -e "ansible_python_interpreter=/usr/bin/python3" \
             --check \
             ansible/site.yml
+
+  summary:
+    name: Integration Tests summary
+    needs: [changes, integration-tests]
+    if: always()
+    runs-on: ${{ github.event.inputs.runner || 'arc' }}
+    steps:
+      - name: Aggregate status check
+        run: |
+          echo "=== Upstream Job Results ==="
+          echo "changes: ${{ needs.changes.result }}"
+          echo "integration-tests: ${{ needs.integration-tests.result }}"
+
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "::error::Job 'changes' failed with status: ${{ needs.changes.result }}"
+            exit 1
+          fi
+
+          # CICD-Policy 1.2.1: a cancelled run says nothing about the code, so
+          # it must not pass. CICD-Policy 1.3: a skipped path-scoped job counts
+          # as passed.
+          if [ "${{ needs.integration-tests.result }}" != "success" ] && [ "${{ needs.integration-tests.result }}" != "skipped" ]; then
+            echo "::error::Job 'integration-tests' failed with status: ${{ needs.integration-tests.result }}"
+            exit 1
+          fi
+
+          echo "All required upstream jobs passed or were legitimately skipped"
