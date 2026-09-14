@@ -20,12 +20,17 @@ metadata:
   last_updated: '2026-09-14'
   authoritative_source: config/estate_inventory.yaml
   version: 2.0.0
+  default_owner: echoares-lab
+  default_owner_note: Effective owner of any entity that does not carry its own `owner:` field. Set to the
+    GitHub organisation that owns this repository; override per entity with `owner:` as real ownership
+    diverges.
   maintenance: Hand-maintained source of truth, tracked in git. Edit THIS file to correct a fact. scripts/build_estate_inventory.py
     reads this file and derives config/estate_inventory.json from it; the JSON is a build artefact and
     is gitignored. Nothing regenerates this YAML -- there is no upstream to regenerate it from.
 network:
   firewall_gateway:
     name: pfsense
+    role: Primary perimeter firewall & NAT gateway
     fqdn: pfsense.infra.plexplease.com
     lan_ipv4: 10.10.10.1
     lan_subnet: 10.10.10.0/24
@@ -43,6 +48,7 @@ network:
     notes: Primary perimeter firewall & NAT gateway. DHCP disabled (delegated to Technitium at 10.10.10.2).
   dns_dhcp_server:
     name: dns-01
+    role: Authoritative DNS & DHCP server (Technitium)
     fqdn: dns-01.plexplease.com
     ipv4: 10.10.10.2
     mac: 00:50:56:9F:5E:32
@@ -63,6 +69,7 @@ network:
     status: ONLINE
   switches:
   - name: sw-core-01
+    role: Core Ethernet switch (SONiC NOS)
     model: Dell EMC PowerSwitch N3224T-ON
     hw_sku: DellEMC-N3224T
     platform: x86_64-dellemc_n3224t_c3338-r0
@@ -102,6 +109,7 @@ network:
       description: Supermicro ESXi-01 vmnic0
     status: ONLINE
   - name: procurve-j9028b
+    role: Access Ethernet switch (24x Gigabit RJ-45)
     model: HP ProCurve 1800-24G (J9028B)
     vendor: HP ProCurve / HPN Supply Chain
     ipv4: 10.10.10.15
@@ -113,6 +121,7 @@ network:
 
   access_points:
   - name: ap-01
+    role: Wi-Fi 6 (802.11ax) Dual-Band 4x4 Managed AP
     model: EnGenius EWS377-FIT
     vendor: EnGenius Technologies
     ipv4: 10.10.10.6
@@ -124,6 +133,7 @@ network:
     managed_by: EnGenius Private Cloud (EPC) on k3s-01 (wifi.infra.plexplease.com)
     status: ONLINE
   - name: ap-02
+    role: Wi-Fi 6 (802.11ax) Dual-Band 4x4 Managed AP
     model: EnGenius EWS377-FIT
     vendor: EnGenius Technologies
     ipv4: 10.10.10.8
@@ -135,6 +145,7 @@ network:
     managed_by: EnGenius Private Cloud (EPC) on k3s-01 (wifi.infra.plexplease.com)
     status: ONLINE
   - name: asus-ap-01
+    role: Wireless Access Point (Legacy)
     model: ASUS Wireless AP
     vendor: ASUSTek COMPUTER INC
     ipv4: 10.10.10.7
@@ -366,6 +377,7 @@ physical_servers:
 storage:
   appliance:
     name: TRUENAS
+    role: Central ZFS storage appliance
     fqdn: truenas-01.mgmt.plexplease.com
     ipv4: 10.10.10.20
     mac: 00:50:56:A1:79:C7
@@ -811,6 +823,15 @@ kubernetes_clusters:
   - name: notifiarr
     namespace: media
     ingress: notifiarr.infra.plexplease.com
+  - name: plex
+    namespace: plex
+    ingress: plex.infra.plexplease.com
+    port: 32400
+    discovered: '2026-09-14'
+    evidence: 'Live read 2026-09-14 (DISC-10): `kubectl get ingress -A` shows Ingress plex in namespace
+      plex for host plex.infra.plexplease.com on Traefik at 10.10.10.50 (age 54d), backed by
+      EndpointSlice plex-vhpcp with pod endpoint 10.42.0.74 port 32400. It was previously miscatalogued
+      as a reverse-proxied external service on the tombstoned HOMELAB host.'
   reverse_proxied_external_services:
   - ingress: pfsense.infra.plexplease.com
     target: 10.10.10.1:443
@@ -825,11 +846,12 @@ kubernetes_clusters:
   - ingress: truenas.infra.plexplease.com
     target: 10.10.10.20:443
   - ingress: openbao.infra.plexplease.com
-    target: 10.10.10.30:8201
-  - ingress: plex.infra.plexplease.com
-    target: 10.10.10.30:32400
-  - ingress: sabnzbd.infra.plexplease.com
-    target: 10.10.10.30:8080
+    target: 10.10.10.40:8201
+    corrected: '2026-09-14'
+    evidence: 'Live read 2026-09-14 (DISC-10): openbao.infra.plexplease.com and openbao.plexplease.com
+      both resolve to 10.10.10.40, and EndpointSlice openbao in namespace openbao-external points at
+      10.10.10.40 port 8201. 10.10.10.40 is VM vault-01 (qemu-140 on pm-01). The former target was the
+      tombstoned HOMELAB host, which does not answer ping.'
   - ingress: home-assistant.infra.plexplease.com
     target: 10.10.10.195:8123
   - ingress: switch.infra.plexplease.com
@@ -853,6 +875,7 @@ kubernetes_clusters:
   status: ONLINE
 docker_hosts:
 - host_name: dev-01
+  role: Primary development & agent operations node; EnGenius EPC Cloud Controller Docker host
   ipv4: 10.10.10.52
   os: Ubuntu 24.04 (Linux 6.8.0-generic)
   vcpus: 40
@@ -881,6 +904,7 @@ docker_hosts:
     image: grafana/alloy:v1.17.0
     ports: []
 - host_name: bench-01
+  role: AI Hardware Benchmark & GPU Workstation
   ipv4: 10.10.10.53
   os: Ubuntu 24.04 (Linux 6.17.0-1009-intel)
   running_containers_count: 1
@@ -956,3 +980,24 @@ discrepancies_and_resolutions:
   empirical_evidence: Dell Switch N3224T responds on 10.10.10.146 (eth0 OOB) and 10.10.10.61 (in-band
     Ethernet0). 10.10.10.4 does not answer.
   resolution: 'Recorded discrepancy: k3s EndpointSlice requires updating to 10.10.10.146.'
+- id: DISC-10
+  title: Reverse-proxied targets left pointing at the tombstoned HOMELAB host (10.10.10.30)
+  documented: kubernetes_clusters[k3s-01].reverse_proxied_external_services listed openbao.infra.plexplease.com
+    at 10.10.10.30 port 8201, plex.infra.plexplease.com at 10.10.10.30 port 32400 and
+    sabnzbd.infra.plexplease.com at 10.10.10.30 port 8080. 10.10.10.30 is VM HOMELAB (vm-7030),
+    tombstoned 2026-09-14 in homelab-gitops PR 176 (commit 0b32512).
+  empirical_evidence: 'Read-only checks 2026-09-14. ping 10.10.10.30: 2 packets transmitted, 0 received,
+    100% packet loss. `kubectl get ingress -A`: plex (namespace plex, host plex.infra.plexplease.com,
+    class traefik, address 10.10.10.50, age 54d) and sabnzbd (namespace media, host
+    sabnzbd.infra.plexplease.com, address 10.10.10.50, age 8d) are in-cluster Ingresses, backed by
+    EndpointSlices plex-vhpcp (pod 10.42.0.74) and sabnzbd-qjtmh (pod 10.42.0.21) -- pod addresses, so
+    neither is reverse-proxied off-cluster at all. `getent hosts`: openbao.infra.plexplease.com and
+    openbao.plexplease.com both resolve to 10.10.10.40, and EndpointSlice openbao in namespace
+    openbao-external points at 10.10.10.40. There is no in-cluster openbao Ingress. 10.10.10.40 is VM
+    vault-01 (qemu-140 on pm-01), role "OpenBao / HashiCorp Vault secrets backend".'
+  resolution: 'Resolved 2026-09-14 on that evidence: openbao.infra.plexplease.com retargeted to
+    10.10.10.40; plex moved out of reverse_proxied_external_services into the in-cluster deployment list
+    with namespace plex and port 32400; the sabnzbd reverse-proxy entry deleted because sabnzbd was
+    already recorded as an in-cluster deployment in namespace media. scripts/catalog_lint.py rule
+    stale_target now fails CI on any reverse-proxied target whose address is undeclared or belongs to a
+    tombstoned entity, so this class of drift cannot survive a pull request again.'
