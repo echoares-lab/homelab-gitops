@@ -50,6 +50,8 @@ yamllint .
 ansible-lint
 ```
 
+CI test lanes are path-scoped (dorny/paths-filter, `code` filter); secret scanning and the Master-Policy gates always run.
+
 ## Repository layout
 
 - `src/homelab_gitops/`, `manage.py` — orchestrator CLI
