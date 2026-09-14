@@ -29,6 +29,16 @@ repos:
     #
     # Removed once in 4a2373d and accidentally restored by 2fbdc6f, which
     # rewrote this file from a pre-removal base. Do not re-add it.
+      - id: catalog-lint
+        name: estate catalog lint (E2.T4)
+        entry: python3 scripts/catalog_lint.py config/estate_inventory.yaml
+        language: system
+        # pass_filenames is off deliberately: the hook always lints the whole
+        # catalog, because a change to catalog_lint.py can break a rule that no
+        # staged YAML file touches. `files` only decides *when* it runs.
+        pass_filenames: false
+        files: '^config/estate_inventory\.yaml$|^scripts/catalog_lint\.py$'
+        stages: [pre-commit]
       - id: no-mcp-json
         name: no repo-local .mcp.json (Master-Policy 1.5)
         language: fail

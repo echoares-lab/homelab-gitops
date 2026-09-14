@@ -1,0 +1,65 @@
+name: Catalog Lint
+
+# Epic 2 / E2.T4. The 2026-09-14 audit found that nothing enforced the internal
+# consistency of config/estate_inventory.yaml, the authoritative estate record:
+# three reverse-proxied targets still pointed at 10.10.10.30 months after that
+# host was tombstoned, no entity carried an owner, and nine carried no role.
+# scripts/catalog_lint.py is that gate. It is a NEW workflow on purpose --
+# lint-and-unit-tests.yml, integration-tests.yml and smoke-test.yml are owned by
+# the path-filter work in #177 and must not be edited here.
+#
+# No `|| true` and no `continue-on-error`: a finding of severity `error` fails
+# the build, which is the entire point of the job.
+
+on:
+  push:
+    branches:
+      - production
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          Runner to use. Defaults to the self-hosted arc runner (routes
+          through Nexus, has warm caches). Pick ubuntu-latest only as a
+          manual override if the cluster/arc runner is known to be down.
+        type: choice
+        options:
+          - arc
+          - ubuntu-latest
+        default: arc
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-lint:
+    name: Catalog Lint (estate inventory)
+    runs-on: ${{ github.event.inputs.runner || 'arc' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          uv venv .venv --python 3.12
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
+          uv pip install pyyaml
+
+      - name: Lint the authoritative estate catalog
+        run: |
+          echo "=== catalog_lint: config/estate_inventory.yaml ==="
+          python3 scripts/catalog_lint.py config/estate_inventory.yaml
