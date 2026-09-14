@@ -199,7 +199,6 @@ physical_servers:
   - dev-01.mgmt.plexplease.com (vm-7036)
   - k3s-01 (vm-9073)
   - TRUENAS.PLEXPLEASE.COM (vm-7027)
-  - HOMELAB (vm-7030, poweredOff)
   - sonic-build-01 (vm-12002)
   - dns-01.mgmt.plexplease.com (vm-7035)
   - vCenter-01 (vm-7031)
@@ -474,7 +473,9 @@ virtual_machines:
 - name: HOMELAB
   vm_id: vm-7030
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOff
+  power_state: tombstoned
+  tombstoned: '2026-09-14'
+  tombstone_reason: 'retired in homelab-gitops #176 (0b32512)'
   vcpus: 16
   ram_mb: 32768
   primary_ipv4: 10.10.10.30
@@ -851,139 +852,6 @@ kubernetes_clusters:
   cni: Flannel v0.28.5 (VXLAN)
   status: ONLINE
 docker_hosts:
-- host_name: homelab
-  ipv4: 10.10.10.30
-  os: Ubuntu Linux (Linux 7.0.0-30-generic)
-  vcpus: 16
-  ram_mb: 32768
-  running_containers_count: 30
-  containers:
-  - name: edge-nginx-proxy-manager-1
-    image: jc21/nginx-proxy-manager:latest
-    ports:
-    - '80'
-    - '81'
-    - '443'
-  - name: plex
-    image: lscr.io/linuxserver/plex:latest
-    ports:
-    - 32400 (host net)
-  - name: sonarr
-    image: lscr.io/linuxserver/sonarr:latest
-    ports:
-    - '8988'
-  - name: sabnzbd
-    image: lscr.io/linuxserver/sabnzbd:latest
-    ports:
-    - '8080'
-  - name: radarr4k
-    image: lscr.io/linuxserver/radarr:latest
-    ports:
-    - '7879'
-  - name: radarr
-    image: lscr.io/linuxserver/radarr:latest
-    ports:
-    - '7870'
-  - name: ombi
-    image: lscr.io/linuxserver/ombi:latest
-    ports:
-    - '3579'
-  - name: hydra2
-    image: lscr.io/linuxserver/nzbhydra2:latest
-    ports:
-    - '5076'
-  - name: secrets-openbao-1
-    image: ghcr.io/openbao/openbao:latest
-    ports:
-    - 8201->8200
-  - name: nexus
-    image: sonatype/nexus3:latest
-    ports:
-    - '8081'
-    - '8082'
-  - name: db-stack-redis
-    image: redis:alpine
-    ports:
-    - '6379'
-  - name: db-stack-postgres
-    image: postgres:16-alpine
-    ports:
-    - '5432'
-  - name: db-stack-clickhouse
-    image: clickhouse/clickhouse-server:24.3-alpine
-    ports:
-    - '8123'
-    - '9000'
-  - name: secrets-op-connect-api-1
-    image: 1password/connect-api:1.8.2
-    ports:
-    - 8200->8080
-  - name: secrets-op-connect-sync-1
-    image: 1password/connect-sync:1.8.2
-    ports: []
-  - name: ai-stack-litellm
-    image: ghcr.io/berriai/litellm:main-latest
-    ports:
-    - '4000'
-  - name: ai-stack-langfuse
-    image: langfuse/langfuse:3
-    ports:
-    - '3000'
-  - name: ai-stack-clickhouse
-    image: clickhouse/clickhouse-server:24.3-alpine
-    ports:
-    - '8123'
-    - '9000'
-  - name: ai-stack-postgres
-    image: postgres:16-alpine
-    ports:
-    - '5432'
-  - name: ai-stack-redis
-    image: redis:alpine
-    ports:
-    - '6379'
-  - name: connectivity-cloudflared-plexplease-1
-    image: cloudflare/cloudflared:latest
-    ports: []
-  - name: observability-cadvisor-1
-    image: gcr.io/cadvisor/cadvisor:latest
-    ports:
-    - '8088'
-  - name: uptime-kuma
-    image: louislam/uptime-kuma:latest
-    ports:
-    - 3002->3001
-  - name: observability-loki-1
-    image: grafana/loki:latest
-    ports:
-    - '3100'
-  - name: observability-prometheus-1
-    image: prom/prometheus:latest
-    ports:
-    - '9090'
-  - name: observability-alloy-1
-    image: grafana/alloy:latest
-    ports:
-    - '12345'
-    - 1514/udp
-    - 1515/udp
-  - name: observability-node-exporter-1
-    image: prom/node-exporter:latest
-    ports:
-    - '9100'
-  - name: observability-grafana-1
-    image: grafana/grafana:latest
-    ports:
-    - '3000'
-  - name: notifications-email-relay-1
-    image: boky/postfix:latest
-    ports:
-    - '25'
-    - '587'
-  - name: dockhand
-    image: fnsys/dockhand:latest
-    ports:
-    - 3001->3000
 - host_name: dev-01
   ipv4: 10.10.10.52
   os: Ubuntu 24.04 (Linux 6.8.0-generic)
