@@ -3,7 +3,7 @@
 > **Generated document -- do not edit.** Rendered by `scripts/generate_estate_docs.py`.  
 > **Authoritative source:** [`config/estate_inventory.yaml`](../config/estate_inventory.yaml) (hand-maintained, tracked in git).  
 > **Machine-Readable Sources:** [`config/estate_inventory.yaml`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.yaml), [`config/estate_inventory.json`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.json), [`config/network_clients.json`](file:///home/dev/repos/homelab-gitops/config/network_clients.json)  
-> **Last Updated:** 2026-09-13  
+> **Last Updated:** 2026-09-14  
 > **Status:** Empirically Verified & Consolidated  
 
 ---

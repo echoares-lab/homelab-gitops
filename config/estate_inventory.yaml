@@ -17,7 +17,7 @@ metadata:
   domain: infra.plexplease.com
   site_cidr: 10.10.10.0/24
   public_domain: plexplease.com
-  last_updated: '2026-09-13'
+  last_updated: '2026-09-14'
   authoritative_source: config/estate_inventory.yaml
   version: 2.0.0
   maintenance: Hand-maintained source of truth, tracked in git. Edit THIS file to correct a fact. scripts/build_estate_inventory.py
@@ -621,18 +621,22 @@ kubernetes_clusters:
   - backup
   - cert-manager
   - database
+  - deal-finder
   - default
   - democratic-csi
+  - engenius
   - external-dns
   - external-secrets
   - github-runner
   - homarr
   - identity
   - kube-system
+  - media
   - mlflow
   - nexus
   - notifications
   - observability
+  - peanut
   - sample-app
   - server-partpicker
   core_deployments:
@@ -648,6 +652,13 @@ kubernetes_clusters:
   - name: agent-gateway
     namespace: ai-gateway
     ingress: bifrost.infra.plexplease.com
+  - name: bifrost
+    namespace: ai-gateway
+    ingress: mcp.infra.plexplease.com
+    port: 8080
+  - name: agent-tools
+    namespace: ai-gateway
+    port: 8089
   - name: cpa-manager
     namespace: ai-gateway
     ingress: cpa.infra.plexplease.com
@@ -681,6 +692,61 @@ kubernetes_clusters:
   - name: arc-runner
     namespace: github-runner
     role: Ephemeral GitHub Actions Runner
+  - name: jellyfin
+    namespace: media
+    ingress: jellyfin.plexplease.com, jellyfin.infra.plexplease.com
+    port: 8096
+  - name: sonarr
+    namespace: media
+    ingress: sonarr.infra.plexplease.com, sonarr.plexplease.com
+  - name: radarr
+    namespace: media
+    ingress: radarr.infra.plexplease.com, radarr.plexplease.com
+  - name: prowlarr
+    namespace: media
+    ingress: prowlarr.infra.plexplease.com
+  - name: sabnzbd
+    namespace: media
+    ingress: sabnzbd.infra.plexplease.com
+  - name: qbittorrent
+    namespace: media
+    ingress: qbittorrent.infra.plexplease.com
+  - name: bazarr
+    namespace: media
+    ingress: bazarr.infra.plexplease.com
+    port: 6767
+  - name: seerr
+    namespace: media
+    ingress: seerr.plexplease.com
+    port: 5055
+  - name: audiobookshelf
+    namespace: media
+    ingress: audiobookshelf.infra.plexplease.com
+  - name: subgen
+    namespace: media
+    ingress: subgen.infra.plexplease.com
+    port: 9000
+  - name: tinymediamanager
+    namespace: media
+    ingress: tmm.infra.plexplease.com
+  - name: booklore
+    namespace: media
+    ingress: booklore.infra.plexplease.com
+  - name: shelfmark
+    namespace: media
+    ingress: shelfmark.infra.plexplease.com
+  - name: whisparr
+    namespace: media
+    ingress: whisparr.infra.plexplease.com
+  - name: lidarr
+    namespace: media
+    ingress: lidarr.infra.plexplease.com
+  - name: readarr
+    namespace: media
+    ingress: readarr.infra.plexplease.com
+  - name: notifiarr
+    namespace: media
+    ingress: notifiarr.infra.plexplease.com
   reverse_proxied_external_services:
   - ingress: pfsense.infra.plexplease.com
     target: 10.10.10.1:443
