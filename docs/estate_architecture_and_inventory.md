@@ -1,15 +1,16 @@
 # EchoAres Homelab Infrastructure & Estate Architecture
 
-> **Authoritative Inventory Document:** `docs/estate_architecture_and_inventory.md`  
+> **Generated document -- do not edit.** Rendered by `scripts/generate_estate_docs.py`.  
+> **Authoritative source:** [`config/estate_inventory.yaml`](../config/estate_inventory.yaml) (hand-maintained, tracked in git).  
 > **Machine-Readable Sources:** [`config/estate_inventory.yaml`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.yaml), [`config/estate_inventory.json`](file:///home/dev/repos/homelab-gitops/config/estate_inventory.json), [`config/network_clients.json`](file:///home/dev/repos/homelab-gitops/config/network_clients.json)  
-> **Last Updated:** 2026-09-13 16:53 UTC  
+> **Last Updated:** 2026-09-14  
 > **Status:** Empirically Verified & Consolidated  
 
 ---
 
 ## 1. Executive Summary & Estate Topology
 
-The EchoAres homelab estate is a hybrid compute and storage environment combining enterprise dual-socket server hardware, multi-NIC edge appliances, modern Open Network Linux (SONiC NOS) switching, bare-metal and virtualized Kubernetes clusters, high-density ZFS storage arrays, dedicated Intel Battlemage AI acceleration, and an IoT smart home ecosystem.
+The EchoAres homelab estate is a hybrid compute and storage environment combining enterprise dual-socket server hardware, multi-NIC edge appliances, modern Open Network Linux (SONiC NOS) switching, bare-metal and virtualized Kubernetes clusters, high-density ZFS storage arrays, mixed-vendor GPU acceleration (Intel Battlemage and NVIDIA Ada) on the benchmark workstation, and an IoT smart home ecosystem.
 
 ### Complete Layer 1–7 Estate Architecture
 
@@ -55,9 +56,9 @@ ESXi 8.0.3 b25205845 | 10.10.10.13"]
         TALOS["Dell Latitude 5520 (talos-fty-fw0)
 i7-1185G7 (4c/8t) | 24 GB RAM | 2TB NVMe
 Talos Linux v1.13.5 (K8s v1.36.2) | 10.10.10.144"]
-        BENCH["Custom Desktop (bench-01 / pop-os)
-i7-13700K (16c/24t) | 32 GB | Dual Arc Pro B65
-Ubuntu 24.04 (Bench): 10.10.10.53 | Pop!_OS: 10.10.10.239"]
+        BENCH["Custom Desktop (bench-01)
+i7-13700K (16c/24t) | 32 GB | Intel Arc Pro B65 / NVIDIA GeForce RTX 4060 Ti 8 GB
+Ubuntu 24.04: 10.10.10.53 (DHCP reservation, both OSes)"]
 
         N3224 ---|Ethernet16 to vmnic0| ESXI1
         PROCURVE --- ESXI3
@@ -122,7 +123,7 @@ IP: 10.10.10.51 | Deadman Receiver"]
 | **ipmi-01** | ESXi-01 Out-of-Band Remote Management | Integrated ASPEED AST2500 BMC | Supermicro Motherboard Embedded BMC (IPMI 2.0 / Redfish 1.8.0) | 512 MB Embedded | Flash ROM | Supermicro IPMI Firmware (TLS: `CN=IPMI, O=Super Micro Computer`) | Dedicated IPMI RJ-45: `AC:1F:6B:3B:93:7F`<br>Static DHCP Reserved: `10.10.10.10`<br>Current Active Lease: `10.10.10.104`<br>FQDN: `ipmi-01.mgmt.plexplease.com` | **ONLINE** |
 | **esxi-03** | Edge Firewall & Deadman Hypervisor | Topton / CWWK Multi-NIC Mini PC | Fanless Mini PC (Chassis 6083002)<br>Intel Core i3-N305 Alder Lake-N (8c/8t @ 1.80 GHz) | 15.7 GiB DDR5 | M.2 NVMe SSD | BIOS 5.27 (2023-06-26)<br>VMware ESXi 8.0.3 (Build 25205845) | `vmnic0`: `A8:B8:E0:0A:50:B2` (10G SFP+ ixgben)<br>`vmnic2`: `34:1A:4C:04:23:23` (2.5G i226)<br>`vmnic3`: `34:1A:4C:04:23:24` (2.5G i226)<br>Management: `10.10.10.13` | **ONLINE** |
 | **talos-fty-fw0** | Bare-Metal Talos Kubernetes Node | Dell Latitude 5520 Laptop (Service Tag `9SHLP93`) | Dell Inc. Motherboard (UUID `4c4c4544-0053-4810-804c-b9c04f503933`)<br>11th Gen Intel Core i7-1185G7 (4c/8t @ 3.00 GHz) | 23.7 GiB DDR4 | 2 TB NVMe SSD (`/` and Flannel storage) | BIOS 1.4.2 (2021-03-09)<br>Talos Linux v1.13.5 (Kernel 6.18.36-talos) | `eth0`: `C0:25:A5:03:CF:FC` (Intel GbE)<br>IP: `10.10.10.144` | **ONLINE** |
-| **bench-01** | AI Hardware Benchmark & Workstation | Custom Mid-Tower Desktop | ASUS Intel Z690<br>13th Gen Intel Core i7-13700K Raptor Lake (16c/24t @ 5.40 GHz) | 31.0 GiB DDR4/DDR5 | 1 TB NVMe (`nvme0n1`, `/mnt/aistore` 582GB)<br>USB Disks: 120GB (`sda`), 16GB (`sdb`) | ASUS UEFI BIOS<br>Ubuntu 24.04 (Kernel 6.17.0-1009-intel) | NIC: `04:42:1A:E9:D1:B3` (Intel I225-V)<br>Bench IP: `10.10.10.53`<br>Pop!_OS IP: `10.10.10.239`<br>Dual Intel Arc Pro B65 GPUs (`8086:e222`) | **ONLINE** |
+| **bench-01** | AI Hardware Benchmark & GPU Workstation | Custom Mid-Tower Desktop | ASUS Intel Z690<br>13th Gen Intel(R) Core(TM) i7-13700K (Raptor Lake) (16 Cores (8P + 8E), 24 Threads @ 5.40 GHz Boost) | 31 GiB DDR4/DDR5 | 1 TB NVMe (`nvme0n1`, `/mnt/aistore` 582GB)<br>USB Disks: 120GB (`sda`), 16GB (`sdb`) | ASUS UEFI BIOS<br>Ubuntu 24.04 (Linux 6.17.0-1009-intel #9-Ubuntu SMP PREEMPT_DYNAMIC) | NIC: `04:42:1A:E9:D1:B3` (Intel I225-V)<br>IP: `10.10.10.53` (DHCP reservation, MAC-bound)<br>0000:03:00.0: Intel Arc Pro B65 (Battlemage BMG-G31, 20 Xe cores), 32 GB, root port 0000:00:01.0 (PEG, CPU-attached)<br>0000:07:00.0: NVIDIA GeForce RTX 4060 Ti 8 GB (AD106), 8 GB GDDR6, root port 0000:00:1b.4 (PCH-attached) | **ONLINE** |
 | **sw-core-01** | Core L2/L3 Network Switch | Dell EMC PowerSwitch N3224T-ON (1U) | DellEMC-N3224T (Platform `x86_64-dellemc_n3224t_c3338-r0`)<br>Intel Atom C3338 dual-core @ 1.50 GHz | 3.8 GiB DDR4 | 32 GB eMMC / SSD | SONiC.202511-n3224t-slim2.0-39ddd324e<br>Broadcom Helix5 ASIC (BCM56370) | 24x 10G Base-T + 4x 25G SFP28 + 2x 100G QSFP28<br>eth0 OOB: `10.10.10.146` (`E8:B2:65:4B:A5:E8`)<br>Ethernet0: `10.10.10.61` (`E8:B2:65:4B:A5:E9`)<br>Vlan100: `10.10.20.1/24` | **ONLINE** |
 | **procurve-j9028b** | Distribution / Edge Gigabit Switch | HP ProCurve 1800-24G (J9028B) (1U) | Managed Gigabit Web Switch | Embedded | Internal Flash | HP ProCurve Firmware | 24x 1GbE RJ-45<br>Management IP: `10.10.10.131`<br>MAC: `00:1F:28:D3:66:80` | **ONLINE** |
 | **ap-01** | High-Density Wi-Fi 6 AP (Top Floor) | EnGenius EWS377-FIT | Qualcomm Quad-Core Networking SoC | 1 GB RAM | Internal Flash | EnGenius Fit Firmware (Managed by EPC Controller on k3s-01: `wifi.infra.plexplease.com`) | 1x 2.5GbE PoE+ Port<br>IP: `10.10.10.6`<br>MAC: `C4:E3:CE:68:E2:50`<br>Location: Top Floor | **ONLINE** |
@@ -158,14 +159,12 @@ Storage is anchored by **TrueNAS SCALE 25.04.2.6 (Fangtooth)** operating as a hi
 ```
 
 ### Key ZFS Datasets & Usages
-Media datasets follow the TRaSH-Guides layout since 2026-09-11 (k8s `docs/specs/2026-09-11-trash-media-layout-design.md`): one dataset per media type, each holding `library/` (players and the arr root folder), `torrents/`, `usenet/` and `.recycle/`, so imports are hardlinks or renames within the dataset. Each is NFS-exported to k3s-01 (10.10.10.50) only.
-
-1. `WHITEBOX/MEDIA/movies` (56.7 TB) — Movie library incl. 4K (the former `MOVIES` and `4K_MOVIES`); Radarr root `library/`.
-2. `WHITEBOX/MEDIA/tv` (27.9 TB) — Television series; Sonarr root `library/`.
-3. `WHITEBOX/MEDIA/music`, `books`, `audiobooks`, `podcasts`, `xxx` — Lidarr, Readarr/Booklore/Shelfmark, Audiobookshelf (two), Whisparr libraries (new, near-empty).
-4. `WHITEBOX/MEDIA/downloads` — Scratch: SABnzbd incomplete/nzb/failed folders and uncategorised torrents (the former `DOWNLOAD`).
-5. `WHITEBOX/nexus` (1.07 TB) — Sonatype Nexus hosted container registry & PyPI repository.
-6. `WHITEBOX/WINDOWS_BACKUP` (265 GB) — Desktop workstation bare-metal disk images.
+1. `WHITEBOX/MEDIA/MOVIES` (54.1 TB) — Primary 1080p/720p Plex Movie collection.
+2. `WHITEBOX/MEDIA/TV` (27.7 TB) — Television series archive.
+3. `WHITEBOX/MEDIA/4K_MOVIES` (3.18 TB) — High-bitrate 4K UHD Remux / HDR media.
+4. `WHITEBOX/nexus` (1.07 TB) — Sonatype Nexus hosted container registry & PyPI repository.
+5. `WHITEBOX/WINDOWS_BACKUP` (265 GB) — Desktop workstation bare-metal disk images.
+6. `WHITEBOX/MEDIA/DOWNLOAD` (130 GB) — Usenet (SABnzbd) and torrent staging filesystem.
 7. `WHITEBOX/k3s-object-store` (124 GB) — Backing storage for MinIO S3 cluster storage.
 8. `WHITEBOX/backups` (74.9 GB) — TrueNAS configuration, database dumps, and disaster recovery snapshots.
 9. `K3S_HDD/k3s-iscsi/*` — Democratic-CSI persistent volumes mounted dynamically into k3s pods.
@@ -259,15 +258,15 @@ Consolidated from VMware vCenter Server 8.0 (`vcenter.mgmt.plexplease.com` at `1
 
 | ID | Subject | Documented / Assumed State | Empirical Finding & Evidence | Definitive Resolution |
 | :---: | :--- | :--- | :--- | :--- |
-| **DISC-01** | **VLAN Segmentation** | `VLAN.md` & `network.yaml` define 8 distinct VLANs (`10.10.10.0/24` to `10.10.100.0/24`). Technitium has disabled scopes shifted by +10. | pfSense interface `vmx0` is `10.10.10.1/24` with **zero VLAN sub-interfaces**. All 61 hosts share a single flat Layer 2 broadcast domain (`10.10.10.0/24`). Dell N3224T has isolated `Vlan100` (`10.10.20.1/24`) for switch lab traffic. | **Recorded reality as flat `/24` subnet.** Documented the isolated lab segment on the Dell switch. Retained the multi-VLAN model in policy as a blueprint for future phased implementation. |
-| **DISC-02** | **Dell Latitude 5520 Identity** | vCenter records `host-9074` at `10.10.10.102` (Dell Latitude 5520, Service Tag `9SHLP93`) as `DISCONNECTED`. `network_client_map.md` labeled `10.10.10.144` as "Dell Appliance / Firewall". | Talos Linux node `talos-fty-fw0` at `10.10.10.144` carries System UUID `4c4c4544-0053-4810-804c-b9c04f503933` (`DELL` + `9SHLP93`). Address `10.10.10.102` in DHCP is now leased to an iPhone. | **Resolved:** The physical laptop was wiped and reprovisioned bare-metal as the Talos control-plane node. The vCenter host record is obsolete. |
-| **DISC-03** | **ESXi Host Naming** | 1Password VM inventory labeled `10.10.10.13` as "ESXi 2". | Technitium forward/reverse DNS, TLS certificates, and vCenter designate `10.10.10.13` as `esxi-03.mgmt.plexplease.com`. (Former `esxi-02` was the laptop at `.102`). | **Resolved:** Authoritative name is `esxi-03`. |
-| **DISC-04** | **TrueNAS Subnet Placement** | `VLAN.md` placed TrueNAS on VLAN 20 (`10.10.20.0/24`). | TrueNAS answers on `10.10.10.20` (`MGMT_NET`). k3s Democratic-CSI targets `10.10.10.20`. | **Resolved:** Permanent IP is `10.10.10.20` (as ratified by `network.yaml` rule `truenas-discrepancy`). |
-| **DISC-05** | **Desktop Workstation Dual Boot** | `network_client_map.md` listed `10.10.10.239` as `pop-os.mgmt.plexplease.com`. | Same physical NIC MAC (`04:42:1A:E9:D1:B3`) has two IPs: `10.10.10.239` when booted to Pop!_OS, and `10.10.10.53` (`bench-01`) when booted to Ubuntu 24.04. | **Resolved:** Currently booted to Ubuntu 24.04 (`10.10.10.53`) running vLLM XPU on dual Intel Arc Pro B65 GPUs. |
-| **DISC-06** | **NVIDIA Device Identity** | Labeled as generic "NVIDIA Node" at `10.10.10.60`. | TLS handshake on port 8443 returned subject `CN=NVidia darcy Cast ICA`. "darcy" is the hardware codename for NVIDIA SHIELD TV. | **Resolved:** Identified as NVIDIA SHIELD TV 4K streaming client. |
-| **DISC-07** | **Unknown IoT Devices (.130, .134, .135)** | Labeled as "Unknown Vendor" in ARP table. | IEEE OUI `5C:E7:53` belongs to Shenzhen Intellirocks Tech. Co. Ltd. (manufacturer of Govee smart appliances). | **Resolved:** Identified as Govee smart LED light strips / environmental sensors. |
-| **DISC-08** | **PeaNUT Ingress Outage (502)** | DNS defines `nut-ups-01` at `10.10.10.139`. Ingress returned 502 Bad Gateway. | VM `vm-11001` (`nut-ups`) on ESXi-01 is `poweredOff`. IP `10.10.10.139` is unreachable. | **Resolved:** Outage root cause verified as powered-off VM `vm-11001`. |
-| **DISC-09** | **Core Switch Ingress IP** | k3s Ingress points to `10.10.10.4:80`. | Switch responds on `10.10.10.146` (eth0 OOB) and `10.10.10.61` (in-band Ethernet0). `10.10.10.4` does not answer. | **Recorded discrepancy:** k3s EndpointSlice requires update to `10.10.10.146`. |
+| **DISC-01** | **Subnet / VLAN Segmentation Drift** | `VLAN.md` & `network.yaml` specify 8 separate VLANs (10=MGMT, 20=SERVERS, 30=CLIENTS, 40=IOT, etc.). Technitium has disabled scopes shifted by +10. | pfSense has only vmx0 (`10.10.10.1/24`) with no VLAN sub-interfaces. All 61 physical & virtual nodes reside on `10.10.10.0/24` flat network. Dell Switch N3224T has isolated Vlan100 (`10.10.20.1/24`) for lab testing. | State recorded truthfully as single active broadcast domain `10.10.10.0/24`. Full VLAN segmentation flagged for future phased rollout. |
+| **DISC-02** | **Dell Latitude 5520 Identity (ESXi Host vs. Talos Linux Node)** | vCenter contains disconnected host-9074 (`10.10.10.102`, Dell Latitude 5520, Service Tag 9SHLP93). `network_client_map.md` labeled `10.10.10.144` as 'Dell Appliance / Firewall'. | Talos node talos-fty-fw0 at `10.10.10.144` has DMI UUID 4c4c4544-0053-4810-804c-b9c04f503933 (DELL + 9SHLP93). Address `10.10.10.102` in DHCP is currently leased to an iPhone. | Resolved: The laptop was wiped from ESXi and reinstalled as bare-metal Talos node talos-fty-fw0. Obsolete vCenter record host-9074 marked for removal. |
+| **DISC-03** | **ESXi Host Numbering (esxi-02 vs esxi-03)** | 1Password VM inventory labeled `10.10.10.13` as 'ESXi 2'. | Technitium forward/reverse DNS, TLS certs, and vCenter designate `10.10.10.13` as `esxi-03.mgmt.plexplease.com`. (Former esxi-02 was the laptop at .102). | Resolved: Authoritative hostname for `10.10.10.13` is esxi-03. |
+| **DISC-04** | **TrueNAS VLAN Placement** | Historical `VLAN.md` placed TrueNAS on VLAN 20 (SERVERS_NET, `10.10.20.0/24`). | TrueNAS answers on `10.10.10.20` (MGMT_NET). k3s-01 democratic-csi targets `10.10.10.20`. | Resolved per `network.yaml` rule truenas-discrepancy: TrueNAS is permanently assigned to `10.10.10.20`. |
+| **DISC-05** | **Dual-Boot Benchmark Desktop addressing (`10.10.10.53` vs `10.10.10.239`)** | `network_client_map.md` listed `10.10.10.239` as `pop-os.mgmt.plexplease.com` and `10.10.10.53` as `bench-01.infra.plexplease.com`, as though one machine were two hosts. | Both addresses were dynamic leases to the same NIC, MAC `04:42:1A:E9:D1:B3`: .239 when Pop!_OS had booted, .53 when Ubuntu 24.04 had. Which address answered depended only on which OS was up, so neither address identified the machine. | Resolved 2026-09-13 by a DHCP reservation, not by an observation of which OS was booted. Technitium's MGMT_NET scope now binds MAC `04:42:1A:E9:D1:B3` to `10.10.10.53` with hostname bench-01. One MAC, one address: the machine answers on `10.10.10.53` whichever OS boots, and because the binding lives in DHCP neither OS was reconfigured and neither can drift back. `10.10.10.239` is retired. Both `bench-01.infra.plexplease.com` and `bench-01.mgmt.plexplease.com` resolve to `10.10.10.53`. |
+| **DISC-06** | **NVIDIA Device Classification (`10.10.10.60`)** | `network_client_map.md` listed `10.10.10.60` as 'NVIDIA Node'. 1Password contained an entry for Ollama GPU Node at `10.10.10.55` (offline). | TLS handshake on port 8443 returned subject CN=NVidia darcy Cast ICA. 'darcy' is the hardware codename for NVIDIA SHIELD TV. | Resolved: `10.10.10.60` is an NVIDIA SHIELD TV streaming media client. |
+| **DISC-07** | **Unknown IoT Devices (`10.10.10.130`, .134, .135)** | Listed as 'Unknown Vendor' in network client map. | OUI 5C:E7:53 resolves to Shenzhen Intellirocks Tech. Co. Ltd. (manufacturer of Govee smart home appliances). | Resolved: Devices identified as Govee smart LED light strips / thermometers. |
+| **DISC-08** | **PeaNUT Ingress 502 / Offline UPS Monitor** | `dns_records.csv` and Homarr define nut-ups-01 at `10.10.10.139`. | VM vm-11001 (nut-ups) on ESXi-01 is poweredOff. `10.10.10.139` is 100% packet loss. | Resolved: Outage identified as powered-off VM vm-11001. |
+| **DISC-09** | **Core Switch Ingress Endpoint (`10.10.10.4` vs `10.10.10.146`)** | k3s-01 EndpointSlice dell-switch points to `10.10.10.4`:80. | Dell Switch N3224T responds on `10.10.10.146` (eth0 OOB) and `10.10.10.61` (in-band Ethernet0). `10.10.10.4` does not answer. | Recorded discrepancy: k3s EndpointSlice requires updating to `10.10.10.146`. |
 
 ---
 
@@ -291,7 +290,8 @@ Consolidated directory of all active, statically assigned, and reserved endpoint
 | `10.10.10.50` | `00:50:56:9F:71:25` | `k3s-01.infra.plexplease.com` | Production Kubernetes Node (k3s v1.35.5, FCOS 44) | **Active** |
 | `10.10.10.51` | `00:50:56:2D:55:01` | `k3s-deadman-01.infra.plexplease.com` | Out-of-Cluster Monitoring Deadman Receiver | **Active** |
 | `10.10.10.52` | `00:50:56:9F:A8:B7` | `dev-01.mgmt.plexplease.com` | Dev & AGY Operations Node | **Active** |
-| `10.10.10.53` | `04:42:1A:E9:D1:B3` | `bench-01.infra.plexplease.com` | AI Benchmark Workstation (Ubuntu 24.04, Dual Arc Pro B65) | **Active** |
+| `10.10.10.53` | `04:42:1A:E9:D1:B3` | `bench-01.infra.plexplease.com` | AI Benchmark Workstation (DHCP reservation; answers on this address under either installed OS) | **Active** |
+| ~~`10.10.10.239`~~ | `04:42:1A:E9:D1:B3` | ~~`pop-os.mgmt.plexplease.com`~~ | Retired 2026-09-13 -- Dynamic lease taken whenever Pop!_OS happened to boot. Superseded by the MAC reservation on 10.10.10.53 (see DISC-05). | **Retired** |
 | `10.10.10.60` | `00:04:4B:B1:CE:D1` | `nvidia-shield.mgmt.plexplease.com` | NVIDIA SHIELD TV (darcy / Google Cast / Android TV) | **Active** |
 | `10.10.10.61` | `E8:B2:65:4B:A5:E9` | `sw-core-01-inband.infra.plexplease.com`| Dell PowerSwitch N3224T-ON In-Band Ethernet0 | **Active** |
 | `10.10.10.101` | `DC:03:98:94:07:E6` | `LGwebOSTV.mgmt.plexplease.com` | LG webOS 4K Smart TV | **Active** |
@@ -316,6 +316,5 @@ Consolidated directory of all active, statically assigned, and reserved endpoint
 | `10.10.10.195` | `00:50:56:9F:0C:FB` | `homeassistant.mgmt.plexplease.com` | Home Assistant OS Automation Controller | **Active** |
 | `10.10.10.236` | `3C:31:74:27:C7:25` | `Nest-Thermostat-C725.mgmt.plexplease.com`| Google Nest Learning Thermostat (Zone 1) | **Active** |
 | `10.10.10.237` | `3C:31:74:29:B3:67` | `Nest-Thermostat-B367.mgmt.plexplease.com`| Google Nest Learning Thermostat (Zone 2) | **Active** |
-| `10.10.10.239` | `04:42:1A:E9:D1:B3` | `pop-os.mgmt.plexplease.com` | Custom Desktop PC (Pop!_OS alternate boot) | Dual-boot |
 | `10.10.10.242` | `14:F6:D8:F6:74:5D` | `DESKTOP-DLA0R8I.mgmt.plexplease.com`| Windows 11 Desktop PC | **Active** |
 | `10.10.20.50` | `00:50:56:9F:1D:D3` | `lab-peer-vlan100.mgmt.plexplease.com`| `lab-peer-n3224t` NIC 2 on Switch Vlan100 | **Active** |

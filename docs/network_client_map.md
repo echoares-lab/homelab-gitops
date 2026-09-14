@@ -1,6 +1,6 @@
 # Homelab Network Client & Device Directory
 
-> **Generated:** 2026-09-03 03:32 UTC  
+> **Generated:** 2026-09-13 23:00 UTC  
 > **Data Sources:** pfSense Gateway (`10.10.10.1`), Technitium DNS/DHCP (`10.10.10.2`), vCenter API (`10.10.10.9`), IEEE OUI Database, and Device TLS Handshakes.  
 > **Scope:** 61 Total Discovered Devices across `10.10.10.0/24`.
 
@@ -41,12 +41,12 @@
 
 | IPv4 Address | MAC Address | Hardware Vendor | Hostname / FQDN | Device Classification & Role | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `10.10.10.53` | `04:42:1A:E9:D1:B3` | ASUSTek / Custom PC | `bench-01.infra.plexplease.com` | AI Hardware Benchmark Node (Ubuntu 24.04, i7-13700K 16c/24t, 32GB RAM, Dual Intel Arc Pro B65 GPUs) | Active (8 flows) |
+| `10.10.10.53` | `04:42:1A:E9:D1:B3` | ASUSTek / Custom PC | `bench-01.infra.plexplease.com` | AI Hardware Benchmark & GPU Workstation (Ubuntu 24.04 (Linux 6.17.0-1009-intel #9-Ubuntu SMP PREEMPT_DYNAMIC), 13th Gen Intel(R) Core(TM) i7-13700K (Raptor Lake), 31 GiB DDR4/DDR5); GPUs: Intel Arc Pro B65 (Battlemage BMG-G31, 20 Xe cores) [32 GB], NVIDIA GeForce RTX 4060 Ti 8 GB (AD106) [8 GB GDDR6] [DHCP reservation, MAC-bound] | Active (8 flows) |
 | `10.10.10.102` | `BA:ED:38:D6:F3:67` | Apple Inc. (Private MAC) | `AlexisAwesome8.mgmt.plexplease.com` | Apple iPhone | Active (4 flows) |
 | `10.10.10.111` | `B0:D5:FB:CA:C9:30` | Google | `Matthew-Pixel-10.mgmt.plexplease.com` | Google Pixel 10 Smartphone | Active (136 flows) |
 | `10.10.10.113` | `AE:D3:60:83:48:88` | Google (Private MAC) | `Pixel-10.mgmt.plexplease.com` | Google Pixel 10 Smartphone | Active (26 flows) |
 | `10.10.10.140` | `F4:6D:3F:CF:9C:07` | Intel Corporate | `dcw139ma4574935.mgmt.plexplease.com` | Intel Corporate Laptop / Workstation | Active (2 flows) |
-| `10.10.10.239` | `04:42:1A:E9:D1:B3` | ASUSTek COMPUTER INC | `pop-os.mgmt.plexplease.com` | Dual-Boot Desktop (Pop!_OS partition on i7-13700K / Arc Pro B65 hardware) | Active (10 flows) |
+| `10.10.10.239` | `04:42:1A:E9:D1:B3` | ASUSTek COMPUTER INC | `(retired) pop-os.mgmt.plexplease.com` | RETIRED 2026-09-13 -- this address no longer identifies a host. Dynamic lease taken whenever Pop!_OS happened to boot. Superseded by the MAC reservation on 10.10.10.53 (see DISC-05). Current address: 10.10.10.53 (bench-01). | Retired |
 | `10.10.10.242` | `14:F6:D8:F6:74:5D` | Intel Corporate | `DESKTOP-DLA0R8I.mgmt.plexplease.com` | Windows 11 Desktop PC | Active (36 flows) |
 
 ---
