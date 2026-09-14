@@ -72,17 +72,16 @@ network:
     os: SONiC.202511-n3224t-slim2.0-39ddd324e (Debian 13.6, Linux 6.12.41+deb13-sonic-amd64)
     ports_summary: 24x 10M/100M/1G/2.5G/5G/10G Base-T + 4x 10G/25G SFP28 + 2x 100G QSFP28
     interfaces:
-      eth0_oob:
-        ipv4: 10.10.10.146
+      vlan200_inband:
+        ipv4: 10.10.10.4
         subnet: 10.10.10.0/24
+        description: In-band VLAN200 management SVI — primary reachable address (live 2026-09-14)
+      eth0_oob:
+        ipv4: 10.10.20.2
+        subnet: 10.10.20.0/24
         mac: E8:B2:65:4B:A5:E8
         fqdn: sonic.mgmt.plexplease.com
-        description: Out-of-band management RJ-45 (connected to ProCurve port 12)
-      ethernet0_inband:
-        ipv4: 10.10.10.61
-        subnet: 10.10.10.0/24
-        mac: E8:B2:65:4B:A5:E9
-        description: In-band routed uplink to MGMT_NET (connected to ProCurve port 15)
+        description: Out-of-band management RJ-45 on dedicated OOB subnet (live 2026-09-14; formerly misrecorded as 10.10.10.146 on MGMT_NET)
       vlan100_lab:
         ipv4: 10.10.20.1
         subnet: 10.10.20.0/24
@@ -105,11 +104,13 @@ network:
   - name: procurve-j9028b
     model: HP ProCurve 1800-24G (J9028B)
     vendor: HP ProCurve / HPN Supply Chain
-    ipv4: 10.10.10.131
+    ipv4: 10.10.10.15
+    ipv4_note: DHCP lease as of 2026-09-14 scan (formerly .131). MAC 00:1F:28:D3:66:80 — a static DHCP reservation is needed to stabilise this address.
     mac: 00:1F:28:D3:66:80
     fqdn: procurve-j9028b.mgmt.plexplease.com
     ports: 24x Gigabit RJ-45
     status: ONLINE
+
   access_points:
   - name: ap-01
     model: EnGenius EWS377-FIT
@@ -198,19 +199,20 @@ physical_servers:
   - dev-01.mgmt.plexplease.com (vm-7036)
   - k3s-01 (vm-9073)
   - TRUENAS.PLEXPLEASE.COM (vm-7027)
-  - HOMELAB (vm-7030)
+  - HOMELAB (vm-7030, poweredOff)
   - sonic-build-01 (vm-12002)
   - dns-01.mgmt.plexplease.com (vm-7035)
   - vCenter-01 (vm-7031)
   - home-assistant (vm-7034)
   - lab-peer-n3224t (vm-13002)
   - vCLS-826b8000 (vm-7041)
-  - bench-lab-01 (vm-12001, poweredOff)
-  - nut-ups (vm-11001, poweredOff)
+  - bench-lab-01 (vm-12001, poweredOn, 10.10.10.125)
+  - nut-ups (vm-11001, poweredOn, 10.10.10.139)
   - photon-test-base (poweredOff)
-  - epc.infra.plexplease.com (vm-9044, poweredOff)
   - ubuntu-24.04-lts-golden (vm-9028, poweredOff)
-  - photon-mcp (vm-7796, poweredOff)
+  - photon-mcp (vm-7796, poweredOn, 10.10.10.3)
+  - isp-sim-01 (vm-14004, poweredOn, 10.10.10.104)
+
   status: ONLINE
 - id: srv-02
   role: Edge Appliance ESXi Hypervisor
@@ -343,6 +345,25 @@ physical_servers:
     on GPU 03:00.0
   verified: 2026-09-13, first-party on the host itself
   status: ONLINE
+- id: srv-05
+  role: Proxmox VE Hypervisor
+  name: pm-01
+  fqdn: pm-01.mgmt.plexplease.com
+  mgmt_ipv4: 10.10.10.14
+  hardware:
+    cpu: AMD Ryzen 7 2700X Eight-Core Processor (16 Threads)
+    ram_installed: 32 GiB DDR4
+  hypervisor:
+    engine: Proxmox VE
+    version: 9.2.2
+    kernel: 7.0.2-6-pve
+  hosted_vms:
+  - vault-01 (qemu-140, poweredOn, 10.10.10.40)
+  - edge-01 (qemu-141, poweredOn, 10.10.10.41)
+  - alpine-3.24-cloudinit (qemu-9000, poweredOff)
+  discovered: '2026-09-14'
+  evidence: Live scan via Proxmox API — proxmox_node_info + qemu list
+  status: ONLINE
 storage:
   appliance:
     name: TRUENAS
@@ -453,13 +474,15 @@ virtual_machines:
 - name: HOMELAB
   vm_id: vm-7030
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOn
+  power_state: poweredOff
   vcpus: 16
   ram_mb: 32768
   primary_ipv4: 10.10.10.30
   mac: 00:0C:29:C8:A8:14
   os: Ubuntu Linux (Linux 7.0.0-30-generic)
   role: Legacy Docker Compose application host (30 running containers)
+  observed_off: '2026-09-14'
+
 - name: sonic-build-01
   vm_id: vm-12002
   host: 10.10.10.11 (ESXi-01)
@@ -548,12 +571,13 @@ virtual_machines:
 - name: nut-ups
   vm_id: vm-11001
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOff
+  power_state: poweredOn
   vcpus: 1
   ram_mb: 1024
   mac: 00:50:56:9F:AD:6C
-  target_ipv4: 10.10.10.139
-  role: PeaNUT / Network UPS Tools monitor (Currently OFFLINE)
+  ipv4: 10.10.10.139
+  role: PeaNUT / Network UPS Tools monitor
+
 - name: OPNsense
   vm_id: vm-7009
   host: 10.10.10.13 (ESXi-03)
@@ -565,15 +589,18 @@ virtual_machines:
 - name: bench-lab-01
   vm_id: vm-12001
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOff
+  power_state: poweredOn
+  ipv4: 10.10.10.125
   vcpus: 32
   ram_mb: 24576
   mac: 00:50:56:9F:34:69
-  role: Virtual benchmarking worker (poweredOff)
+  role: Virtual benchmarking worker
 - name: epc.infra.plexplease.com
   vm_id: vm-9044
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOff
+  power_state: tombstoned
+  tombstoned: '2026-09-14'
+  tombstone_reason: VM removed from vCenter/hypervisor. Superseded by Docker on dev-01.
   vcpus: 4
   ram_mb: 8192
   mac: 00:50:56:9F:63:BB
@@ -581,7 +608,8 @@ virtual_machines:
 - name: photon-mcp
   vm_id: vm-7796
   host: 10.10.10.11 (ESXi-01)
-  power_state: poweredOff
+  power_state: poweredOn
+  ipv4: 10.10.10.3
   vcpus: 16
   ram_mb: 8192
   mac: 00:50:56:9F:1F:52
@@ -601,6 +629,41 @@ virtual_machines:
   ram_mb: 4096
   mac: 00:50:56:9F:ED:D9
   role: Test VM
+- name: isp-sim-01
+  vm_id: vm-14004
+  host: 10.10.10.11 (ESXi-01)
+  hypervisor: vCenter / ESXi
+  power_state: poweredOn
+  ipv4: 10.10.10.104
+  role: ISP simulator VM
+  discovered: '2026-09-14'
+  evidence: Live scan via vCenter API — vcenter_vm_list
+- name: vault-01
+  vm_id: qemu-140
+  host: 10.10.10.14 (pm-01 / Proxmox)
+  hypervisor: Proxmox VE (pm-01)
+  power_state: poweredOn
+  ipv4: 10.10.10.40
+  role: OpenBao / HashiCorp Vault secrets backend
+  discovered: '2026-09-14'
+  evidence: Live scan via Proxmox API — qemu list on pm-01
+- name: edge-01
+  vm_id: qemu-141
+  host: 10.10.10.14 (pm-01 / Proxmox)
+  hypervisor: Proxmox VE (pm-01)
+  power_state: poweredOn
+  ipv4: 10.10.10.41
+  role: Edge services VM (pm-01)
+  discovered: '2026-09-14'
+  evidence: Live scan via Proxmox API — qemu list on pm-01
+- name: alpine-3.24-cloudinit
+  vm_id: qemu-9000
+  host: 10.10.10.14 (pm-01 / Proxmox)
+  hypervisor: Proxmox VE (pm-01)
+  power_state: poweredOff
+  role: Alpine Linux 3.24 cloud-init template
+  discovered: '2026-09-14'
+  evidence: Live scan via Proxmox API — qemu list on pm-01
 kubernetes_clusters:
 - name: k3s-01
   role: Production Platform Cluster
