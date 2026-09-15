@@ -36,3 +36,6 @@ dhcp_lease,k3s-deadman-01,10.10.10.0,,10.10.10.51,,00:50:56:2d:55:01,,,,,,Indepe
 record,k3s-deadman-01,infra.plexplease.com,A,10.10.10.51,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
 record,51.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,k3s-deadman-01.infra.plexplease.com,900,,,,,,,,Independent k3s monitoring dead-man on ESXi-03,,
 record,openbao.plexplease.com,plexplease.com,A,10.10.10.40,300,,,,,,,DEPRECATED apex - OpenBao moved to vault-01 (10.10.10.40); superseded by openbao.infra.plexplease.com. Repointed .30->.40 on 2026-09-11 to keep mid-migration clients working; the .30 host was destroyed 2026-09-13. REMOVE after VAULT_ADDR/BAO_ADDR clients cut over. Violates Network-Policy 4 (apex) - transitional only.,,
+record,pm-01,infra.plexplease.com,A,10.10.10.14,3600,,,,,,,Proxmox VE 9.2 bare-metal host (static IP via auto-install answer file),,
+record,14.10.10.10.in-addr.arpa,10.10.10.in-addr.arpa,PTR,pm-01.infra.plexplease.com,3600,,,,,,,Proxmox VE 9.2 bare-metal host,,
+dhcp_lease,pm-01,10.10.10.0,,10.10.10.14,,04:d4:c4:4d:b9:cb,,,,,,Proxmox VE 9.2 bare-metal host (enp4s0; reservation created in Technitium MGMT_NET 2026-09-09),,
